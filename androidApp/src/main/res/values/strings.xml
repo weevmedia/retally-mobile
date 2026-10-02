@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  User-facing copy. Keys match StringAssetIdentifiers.kt and iosApp/ReTally/Resources/en.lproj/Localizable.strings.
+  Edit all three together.
+-->
+<resources>
+
+    <!-- Navigation labels (nav_graph.xml) -->
+    <string name="nav_splash">Splash</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_receipts">Receipts</string>
+    <string name="nav_ai_list">AI List</string>
+    <string name="nav_settings">Settings</string>
+    <string name="nav_scan_review">Review receipt</string>
+    <string name="nav_duplicates">Duplicates found</string>
+    <string name="nav_onboarding">Onboarding</string>
+
+    <!-- General -->
+    <string name="app_name">ReTally</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_remove">Remove</string>
+    <string name="action_close">Close</string>
+    <string name="action_back">Back</string>
+    <string name="action_keep_both">Keep both</string>
+    <string name="action_remove_one">Remove one</string>
+    <string name="general_coming_soon">Coming soon</string>
+    <string name="general_advertisement">Advertisement</string>
+    <string name="badge_duplicate">Duplicate</string>
+    <string name="badge_synced_to_cloud">Synced to cloud</string>
+
+    <!-- Splash -->
+    <string name="splash_tagline">SCAN  ·  TRACK  ·  SAVE</string>
+
+    <!-- Tabs -->
+    <string name="tab_home">Home</string>
+    <string name="tab_receipts">Receipts</string>
+    <string name="tab_scan">Scan</string>
+    <string name="tab_ai_list">AI List</string>
+    <string name="tab_more">More</string>
+    <string name="tab_scan_receipt_a11y">Scan receipt</string>
+
+    <!-- Placeholders -->
+    <string name="placeholder_receipts_body">Every receipt you scan will be listed here — searchable by store, date and item.</string>
+    <string name="placeholder_ai_list_body">ReTally will learn what you buy and how often, and draft your next grocery list for you.</string>
+    <string name="placeholder_more_body">Settings, account, export and help will live here.</string>
+
+    <!-- Home -->
+    <string name="home_greeting_morning">Good morning, %1$s</string>
+    <string name="home_greeting_afternoon">Good afternoon, %1$s</string>
+    <string name="home_greeting_evening">Good evening, %1$s</string>
+    <string name="home_guest_name">Guest</string>
+    <string name="home_guest_title">You are browsing as a guest</string>
+    <string name="home_guest_body">Receipts stay on this device only.</string>
+    <string name="home_guest_sign_in">Sign in to enable cloud sync</string>
+    <string name="home_empty_title">No receipts yet</string>
+    <string name="home_empty_body">Scan a receipt and ReTally flags anything the cashier rang up twice.</string>
+    <string name="home_empty_scan">Scan receipt</string>
+    <string name="home_empty_how_it_works">See how it works</string>
+    <string name="home_notifications_a11y">Notifications</string>
+    <string name="home_summary_caught">Caught so far</string>
+    <string name="home_summary_all_clear">All clear</string>
+    <string name="home_summary_receipts_one">%1$d receipt checked</string>
+    <string name="home_summary_receipts_many">%1$d receipts checked</string>
+    <string name="home_summary_duplicates_one">%1$d duplicate</string>
+    <string name="home_summary_duplicates_many">%1$d duplicates</string>
+    <string name="home_duplicates_found">Duplicates found</string>
+    <string name="home_duplicates_on_receipt">%1$d on a receipt</string>
+    <string name="home_duplicates_across">%1$d across receipts</string>
+    <string name="home_delete_title">Delete receipt?</string>
+    <string name="home_delete_body">%1$s from %2$s will be removed from this device.</string>
+    <string name="home_msg_no_text">Couldn\'t read any text. Try again with more light and the whole receipt in frame.</string>
+    <string name="home_msg_how_it_works">Scan a receipt → ReTally reads every line → identical items at the same price are flagged as double charges.</string>
+    <string name="home_msg_notifications_soon">Notifications are coming soon.</string>
+    <string name="home_msg_sample_added">Sample receipt added</string>
+    <string name="home_msg_deleted">Deleted %1$s</string>
+    <string name="home_msg_sign_in_soon">Sign in is coming soon — your receipts are safe on this device.</string>
+    <string name="home_ai_insight_due">You buy %1$s every %2$d days — </string>
+    <string name="home_ai_insight_low">you are likely running low.</string>
+    <string name="home_ai_insight_learning">Still learning your habits — your first repurchase nudge will appear here.</string>
+    <string name="home_nudge_running_low_title">Running low</string>
+    <string name="home_nudge_running_low_body">You buy %1$s every %2$d days — you\'re likely running low.</string>
+    <string name="home_nudge_price_spike_title">Price spike</string>
+    <string name="home_nudge_price_spike_body">%1$s cost %2$s, vs your usual %3$s.</string>
+    <string name="home_nudge_grocery_overdue_title">Grocery run overdue</string>
+    <string name="home_nudge_grocery_overdue_body">%1$d days since your last shop — you usually go every %2$d.</string>
+    <string name="home_nudge_double_bought_title">Bought twice?</string>
+    <string name="home_nudge_double_bought_body">%1$s showed up on %2$d receipts this week — check the pantry first.</string>
+    <string name="home_nudge_savings_title">Spending check</string>
+    <string name="home_nudge_savings_body">%1$s so far this month, vs %2$s in a typical month.</string>
+
+    <!-- Scan -->
+    <string name="scan_source_title">Add receipt</string>
+    <string name="scan_source_camera">Scan receipt</string>
+    <string name="scan_source_gallery">Upload from gallery</string>
+
+    <!-- Receipt -->
+    <string name="receipt_title">Receipt</string>
+    <string name="receipt_saving">Saving…</string>
+    <string name="receipt_saved">Saved</string>
+    <string name="receipt_no_items_title">No items found</string>
+    <string name="receipt_no_items_body">We couldn\'t read any priced lines on that receipt. Try again with the receipt flat and well lit.</string>
+    <string name="receipt_back_to_receipts">Back to receipts</string>
+    <string name="receipt_items_header">Items · %1$d</string>
+    <string name="receipt_open_in_maps_a11y">Open in Maps</string>
+    <string name="receipt_no_double_charges">No double charges found</string>
+    <string name="receipt_every_line_once">Every line on this receipt was charged once.</string>
+    <string name="receipt_double_charge_one">1 double charge · %1$s</string>
+    <string name="receipt_double_charge_many">%1$d double charges · %2$s</string>
+    <string name="receipt_show_customer_service">Show this to customer service to claim %1$s back.</string>
+    <string name="receipt_item_number">Item #%1$s</string>
+    <string name="receipt_kept_bought_twice">Kept — bought twice</string>
+    <string name="receipt_same_item_twice">Same item scanned twice</string>
+    <string name="receipt_subtotal">Subtotal</string>
+    <string name="receipt_tax">Tax</string>
+    <string name="receipt_total">Total</string>
+    <string name="receipt_should_have_been">Should have been</string>
+    <string name="receipt_paid_with">Paid with</string>
+    <string name="receipt_barcode_hint">Tap to enlarge for the store scanner</string>
+    <string name="receipt_remove_one_title">Remove one %1$s?</string>
+    <string name="receipt_remove_one_body">This deletes one %1$s line from the saved receipt. The printed total stays as scanned.</string>
+    <string name="receipt_msg_kept_both">Kept both — not counted as a double charge.</string>
+    <string name="receipt_msg_removed_one">Removed one %1$s.</string>
+    <string name="receipt_msg_save_failed">Couldn\'t save the receipt (%1$s).</string>
+    <string name="receipt_favorite_a11y">Favorite this store</string>
+    <string name="receipt_unfavorite_a11y">Remove this store from favorites</string>
+
+    <!-- Barcode -->
+    <string name="barcode_show_to_service">Show this to customer service to pull up your receipt</string>
+    <string name="barcode_tap_to_close">Tap anywhere to close</string>
+
+    <!-- Photo -->
+    <string name="photo_original_a11y">Original receipt photo</string>
+    <string name="photo_original">Original receipt</string>
+    <string name="photo_tap_to_view">Tap to view the photo</string>
+    <string name="photo_receipt_a11y">Receipt photo</string>
+    <string name="photo_missing">The photo is no longer on this device.</string>
+
+    <!-- Duplicates -->
+    <string name="duplicates_title">Duplicates found</string>
+    <string name="duplicates_empty_title">No duplicates</string>
+    <string name="duplicates_empty_body">Nothing repeated on or across your receipts. We\'ll flag it here if that changes.</string>
+    <string name="duplicates_across_header">Across receipts · %1$d</string>
+    <string name="duplicates_on_receipt_header">On a receipt · %1$d</string>
+    <string name="duplicates_bought_times">Bought %1$d times in %2$d days</string>
+    <string name="duplicates_double_charges_one">1 double charge</string>
+    <string name="duplicates_double_charges_many">%1$d double charges</string>
+    <string name="duplicates_remove_one_body">This deletes the %1$s line at %2$s (%3$s). The earlier purchase stays.</string>
+    <string name="duplicates_msg_kept_both">Kept both — %1$s won\'t be flagged again.</string>
+    <string name="duplicates_msg_removed">Removed %1$s from %2$s.</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_scanning">Scanning</string>
+    <string name="settings_highlight_duplicates">Highlight duplicates</string>
+    <string name="settings_highlight_duplicates_sub">Flag identical items on the same receipt</string>
+    <string name="settings_haptics">Haptics</string>
+    <string name="settings_haptics_sub">Vibrate when a duplicate is found</string>
+    <string name="settings_section_cloud">Cloud backup</string>
+    <string name="settings_backup">Back up receipts</string>
+    <string name="settings_backup_sub_on">Encrypted copy of your receipts in the cloud</string>
+    <string name="settings_backup_sub_off">Available in an upcoming release</string>
+    <string name="settings_backing_up">Backing up…</string>
+    <string name="settings_everything_backed_up">Everything is backed up</string>
+    <string name="settings_pending_one">1 receipt waiting to back up</string>
+    <string name="settings_pending_many">%1$d receipts waiting to back up</string>
+    <string name="settings_last_backup">Last backup %1$s</string>
+    <string name="settings_back_up_now">Back up now</string>
+    <string name="settings_section_data">Data</string>
+    <string name="settings_delete_all">Delete all receipts</string>
+    <string name="settings_delete_all_title">Delete all receipts?</string>
+    <string name="settings_delete_all_body">This removes every receipt from this device. Backed-up copies in the cloud are not affected.</string>
+    <string name="settings_delete_all_confirm">Delete all</string>
+    <string name="settings_section_about">About</string>
+    <string name="settings_privacy">Privacy policy</string>
+    <string name="settings_terms">Terms of use</string>
+    <string name="settings_help">Help &amp; support</string>
+    <string name="settings_version">ReTally %1$s</string>
+    <string name="settings_msg_turn_on_backup">Turn on cloud backup first.</string>
+    <string name="settings_msg_already_backed_up">Everything is already backed up.</string>
+    <string name="settings_msg_backed_up_one">Backed up 1 receipt.</string>
+    <string name="settings_msg_backed_up_many">Backed up %1$d receipts.</string>
+    <string name="settings_msg_all_deleted">All receipts deleted</string>
+
+    <!-- More menu -->
+    <string name="more_title">More</string>
+    <string name="more_section_account">ACCOUNT</string>
+    <string name="more_section_settings">SETTINGS</string>
+    <string name="more_section_legal">LEGAL</string>
+    <string name="more_section_data">DATA</string>
+    <string name="more_account_settings">Account settings</string>
+    <string name="more_account_guest_sub">Guest account</string>
+    <string name="more_favorite_stores">FAVORITE STORES</string>
+    <string name="more_edit">EDIT</string>
+    <string name="more_favorites_empty">Tap EDIT to add your favorite stores.</string>
+    <string name="more_add_favorites_title">Add favorite stores</string>
+    <string name="more_sign_out">SIGN OUT</string>
+    <string name="more_delete_account">DELETE MY ACCOUNT</string>
+    <string name="more_log_in">LOG IN</string>
+    <string name="more_account_title">Account</string>
+    <string name="more_account_login">Log in / Sign up</string>
+    <string name="more_account_login_sub">Sync receipts across devices</string>
+    <string name="more_account_guest_body">You\'re browsing as a guest. Log in to back up receipts and sync them across devices.</string>
+    <string name="more_account_logout">Log out</string>
+    <string name="more_account_logout_title">Log out?</string>
+    <string name="more_account_logout_body">You\'ll be logged out on this device. Your receipts stay saved here.</string>
+    <string name="more_account_delete">Delete my account</string>
+    <string name="more_account_delete_title">Delete account?</string>
+    <string name="more_account_delete_body">This permanently deletes your account, receipts and favorites. This can\'t be undone.</string>
+    <string name="more_account_deleted">Account deleted</string>
+    <string name="more_account_delete_failed">Couldn\'t delete the account — please try again.</string>
+    <string name="more_logged_out">Logged out</string>
+    <string name="more_logged_out_failed">Couldn\'t log out — please try again.</string>
+    <string name="more_favorite_added">%1$s added to favorites</string>
+    <string name="more_favorite_removed">%1$s removed from favorites</string>
+    <string name="more_done">DONE</string>
+    <string name="more_no_stores_yet">No stores yet — scan a receipt first.</string>
+    <string name="more_search_stores">Search stores</string>
+    <string name="more_save">Save</string>
+    <string name="more_no_stores_match">No stores match your search.</string>
+    <string name="more_favorites_saved">Favorites updated</string>
+    <string name="more_copyright">© 2026 Weev Media. All rights reserved.</string>
+
+    <!-- Platform hosts -->
+    <string name="host_link_open_failed">Couldn\'t open that link.</string>
+    <string name="host_scanner_unavailable">Scanner isn\'t available on this device yet. %1$s</string>
+    <string name="host_scan_read_failed">Couldn\'t read the receipt. Please try again.</string>
+    <string name="host_scan_unsupported">Document scanning isn\'t available on this device.</string>
+    <string name="host_image_invalid">The captured image could not be processed.</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_page1_title">Scan. Track. Save.</string>
+    <string name="onboarding_page1_body">Snap your store receipts — ReTally spots duplicate items and builds your AI grocery list.</string>
+    <string name="onboarding_page2_title">Track.</string>
+    <string name="onboarding_page2_body">ReTally spots duplicate items across your receipts and totals what they cost you.</string>
+    <string name="onboarding_page3_title">Save.</string>
+    <string name="onboarding_page3_body">Your AI grocery list builds itself from what you actually buy.</string>
+    <string name="onboarding_get_started">Get Started</string>
+    <string name="onboarding_have_account">I already have an account</string>
+    <string name="onboarding_have_account_prefix">Already have an account? </string>
+    <string name="onboarding_sign_in">Sign In</string>
+
+    <!-- Nearby store alerts -->
+    <string name="settings_section_notifications">Notifications</string>
+    <string name="settings_nearby_title">Notify me near stores</string>
+    <string name="settings_nearby_sub">Get a reminder when you\'re near a store you\'ve shopped at</string>
+    <string name="settings_msg_nearby_denied">Location permission is needed for nearby-store reminders.</string>
+    <string name="nearby_notify_title">You\'re near %1$s</string>
+    <string name="nearby_notify_body">Open ReTally to check your list before you shop.</string>
+
+    <!-- Auth -->
+    <string name="auth_title">Welcome to ReTally</string>
+    <string name="auth_subtitle">Sign in to get cloud backup, smarter AI lists, and duplicate insights across all your devices.</string>
+    <string name="auth_name_title">What should we call you?</string>
+    <string name="auth_name_subtitle">We will send a verification code to your email next.</string>
+    <string name="auth_first_name">First Name</string>
+    <string name="auth_first_name_hint">Enter first name</string>
+    <string name="auth_last_name">Last Name</string>
+    <string name="auth_last_name_hint">Enter last name</string>
+    <string name="auth_email">Email</string>
+    <string name="auth_email_hint">Email address</string>
+    <string name="auth_continue">Continue</string>
+    <string name="auth_or_continue_with">or continue with</string>
+    <string name="auth_or">or</string>
+    <string name="auth_apple">Continue with Apple</string>
+    <string name="auth_google">Continue with Google</string>
+    <string name="auth_guest">Continue as Guest</string>
+    <string name="auth_guest_caption">Limited features, stays on this device</string>
+    <string name="auth_legal_prefix">By tapping Continue, you agree to our </string>
+    <string name="auth_legal_terms">Terms &amp; Conditions</string>
+    <string name="auth_legal_and"> and </string>
+    <string name="auth_legal_privacy">Privacy Policy.</string>
+    <string name="auth_error_email">Enter a valid email address</string>
+    <string name="auth_error_required">Please enter your name and a valid email address</string>
+    <string name="auth_error_guest">Couldn\'t continue as a guest. Check your connection and try again.</string>
+    <string name="auth_error_lookup">Couldn\'t send the code. Check your connection and try again.</string>
+    <string name="auth_welcome_back">Welcome back</string>
+    <string name="auth_welcome_back_name">Welcome back, %1$s</string>
+    <string name="auth_use_different_email">Use a different email</string>
+    <string name="auth_welcome_back_noname">We don\'t have a name for this account yet — what should we call you?</string>
+
+    <!-- OTP -->
+    <string name="otp_title">Check your email</string>
+    <string name="otp_subtitle">We sent a 6-digit code to %1$s</string>
+    <string name="otp_verify">Verify</string>
+    <string name="otp_resend_prompt">Didn\'t get the code?</string>
+    <string name="otp_resend">Resend</string>
+    <string name="otp_resend_wait">Resend in %1$s</string>
+    <string name="otp_error_mismatch">That code didn\'t match — try again.</string>
+    <string name="otp_error_send">Couldn\'t send the code. Check your connection and try again.</string>
+    <string name="otp_error_verify">Couldn\'t verify the code. Check your connection and try again.</string>
+    <string name="otp_error_expired">That code expired — tap Resend for a new one.</string>
+    <string name="otp_error_rate_limited">Too many attempts — wait a bit and try again.</string>
+    <string name="otp_accessibility">6-digit verification code</string>
+    <string name="nav_auth">Sign in</string>
+    <string name="nav_otp">Enter code</string>
+</resources>

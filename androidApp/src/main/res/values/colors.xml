@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="brand_mint">#FF10B981</color>
+    <color name="brand_mint_container">#FFD1FAE5</color>
+    <color name="brand_mint_container_dark">#FF0E5A47</color>
+    <color name="brand_ink">#FF111827</color>
+    <color name="brand_ink_muted">#FF6B7280</color>
+    <color name="brand_paper">#FFF6F8F7</color>
+    <color name="brand_paper_muted">#FF9CA3AF</color>
+    <color name="brand_surface">#FFFFFFFF</color>
+    <color name="brand_night">#FF0B1513</color>
+    <color name="brand_surface_dark">#FF15221F</color>
+    <color name="brand_splash_light">#FF10B981</color>
+    <color name="brand_splash_dark">#FF0F2E29</color>
+    <color name="ic_launcher_background">#FF10BA7A</color>
+</resources>

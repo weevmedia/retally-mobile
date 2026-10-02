@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Permissions required by code that lives in this library module (the AdMob banner in
+  ui/components/AdBanner.android.kt). Declaring them here keeps Lint's MissingPermission
+  check satisfied per-module; they merge into the app manifest, which declares them too.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+</manifest>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      App theme for the AppCompat activity + Material BottomNavigationView. Screen content is
+      Compose (ReTallyTheme); these attributes style the window and the native bottom bar so
+      they match the Compose palette (see shared/.../ui/theme/Theme.kt).
+    -->
+    <style name="Theme.ReTally" parent="Theme.Material3.Light.NoActionBar">
+        <item name="android:windowBackground">@color/brand_paper</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="colorPrimary">@color/brand_mint</item>
+        <item name="colorPrimaryContainer">@color/brand_mint_container</item>
+        <item name="colorOnPrimaryContainer">@color/brand_ink</item>
+        <item name="colorSurface">@color/brand_surface</item>
+        <item name="colorOnSurface">@color/brand_ink</item>
+        <item name="colorOnSurfaceVariant">@color/brand_ink_muted</item>
+        <item name="bottomNavigationStyle">@style/Widget.ReTally.BottomNav</item>
+    </style>
+
+    <style name="Widget.ReTally.BottomNav" parent="Widget.Material3.BottomNavigationView">
+        <item name="itemIconTint">@color/bottom_nav_item</item>
+        <item name="itemTextColor">@color/bottom_nav_item</item>
+        <item name="itemRippleColor">@color/brand_mint_container</item>
+    </style>
+
+    <style name="Widget.ReTally.BottomNav.Indicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+        <item name="android:color">@color/brand_mint_container</item>
+    </style>
+
+    <!-- System splash (androidx.core:core-splashscreen). Brand mint with the launcher icon. -->
+    <style name="Theme.ReTally.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/brand_splash_light</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
+        <item name="windowSplashScreenAnimationDuration">300</item>
+        <item name="postSplashScreenTheme">@style/Theme.ReTally</item>
+    </style>
+</resources>

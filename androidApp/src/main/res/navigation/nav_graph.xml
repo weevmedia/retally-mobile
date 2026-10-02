@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Screen routing for Android. One <fragment> per screen; every fragment extends
+  BaseComposeFragment and renders a shared stateless composable.
+
+  Adding a screen: declare it here, give it an id, add <action>s from the screens that reach
+  it, and (for detail screens) declare <argument>s — Safe Args generates the typed
+  `*Directions` / `*Args` classes.
+-->
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/splashFragment">
+
+    <fragment
+        android:id="@+id/splashFragment"
+        android:name="com.retally.app.ui.splash.SplashFragment"
+        android:label="@string/nav_splash"
+        tools:layout="@layout/activity_main">
+        <action
+            android:id="@+id/action_splash_to_home"
+            app:destination="@id/homeFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out"
+            app:popUpTo="@id/splashFragment"
+            app:popUpToInclusive="true" />
+        <action
+            android:id="@+id/action_splash_to_onboarding"
+            app:destination="@id/onboardingFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out"
+            app:popUpTo="@id/splashFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <!-- First launch only: value-prop pager between splash and sign-in. -->
+    <fragment
+        android:id="@+id/onboardingFragment"
+        android:name="com.retally.app.ui.onboarding.OnboardingFragment"
+        android:label="@string/nav_onboarding">
+        <action
+            android:id="@+id/action_onboarding_to_auth"
+            app:destination="@id/authFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out"
+            app:popUpTo="@id/onboardingFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <!-- First launch only: sign-in between onboarding and Home. -->
+    <fragment
+        android:id="@+id/authFragment"
+        android:name="com.retally.app.ui.auth.AuthFragment"
+        android:label="@string/nav_auth">
+        <action
+            android:id="@+id/action_auth_to_otp"
+            app:destination="@id/otpFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out" />
+        <action
+            android:id="@+id/action_auth_to_home"
+            app:destination="@id/homeFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out"
+            app:popUpTo="@id/authFragment"
+            app:popUpToInclusive="true" />
+        <action
+            android:id="@+id/action_auth_to_onboarding"
+            app:destination="@id/onboardingFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out"
+            app:popUpTo="@id/authFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <!-- First launch only: 6-digit email code entry between sign-in and Home.
+         Auth stays on the back stack so Back returns to fix the email. -->
+    <fragment
+        android:id="@+id/otpFragment"
+        android:name="com.retally.app.ui.auth.OtpFragment"
+        android:label="@string/nav_otp">
+        <argument
+            android:name="email"
+            app:argType="string" />
+        <argument
+            android:name="displayName"
+            app:argType="string" />
+        <argument
+            android:name="isNewUser"
+            app:argType="boolean"
+            android:defaultValue="false" />
+        <argument
+            android:name="accountFirstName"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="codeAlreadySent"
+            app:argType="boolean"
+            android:defaultValue="false" />
+        <action
+            android:id="@+id/action_otp_to_home"
+            app:destination="@id/homeFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out"
+            app:popUpTo="@id/authFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <!-- Top-level tabs. Ids must match the item ids in res/menu/bottom_nav.xml. -->
+    <fragment
+        android:id="@+id/homeFragment"
+        android:name="com.retally.app.ui.home.HomeFragment"
+        android:label="@string/nav_home">
+        <action
+            android:id="@+id/action_home_to_scanReview"
+            app:destination="@id/scanReviewFragment"
+            app:enterAnim="@anim/nav_default_enter_anim"
+            app:exitAnim="@anim/nav_default_exit_anim"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+        <action
+            android:id="@+id/action_home_to_duplicates"
+            app:destination="@id/duplicatesFragment"
+            app:enterAnim="@anim/nav_default_enter_anim"
+            app:exitAnim="@anim/nav_default_exit_anim"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+    </fragment>
+
+    <!-- "Duplicates found": items repeated across receipts + receipts with unresolved double charges. -->
+    <fragment
+        android:id="@+id/duplicatesFragment"
+        android:name="com.retally.app.ui.duplicates.DuplicatesFragment"
+        android:label="@string/nav_duplicates">
+        <action
+            android:id="@+id/action_duplicates_to_scanReview"
+            app:destination="@id/scanReviewFragment"
+            app:enterAnim="@anim/nav_default_enter_anim"
+            app:exitAnim="@anim/nav_default_exit_anim"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+    </fragment>
+
+    <!-- Receipt view (no bottom bar): a fresh scan (auto-saved) or an existing receipt. Exactly
+         one of the two arguments is set. -->
+    <fragment
+        android:id="@+id/scanReviewFragment"
+        android:name="com.retally.app.ui.scan.ScanReviewFragment"
+        android:label="@string/nav_scan_review">
+        <argument
+            android:name="recognizedText"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="receiptId"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="imagePath"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+    </fragment>
+
+    <!-- Receipts tab: the full list, month-filtered and paged. -->
+    <fragment
+        android:id="@+id/receiptsFragment"
+        android:name="com.retally.app.ui.receipts.ReceiptsFragment"
+        android:label="@string/nav_receipts">
+        <action
+            android:id="@+id/action_receipts_to_scanReview"
+            app:destination="@id/scanReviewFragment"
+            app:enterAnim="@anim/nav_default_enter_anim"
+            app:exitAnim="@anim/nav_default_exit_anim"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+    </fragment>
+
+    <!-- Placeholder tabs (shell present, feature pending). -->
+    <fragment
+        android:id="@+id/aiListFragment"
+        android:name="com.retally.app.ui.placeholder.AiListFragment"
+        android:label="@string/nav_ai_list" />
+
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="com.retally.app.ui.settings.SettingsFragment"
+        android:label="@string/nav_settings">
+        <action
+            android:id="@+id/action_settings_to_auth"
+            app:destination="@id/authFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out" />
+    </fragment>
+
+</navigation>

@@ -1,0 +1,511 @@
+/**
+ * ReTally — Apple strings file (English).
+ * Keys match StringAssetIdentifiers.kt and androidApp/src/main/res/values/strings.xml.
+ */
+
+/********** General **********/
+
+"app_name" = "ReTally";
+
+"action_cancel" = "Cancel";
+
+"action_delete" = "Delete";
+
+"action_remove" = "Remove";
+
+"action_close" = "Close";
+
+"action_back" = "Back";
+
+"action_keep_both" = "Keep both";
+
+"action_remove_one" = "Remove one";
+
+"general_coming_soon" = "Coming soon";
+
+"general_advertisement" = "Advertisement";
+
+"badge_duplicate" = "Duplicate";
+
+"badge_synced_to_cloud" = "Synced to cloud";
+
+/********** Splash **********/
+
+"splash_tagline" = "SCAN  ·  TRACK  ·  SAVE";
+
+/********** Tabs **********/
+
+"tab_home" = "Home";
+
+"tab_receipts" = "Receipts";
+
+"tab_scan" = "Scan";
+
+"tab_ai_list" = "AI List";
+
+"tab_more" = "More";
+
+"tab_scan_receipt_a11y" = "Scan receipt";
+
+/********** Placeholders **********/
+
+"placeholder_receipts_body" = "Every receipt you scan will be listed here — searchable by store, date and item.";
+
+"placeholder_ai_list_body" = "ReTally will learn what you buy and how often, and draft your next grocery list for you.";
+
+"placeholder_more_body" = "Settings, account, export and help will live here.";
+
+/********** Home **********/
+
+"home_greeting_morning" = "Good morning, %1$s";
+
+"home_greeting_afternoon" = "Good afternoon, %1$s";
+
+"home_greeting_evening" = "Good evening, %1$s";
+
+"home_guest_name" = "Guest";
+
+"home_guest_title" = "You are browsing as a guest";
+
+"home_guest_body" = "Receipts stay on this device only.";
+
+"home_guest_sign_in" = "Sign in to enable cloud sync";
+
+"home_empty_title" = "No receipts yet";
+
+"home_empty_body" = "Scan a receipt and ReTally flags anything the cashier rang up twice.";
+
+"home_empty_scan" = "Scan receipt";
+
+"home_empty_how_it_works" = "See how it works";
+
+"home_notifications_a11y" = "Notifications";
+
+"home_summary_caught" = "Caught so far";
+
+"home_summary_all_clear" = "All clear";
+
+"home_summary_receipts_one" = "%1$d receipt checked";
+
+"home_summary_receipts_many" = "%1$d receipts checked";
+
+"home_summary_duplicates_one" = "%1$d duplicate";
+
+"home_summary_duplicates_many" = "%1$d duplicates";
+
+"home_duplicates_found" = "Duplicates found";
+
+"home_duplicates_on_receipt" = "%1$d on a receipt";
+
+"home_duplicates_across" = "%1$d across receipts";
+
+"home_delete_title" = "Delete receipt?";
+
+"home_delete_body" = "%1$s from %2$s will be removed from this device.";
+
+"home_msg_no_text" = "Couldn't read any text. Try again with more light and the whole receipt in frame.";
+
+"home_msg_how_it_works" = "Scan a receipt → ReTally reads every line → identical items at the same price are flagged as double charges.";
+
+"home_msg_notifications_soon" = "Notifications are coming soon.";
+
+"home_msg_sample_added" = "Sample receipt added";
+
+"home_msg_deleted" = "Deleted %1$s";
+
+"home_msg_sign_in_soon" = "Sign in is coming soon — your receipts are safe on this device.";
+
+"home_ai_insight_due" = "You buy %1$s every %2$d days — ";
+
+"home_ai_insight_low" = "you are likely running low.";
+
+"home_ai_insight_learning" = "Still learning your habits — your first repurchase nudge will appear here.";
+"home_nudge_running_low_title" = "Running low";
+"home_nudge_running_low_body" = "You buy %1$s every %2$d days — you're likely running low.";
+"home_nudge_price_spike_title" = "Price spike";
+"home_nudge_price_spike_body" = "%1$s cost %2$s, vs your usual %3$s.";
+"home_nudge_grocery_overdue_title" = "Grocery run overdue";
+"home_nudge_grocery_overdue_body" = "%1$d days since your last shop — you usually go every %2$d.";
+"home_nudge_double_bought_title" = "Bought twice?";
+"home_nudge_double_bought_body" = "%1$s showed up on %2$d receipts this week — check the pantry first.";
+"home_nudge_savings_title" = "Spending check";
+"home_nudge_savings_body" = "%1$s so far this month, vs %2$s in a typical month.";
+
+/********** Scan **********/
+
+"scan_source_gallery" = "Upload from gallery";
+
+/********** Receipt **********/
+
+"receipt_title" = "Receipt";
+
+"receipt_saving" = "Saving…";
+
+"receipt_saved" = "Saved";
+
+"receipt_no_items_title" = "No items found";
+
+"receipt_no_items_body" = "We couldn't read any priced lines on that receipt. Try again with the receipt flat and well lit.";
+
+"receipt_back_to_receipts" = "Back to receipts";
+
+"receipt_items_header" = "Items · %1$d";
+
+"receipt_open_in_maps_a11y" = "Open in Maps";
+
+"receipt_no_double_charges" = "No double charges found";
+
+"receipt_every_line_once" = "Every line on this receipt was charged once.";
+
+"receipt_double_charge_one" = "1 double charge · %1$s";
+
+"receipt_double_charge_many" = "%1$d double charges · %2$s";
+
+"receipt_show_customer_service" = "Show this to customer service to claim %1$s back.";
+
+"receipt_item_number" = "Item #%1$s";
+
+"receipt_kept_bought_twice" = "Kept — bought twice";
+
+"receipt_same_item_twice" = "Same item scanned twice";
+
+"receipt_subtotal" = "Subtotal";
+
+"receipt_tax" = "Tax";
+
+"receipt_total" = "Total";
+
+"receipt_should_have_been" = "Should have been";
+
+"receipt_paid_with" = "Paid with";
+
+"receipt_barcode_hint" = "Tap to enlarge for the store scanner";
+
+"receipt_remove_one_title" = "Remove one %1$s?";
+
+"receipt_remove_one_body" = "This deletes one %1$s line from the saved receipt. The printed total stays as scanned.";
+
+"receipt_msg_kept_both" = "Kept both — not counted as a double charge.";
+
+"receipt_msg_removed_one" = "Removed one %1$s.";
+
+"receipt_msg_save_failed" = "Couldn't save the receipt (%1$s).";
+
+"receipt_favorite_a11y" = "Favorite this store";
+
+"receipt_unfavorite_a11y" = "Remove this store from favorites";
+
+/********** Barcode **********/
+
+"barcode_show_to_service" = "Show this to customer service to pull up your receipt";
+
+"barcode_tap_to_close" = "Tap anywhere to close";
+
+/********** Photo **********/
+
+"photo_original_a11y" = "Original receipt photo";
+
+"photo_original" = "Original receipt";
+
+"photo_tap_to_view" = "Tap to view the photo";
+
+"photo_receipt_a11y" = "Receipt photo";
+
+"photo_missing" = "The photo is no longer on this device.";
+
+/********** Duplicates **********/
+
+"duplicates_title" = "Duplicates found";
+
+"duplicates_empty_title" = "No duplicates";
+
+"duplicates_empty_body" = "Nothing repeated on or across your receipts. We'll flag it here if that changes.";
+
+"duplicates_across_header" = "Across receipts · %1$d";
+
+"duplicates_on_receipt_header" = "On a receipt · %1$d";
+
+"duplicates_bought_times" = "Bought %1$d times in %2$d days";
+
+"duplicates_double_charges_one" = "1 double charge";
+
+"duplicates_double_charges_many" = "%1$d double charges";
+
+"duplicates_remove_one_body" = "This deletes the %1$s line at %2$s (%3$s). The earlier purchase stays.";
+
+"duplicates_msg_kept_both" = "Kept both — %1$s won't be flagged again.";
+
+"duplicates_msg_removed" = "Removed %1$s from %2$s.";
+
+/********** Settings **********/
+
+"settings_title" = "Settings";
+
+"settings_section_scanning" = "Scanning";
+
+"settings_highlight_duplicates" = "Highlight duplicates";
+
+"settings_highlight_duplicates_sub" = "Flag identical items on the same receipt";
+
+"settings_haptics" = "Haptics";
+
+"settings_haptics_sub" = "Vibrate when a duplicate is found";
+
+"settings_section_cloud" = "Cloud backup";
+
+"settings_backup" = "Back up receipts";
+
+"settings_backup_sub_on" = "Encrypted copy of your receipts in the cloud";
+
+"settings_backup_sub_off" = "Available in an upcoming release";
+
+"settings_backing_up" = "Backing up…";
+
+"settings_everything_backed_up" = "Everything is backed up";
+
+"settings_pending_one" = "1 receipt waiting to back up";
+
+"settings_pending_many" = "%1$d receipts waiting to back up";
+
+"settings_last_backup" = "Last backup %1$s";
+
+"settings_back_up_now" = "Back up now";
+
+"settings_section_data" = "Data";
+
+"settings_delete_all" = "Delete all receipts";
+
+"settings_delete_all_title" = "Delete all receipts?";
+
+"settings_delete_all_body" = "This removes every receipt from this device. Backed-up copies in the cloud are not affected.";
+
+"settings_delete_all_confirm" = "Delete all";
+
+"settings_section_about" = "About";
+
+"settings_privacy" = "Privacy policy";
+
+"settings_terms" = "Terms of use";
+
+"settings_help" = "Help & support";
+
+"settings_version" = "ReTally %1$s";
+
+"settings_msg_turn_on_backup" = "Turn on cloud backup first.";
+
+"settings_msg_already_backed_up" = "Everything is already backed up.";
+
+"settings_msg_backed_up_one" = "Backed up 1 receipt.";
+
+"settings_msg_backed_up_many" = "Backed up %1$d receipts.";
+
+"settings_msg_all_deleted" = "All receipts deleted";
+
+/********** More menu **********/
+
+"more_title" = "More";
+
+"more_section_account" = "ACCOUNT";
+
+"more_section_settings" = "SETTINGS";
+
+"more_section_legal" = "LEGAL";
+
+"more_section_data" = "DATA";
+
+"more_account_settings" = "Account settings";
+
+"more_account_guest_sub" = "Guest account";
+
+"more_favorite_stores" = "FAVORITE STORES";
+
+"more_edit" = "EDIT";
+
+"more_favorites_empty" = "Tap EDIT to add your favorite stores.";
+
+"more_add_favorites_title" = "Add favorite stores";
+
+"more_sign_out" = "SIGN OUT";
+
+"more_delete_account" = "DELETE MY ACCOUNT";
+
+"more_log_in" = "LOG IN";
+
+"more_account_title" = "Account";
+
+"more_account_login" = "Log in / Sign up";
+
+"more_account_login_sub" = "Sync receipts across devices";
+
+"more_account_guest_body" = "You're browsing as a guest. Log in to back up receipts and sync them across devices.";
+
+"more_account_logout" = "Log out";
+
+"more_account_logout_title" = "Log out?";
+
+"more_account_logout_body" = "You'll be logged out on this device. Your receipts stay saved here.";
+
+"more_account_delete" = "Delete my account";
+
+"more_account_delete_title" = "Delete account?";
+
+"more_account_delete_body" = "This permanently deletes your account, receipts and favorites. This can't be undone.";
+
+"more_account_deleted" = "Account deleted";
+
+"more_account_delete_failed" = "Couldn't delete the account — please try again.";
+
+"more_logged_out" = "Logged out";
+
+"more_logged_out_failed" = "Couldn't log out — please try again.";
+
+"more_favorite_added" = "%1$s added to favorites";
+
+"more_favorite_removed" = "%1$s removed from favorites";
+
+"more_done" = "DONE";
+
+"more_no_stores_yet" = "No stores yet — scan a receipt first.";
+
+"more_search_stores" = "Search stores";
+
+"more_save" = "Save";
+
+"more_no_stores_match" = "No stores match your search.";
+
+"more_favorites_saved" = "Favorites updated";
+"more_copyright" = "© 2026 Weev Media. All rights reserved.";
+
+/********** Platform hosts **********/
+
+"host_link_open_failed" = "Couldn't open that link.";
+
+"host_scanner_unavailable" = "Scanner isn't available on this device yet. %1$s";
+
+"host_scan_read_failed" = "Couldn't read the receipt. Please try again.";
+
+"host_scan_unsupported" = "Document scanning isn't available on this device.";
+
+"host_image_invalid" = "The captured image could not be processed.";
+
+/********** Onboarding **********/
+
+"onboarding_page1_title" = "Scan. Track. Save.";
+
+"onboarding_page1_body" = "Snap your store receipts — ReTally spots duplicate items and builds your AI grocery list.";
+
+"onboarding_page2_title" = "Track.";
+
+"onboarding_page2_body" = "ReTally spots duplicate items across your receipts and totals what they cost you.";
+
+"onboarding_page3_title" = "Save.";
+
+"onboarding_page3_body" = "Your AI grocery list builds itself from what you actually buy.";
+
+"onboarding_get_started" = "Get Started";
+
+"onboarding_have_account" = "I already have an account";
+
+"onboarding_have_account_prefix" = "Already have an account? ";
+
+"onboarding_sign_in" = "Sign In";
+
+/********** Nearby store alerts **********/
+
+"settings_section_notifications" = "Notifications";
+
+"settings_nearby_title" = "Notify me near stores";
+
+"settings_nearby_sub" = "Get a reminder when you're near a store you've shopped at";
+
+"settings_msg_nearby_denied" = "Location permission is needed for nearby-store reminders.";
+
+"nearby_notify_title" = "You're near %1$s";
+
+"nearby_notify_body" = "Open ReTally to check your list before you shop.";
+
+/********** Auth **********/
+
+"auth_title" = "Welcome to ReTally";
+
+"auth_subtitle" = "Sign in to get cloud backup, smarter AI lists, and duplicate insights across all your devices.";
+
+"auth_name_title" = "What should we call you?";
+
+"auth_name_subtitle" = "We will send a verification code to your email next.";
+
+"auth_first_name" = "First Name";
+
+"auth_first_name_hint" = "Enter first name";
+
+"auth_last_name" = "Last Name";
+
+"auth_last_name_hint" = "Enter last name";
+
+"auth_email" = "Email";
+
+"auth_email_hint" = "Email address";
+
+"auth_continue" = "Continue";
+
+"auth_or_continue_with" = "or continue with";
+
+"auth_or" = "or";
+
+"auth_apple" = "Continue with Apple";
+
+"auth_google" = "Continue with Google";
+
+"auth_guest" = "Continue as Guest";
+
+"auth_guest_caption" = "Limited features, stays on this device";
+
+"auth_legal_prefix" = "By tapping Continue, you agree to our ";
+
+"auth_legal_terms" = "Terms & Conditions";
+
+"auth_legal_and" = " and ";
+
+"auth_legal_privacy" = "Privacy Policy.";
+
+"auth_error_email" = "Enter a valid email address";
+
+"auth_error_required" = "Please enter your name and a valid email address";
+
+"auth_error_guest" = "Couldn't continue as a guest. Check your connection and try again.";
+
+"auth_error_lookup" = "Couldn't send the code. Check your connection and try again.";
+
+"auth_welcome_back" = "Welcome back";
+
+"auth_welcome_back_name" = "Welcome back, %1$s";
+
+"auth_use_different_email" = "Use a different email";
+
+"auth_welcome_back_noname" = "We don't have a name for this account yet — what should we call you?";
+
+/********** OTP **********/
+
+"otp_title" = "Check your email";
+
+"otp_subtitle" = "We sent a 6-digit code to %1$s";
+
+"otp_verify" = "Verify";
+
+"otp_resend_prompt" = "Didn't get the code?";
+
+"otp_resend" = "Resend";
+
+"otp_resend_wait" = "Resend in %1$s";
+
+"otp_error_mismatch" = "That code didn't match — try again.";
+
+"otp_error_send" = "Couldn't send the code. Check your connection and try again.";
+
+"otp_error_verify" = "Couldn't verify the code. Check your connection and try again.";
+
+"otp_error_expired" = "That code expired — tap Resend for a new one.";
+
+"otp_error_rate_limited" = "Too many attempts — wait a bit and try again.";
+
+"otp_accessibility" = "6-digit verification code";

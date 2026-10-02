@@ -1,0 +1,52 @@
+[
+  {
+    "moduleId": "dev.gitlive:firebase-auth:2.5.0",
+    "file": "/Users/mukesh.jha/Documents/personal/development/ReTally/project/ReTally/.kotlin/metadata/kotlinTransformedCInteropMetadataLibraries/dev.gitlive-firebase-auth-2.5.0-iosMain-cinterop/dev.gitlive_firebase-auth-cinterop-FirebaseAuth-Gd_5mQ.klib",
+    "sourceSetName": "iosMain"
+  },
+  {
+    "moduleId": "dev.gitlive:firebase-firestore:2.5.0",
+    "file": "/Users/mukesh.jha/Documents/personal/development/ReTally/project/ReTally/.kotlin/metadata/kotlinTransformedCInteropMetadataLibraries/dev.gitlive-firebase-firestore-2.5.0-iosMain-cinterop/dev.gitlive_firebase-firestore-cinterop-FirebaseFirestoreInternal-lZn-Sg.klib",
+    "sourceSetName": "iosMain"
+  },
+  {
+    "moduleId": "dev.gitlive:firebase-firestore:2.5.0",
+    "file": "/Users/mukesh.jha/Documents/personal/development/ReTally/project/ReTally/.kotlin/metadata/kotlinTransformedCInteropMetadataLibraries/dev.gitlive-firebase-firestore-2.5.0-iosMain-cinterop/dev.gitlive_firebase-firestore-cinterop-FirebaseFirestore-lZn-Sg.klib",
+    "sourceSetName": "iosMain"
+  },
+  {
+    "moduleId": "org.jetbrains.compose.ui:ui-uikit:1.9.3",
+    "file": "/Users/mukesh.jha/Documents/personal/development/ReTally/project/ReTally/.kotlin/metadata/kotlinTransformedCInteropMetadataLibraries/org.jetbrains.compose.ui-ui-uikit-1.9.3-uikitMain-cinterop/org.jetbrains.compose.ui_ui-uikit-cinterop-utils-c6AlBg.klib",
+    "sourceSetName": "uikitMain"
+  },
+  {
+    "moduleId": "dev.gitlive:firebase-app:2.5.0",
+    "file": "/Users/mukesh.jha/Documents/personal/development/ReTally/project/ReTally/.kotlin/metadata/kotlinTransformedCInteropMetadataLibraries/dev.gitlive-firebase-app-2.5.0-iosMain-cinterop/dev.gitlive_firebase-app-cinterop-FirebaseCore-ou5IHA.klib",
+    "sourceSetName": "iosMain"
+  },
+  {
+    "moduleId": "co.touchlab:sqliter-driver:1.3.3",
+    "file": "/Users/mukesh.jha/Documents/personal/development/ReTally/project/ReTally/.kotlin/metadata/kotlinTransformedCInteropMetadataLibraries/co.touchlab-sqliter-driver-1.3.3-appleMain-cinterop/co.touchlab_sqliter-driver-cinterop-sqlite3-pnpooQ.klib",
+    "sourceSetName": "appleMain"
+  },
+  {
+    "moduleId": "io.ktor:ktor-utils:3.2.3",
+    "file": "/Users/mukesh.jha/Documents/personal/development/ReTally/project/ReTally/.kotlin/metadata/kotlinTransformedCInteropMetadataLibraries/io.ktor-ktor-utils-3.2.3-iosMain-cinterop/io.ktor_ktor-utils-cinterop-threadUtils-bD5GGA.klib",
+    "sourceSetName": "iosMain"
+  },
+  {
+    "moduleId": "io.ktor:ktor-io:3.2.3",
+    "file": "/Users/mukesh.jha/Documents/personal/development/ReTally/project/ReTally/.kotlin/metadata/kotlinTransformedCInteropMetadataLibraries/io.ktor-ktor-io-3.2.3-iosMain-cinterop/io.ktor_ktor-io-cinterop-mutex-xZzb1w.klib",
+    "sourceSetName": "iosMain"
+  },
+  {
+    "moduleId": "io.ktor:ktor-network:3.2.3",
+    "file": "/Users/mukesh.jha/Documents/personal/development/ReTally/project/ReTally/.kotlin/metadata/kotlinTransformedCInteropMetadataLibraries/io.ktor-ktor-network-3.2.3-iosMain-cinterop/io.ktor_ktor-network-cinterop-network-oBBWEw.klib",
+    "sourceSetName": "iosMain"
+  },
+  {
+    "moduleId": "io.ktor:ktor-network:3.2.3",
+    "file": "/Users/mukesh.jha/Documents/personal/development/ReTally/project/ReTally/.kotlin/metadata/kotlinTransformedCInteropMetadataLibraries/io.ktor-ktor-network-3.2.3-iosMain-cinterop/io.ktor_ktor-network-cinterop-un-oBBWEw.klib",
+    "sourceSetName": "iosMain"
+  }
+]

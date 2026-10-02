@@ -1,0 +1,27 @@
+-- Known geofenced stores. This table is append-mostly: refreshLocations() upserts
+-- every store seen on a receipt and never deletes rows, so a store's geofence
+-- survives receipt deletion and reboot. Only deleteAll (delete-all-receipts and
+-- account deletion) wipes it.
+--
+-- INSERT OR REPLACE (not ON CONFLICT DO UPDATE) so this runs on the oldest
+-- SQLite the app supports (minSdk 26 ships pre-3.24, which lacks upsert syntax).
+-- All columns are always written, so REPLACE is equivalent to an upsert here.
+CREATE TABLE known_store (
+    id TEXT NOT NULL PRIMARY KEY,
+    store_name TEXT NOT NULL,
+    address TEXT NOT NULL,
+    latitude REAL NOT NULL,
+    longitude REAL NOT NULL,
+    radius_meters REAL NOT NULL,
+    last_seen_at INTEGER NOT NULL
+);
+
+selectAll:
+SELECT * FROM known_store;
+
+insertOrReplace:
+INSERT OR REPLACE INTO known_store(id, store_name, address, latitude, longitude, radius_meters, last_seen_at)
+VALUES (:id, :storeName, :address, :latitude, :longitude, :radiusMeters, :lastSeenAt);
+
+deleteAll:
+DELETE FROM known_store;

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Intentionally empty. ReTally ships one colour theme (the design system's light palette), and
+  MainActivity pins AppCompatDelegate.MODE_NIGHT_NO, so no dark overrides are declared here.
+-->
+<resources />
