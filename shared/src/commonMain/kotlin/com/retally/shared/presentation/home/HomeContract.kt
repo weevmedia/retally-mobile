@@ -5,8 +5,10 @@ import com.retally.shared.core.strings.StringAssetIdentifiers
 import com.retally.shared.core.strings.StringResolver
 import com.retally.shared.core.strings.getString
 import com.retally.shared.core.Effect
+import com.retally.shared.data.category.CategoryRepository
 import com.retally.shared.domain.auth.Account
 import com.retally.shared.domain.auth.AuthRepository
+import com.retally.shared.domain.category.ItemCategory
 import com.retally.shared.domain.receipt.CrossReceiptDuplicate
 import com.retally.shared.domain.receipt.CrossReceiptDuplicateFinder
 import com.retally.shared.domain.receipt.ReceiptRepository
@@ -43,6 +45,8 @@ interface HomeContract {
         val crossReceiptDuplicates: List<CrossReceiptDuplicate> = emptyList(),
         /** Who is signed in; guests see the "browsing as a guest" banner. */
         val account: Account = Account.Guest,
+        /** Server-pushed spending categories, for the Spending breakdown. */
+        val categories: List<ItemCategory> = emptyList(),
     ) : com.retally.shared.core.State {
         val totalOvercharge: Double get() = receipts.sumOf { it.overchargeAmount }
 
@@ -81,11 +85,39 @@ interface HomeContract {
             get() = NudgeEngine.allNudges(receipts)
         val isEmpty: Boolean get() = !isLoading && receipts.isEmpty()
 
+        /**
+         * This month's item spend grouped by category, in category-list order.
+         * Same calendar-month window as [monthToDateTotal]; categories with no
+         * spend are omitted.
+         */
+        val spendingByCategory: List<CategorySpend>
+            get() {
+                val zone = TimeZone.currentSystemDefault()
+                val now = Clock.System.now().toLocalDateTime(zone).date
+                val totals = mutableMapOf<String, Double>()
+                receipts
+                    .filter {
+                        val d = it.purchaseDate.toLocalDateTime(zone).date
+                        d.year == now.year && d.month == now.month
+                    }
+                    .flatMap { it.items }
+                    .forEach { item ->
+                        totals[item.categoryId] = (totals[item.categoryId] ?: 0.0) + item.price
+                    }
+                return categories.mapNotNull { category ->
+                    val total = totals[category.id] ?: 0.0
+                    if (total > 0) CategorySpend(category, total) else null
+                }
+            }
+
         companion object {
             /** Home shows only the newest few; the rest live behind "See all". */
             const val RECENT_RECEIPT_COUNT = 2
         }
     }
+
+    /** One row of the Home Spending breakdown. */
+    data class CategorySpend(val category: ItemCategory, val total: Double)
 
     sealed class Action : com.retally.shared.core.Action {
         data object ScanClicked : Action()
@@ -126,6 +158,7 @@ interface HomeContract {
 
     class Store(
         private val repository: ReceiptRepository,
+        private val categories: CategoryRepository,
         private val crossReceiptFinder: CrossReceiptDuplicateFinder = CrossReceiptDuplicateFinder(),
         authRepository: AuthRepository? = null,
         private val strings: StringResolver = EnglishStringResolver,
@@ -142,6 +175,9 @@ interface HomeContract {
                     val cross = crossReceiptFinder.find(receipts)
                     updateStateSafely { it.copy(receipts = receipts, crossReceiptDuplicates = cross, isLoading = false) }
                 }
+                .launchIn(this)
+            categories.categories
+                .onEach { list -> updateStateSafely { it.copy(categories = list) } }
                 .launchIn(this)
             // The shell's scan FAB routes here so the scanner flow stays owned by Home.
             ScanRequests.flow

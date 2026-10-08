@@ -1,0 +1,45 @@
+-- Receipts. Replaces the old JSON-in-Settings blob (`receipts.v1`): every receipt
+-- is a row, line items ride along as a JSON column (they are always loaded with
+-- the receipt, never queried alone). Photos stay as files in app-private
+-- storage — only the path lives here.
+--
+-- INSERT OR REPLACE (not ON CONFLICT DO UPDATE) so this runs on the oldest
+-- SQLite the app supports (minSdk 26 ships pre-3.24, which lacks upsert syntax).
+-- All columns are always written, so REPLACE is equivalent to an upsert here.
+--
+-- Epoch millis for the Instants; the JSON column uses the same kotlinx
+-- serialization as the old blob, so the one-time migration is lossless.
+CREATE TABLE receipt (
+    id TEXT NOT NULL PRIMARY KEY,
+    store_name TEXT NOT NULL,
+    store_address TEXT,
+    purchase_date INTEGER NOT NULL,
+    payment_info TEXT,
+    items_json TEXT NOT NULL,
+    subtotal REAL,
+    tax REAL,
+    receipt_total REAL,
+    barcode TEXT,
+    image_path TEXT,
+    created_at INTEGER NOT NULL,
+    synced_at INTEGER
+);
+
+selectAll:
+SELECT * FROM receipt ORDER BY purchase_date DESC;
+
+selectById:
+SELECT * FROM receipt WHERE id = :id;
+
+insertOrReplace:
+INSERT OR REPLACE INTO receipt(id, store_name, store_address, purchase_date, payment_info, items_json, subtotal, tax, receipt_total, barcode, image_path, created_at, synced_at)
+VALUES (:id, :storeName, :storeAddress, :purchaseDate, :paymentInfo, :itemsJson, :subtotal, :tax, :receiptTotal, :barcode, :imagePath, :createdAt, :syncedAt);
+
+deleteById:
+DELETE FROM receipt WHERE id = :id;
+
+markSynced:
+UPDATE receipt SET synced_at = :syncedAt WHERE id IN :ids;
+
+deleteAll:
+DELETE FROM receipt;

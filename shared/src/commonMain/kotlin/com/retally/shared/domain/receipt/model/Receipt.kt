@@ -1,5 +1,6 @@
 package com.retally.shared.domain.receipt.model
 
+import com.retally.shared.domain.category.ItemCategory
 import com.retally.shared.domain.receipt.DuplicateMatcher
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -80,6 +81,12 @@ data class ReceiptItem(
     val keptAsDistinct: Boolean = false,
     /** "Keep both" chosen for a cross-receipt repeat involving this line; hides it from that list. */
     val keptAcrossReceipts: Boolean = false,
+    /**
+     * Server-driven category id (see CategoryRepository) — auto-tagged at scan
+     * time, changeable by hand afterwards. Old receipts decode without it and
+     * fall back to the default grocery bucket.
+     */
+    val categoryId: String = ItemCategory.DEFAULT_ID,
 )
 
 /** ISO-8601 wire format for [kotlin.time.Instant] ("2026-09-13T14:03:00Z"). */

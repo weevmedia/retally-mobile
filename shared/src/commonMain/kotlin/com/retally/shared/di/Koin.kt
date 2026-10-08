@@ -5,13 +5,15 @@ import com.retally.shared.core.strings.StringResolver
 import com.retally.shared.data.cloud.KtorCloudSyncService
 import com.retally.shared.data.cloud.SimulatedCloudSyncService
 import com.retally.shared.data.preferences.SettingsAppPreferences
-import com.retally.shared.data.receipt.SettingsReceiptRepository
+import com.retally.shared.data.receipt.DbReceiptRepository
 import com.retally.shared.db.ReTallyDatabase
 import com.retally.shared.domain.ai.NudgeReadStore
 import com.retally.shared.domain.ads.AdsConfig
 import com.retally.shared.domain.ads.AdsSession
 import com.retally.shared.domain.ads.AdsInitializer
 import com.retally.shared.data.auth.HttpOtpService
+import com.retally.shared.data.category.CategoryRepository
+import com.retally.shared.data.store.StoreIconRepository
 import com.retally.shared.data.auth.FirebaseAuthRepository
 import com.retally.shared.domain.auth.OtpService
 import com.retally.shared.data.cloud.FirebaseCloudSyncService
@@ -119,7 +121,7 @@ val dataModule = module {
     // (androidDatabaseModule / iosDatabaseModule, passed as extraModules by each host).
     single { ReTallyDatabase(driver = get()) }
     single { StoreLocationRepository(receipts = get(), settings = get(), json = get(), database = get()) }
-    single<ReceiptRepository> { SettingsReceiptRepository(settings = get(), json = get()) }
+    single<ReceiptRepository> { DbReceiptRepository(database = get(), settings = get(), json = get()) }
     single<AuthRepository> { FirebaseAuthRepository() }
     single<OtpService> { HttpOtpService(client = get()) }
     single { ReceiptBackup(cloudSync = get(), repository = get()) }
@@ -151,9 +153,11 @@ val storesModule = module {
     factory { OnboardingContract.Store() }
     factory { AuthContract.Store(authRepository = get(), otpService = get(), strings = get()) }
     factory { OtpContract.Store(otpService = get(), authRepository = get(), strings = get()) }
-    single { MainContract.Store(adsSession = get()) }
-    factory { HomeContract.Store(repository = get(), authRepository = get(), strings = get()) }
-    factory { ScanReviewContract.Store(repository = get(), backup = get(), favorites = get(), strings = get()) }
+    single { CategoryRepository(client = get(), settings = get(), json = get()) }
+    single { StoreIconRepository(client = get(), settings = get(), json = get()) }
+    single { MainContract.Store(adsSession = get(), categories = get(), storeIcons = get(), receipts = get(), settings = get()) }
+    factory { HomeContract.Store(repository = get(), categories = get(), authRepository = get(), strings = get()) }
+    factory { ScanReviewContract.Store(repository = get(), backup = get(), favorites = get(), strings = get(), categories = get()) }
     factory { DuplicatesContract.Store(repository = get(), strings = get()) }
     factory { ReceiptsContract.Store(repository = get(), strings = get()) }
     factory {

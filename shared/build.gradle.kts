@@ -87,6 +87,13 @@ kotlin {
             api(Deps.Common.multiplatformSettings)
             // SQLDelight runtime (generated ReTallyDatabase + query types).
             implementation(Deps.SqlDelight.runtime)
+
+            // Image loading (Coil 3): remote store logos with memory/disk cache.
+            // `networkKtor3` is required — core alone cannot fetch HTTP URLs.
+            with(Deps.Coil) {
+                implementation(compose)
+                implementation(networkKtor3)
+            }
         }
         androidMain.dependencies {
             implementation(Deps.Kotlinx.coroutinesAndroid)

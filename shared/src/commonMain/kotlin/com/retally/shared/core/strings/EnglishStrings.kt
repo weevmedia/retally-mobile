@@ -63,6 +63,7 @@ internal val EnglishStrings: Map<String, String> = mapOf(
     StringAssetIdentifiers.HOME_MSG_HOW_IT_WORKS to "Scan a receipt → ReTally reads every line → identical items at the same price are flagged as double charges.",
     StringAssetIdentifiers.HOME_MSG_NOTIFICATIONS_SOON to "Notifications are coming soon.",
     StringAssetIdentifiers.HOME_MSG_SAMPLE_ADDED to "Sample receipt added",
+    StringAssetIdentifiers.HOME_SPENDING_TITLE to "Spending",
     StringAssetIdentifiers.HOME_MSG_DELETED to "Deleted %1\$s",
     StringAssetIdentifiers.HOME_MSG_SIGN_IN_SOON to "Sign in is coming soon — your receipts are safe on this device.",
     StringAssetIdentifiers.HOME_AI_INSIGHT_DUE to "You buy %1\$s every %2\$d days — ",

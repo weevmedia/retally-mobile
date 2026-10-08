@@ -78,6 +78,7 @@ object StringAssetIdentifiers {
     const val HOME_MSG_HOW_IT_WORKS = "home_msg_how_it_works"
     const val HOME_MSG_NOTIFICATIONS_SOON = "home_msg_notifications_soon"
     const val HOME_MSG_SAMPLE_ADDED = "home_msg_sample_added"
+    const val HOME_SPENDING_TITLE = "home_spending_title"
     const val HOME_MSG_DELETED = "home_msg_deleted"
     const val HOME_MSG_SIGN_IN_SOON = "home_msg_sign_in_soon"
     const val HOME_AI_INSIGHT_DUE = "home_ai_insight_due"

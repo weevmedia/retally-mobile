@@ -55,6 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import com.retally.shared.domain.category.ItemCategory
 import com.retally.shared.domain.receipt.model.Receipt
 import com.retally.shared.domain.receipt.model.ReceiptItem
 import com.retally.shared.presentation.scan.ScanReviewContract
@@ -144,9 +145,11 @@ fun ScanReviewScreen(
             else -> ReceiptBody(
                 receipt = receipt,
                 contentPadding = padding,
+                categories = state.categories,
                 onToggleDuplicate = { dispatch(ScanReviewContract.Action.ItemDuplicateToggled(it)) },
                 onKeepBoth = { dispatch(ScanReviewContract.Action.KeepBoth(it)) },
                 onRemoveOne = { dispatch(ScanReviewContract.Action.RemoveOneRequested(it)) },
+                onCategoryClick = { dispatch(ScanReviewContract.Action.ItemCategoryPickerOpened(it)) },
             )
         }
     }
@@ -157,6 +160,68 @@ fun ScanReviewScreen(
             onDismiss = { dispatch(ScanReviewContract.Action.RemoveOneCancelled) },
         )
     }
+    state.categoryPickerItem?.let { item ->
+        CategoryPickerDialog(
+            itemName = item.name,
+            categories = state.categories,
+            selectedId = item.categoryId,
+            onPick = { dispatch(ScanReviewContract.Action.ItemCategoryPicked(it)) },
+            onDismiss = { dispatch(ScanReviewContract.Action.ItemCategoryPickerDismissed) },
+        )
+    }
+}
+
+/** Pick an item's spending category; the shopper's choice is never auto-retagged. */
+@Composable
+private fun CategoryPickerDialog(
+    itemName: String,
+    categories: List<ItemCategory>,
+    selectedId: String,
+    onPick: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val c = ReTallyTheme.colors
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(ReTallyTheme.dimensions.cardRadius),
+        containerColor = c.surface,
+        title = { Text(itemName, style = ReTallyTheme.typography.title, color = c.ink) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                categories.forEach { category ->
+                    val selected = category.id == selectedId
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (selected) c.primaryTint else Color.Transparent)
+                            .clickable { onPick(category.id) }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            category.name,
+                            style = ReTallyTheme.typography.body,
+                            color = c.ink,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (selected) {
+                            Icon(
+                                Icons.Rounded.CheckCircle,
+                                contentDescription = null,
+                                tint = c.primaryDark,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(str(S.ACTION_CANCEL), style = ReTallyTheme.typography.button, color = c.ink) }
+        },
+    )
 }
 
 /** "Remove one" always confirms first — the app never deletes a line on its own. */
@@ -206,9 +271,11 @@ private fun SaveStatus(state: ScanReviewContract.State) {
 private fun ReceiptBody(
     receipt: Receipt,
     contentPadding: PaddingValues,
+    categories: List<ItemCategory>,
     onToggleDuplicate: (String) -> Unit,
     onKeepBoth: (String) -> Unit,
     onRemoveOne: (String) -> Unit,
+    onCategoryClick: (String) -> Unit,
 ) {
     val d = ReTallyTheme.dimensions
     var showBarcode by remember { mutableStateOf(false) }
@@ -229,9 +296,11 @@ private fun ReceiptBody(
         items(receipt.items, key = { it.id }) { item ->
             LineItemCard(
                 item = item,
+                categoryName = categories.firstOrNull { it.id == item.categoryId }?.name ?: item.categoryId,
                 onClick = { onToggleDuplicate(item.id) },
                 onKeepBoth = { onKeepBoth(item.id) },
                 onRemoveOne = { onRemoveOne(item.id) },
+                onCategoryClick = { onCategoryClick(item.id) },
             )
         }
 
@@ -404,9 +473,11 @@ private fun DoubleChargeVerdict(receipt: Receipt) {
 @Composable
 private fun LineItemCard(
     item: ReceiptItem,
+    categoryName: String,
     onClick: () -> Unit,
     onKeepBoth: () -> Unit,
     onRemoveOne: () -> Unit,
+    onCategoryClick: () -> Unit,
 ) {
     val d = ReTallyTheme.dimensions
     val c = ReTallyTheme.colors
@@ -433,6 +504,18 @@ private fun LineItemCard(
                     if (item.keptAsDistinct) {
                         Text(str(S.RECEIPT_KEPT_BOUGHT_TWICE), style = ReTallyTheme.typography.caption, color = c.muted)
                     }
+                    // Spending category chip — tappable to fix the auto-tag.
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        categoryName,
+                        style = ReTallyTheme.typography.caption,
+                        color = c.primaryDark,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(c.primaryTint)
+                            .clickable(onClick = onCategoryClick)
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                    )
                 }
                 Spacer(Modifier.width(d.sm))
                 Text(

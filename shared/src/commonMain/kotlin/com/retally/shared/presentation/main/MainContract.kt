@@ -2,11 +2,17 @@ package com.retally.shared.presentation.main
 
 import com.retally.shared.core.Effect
 import com.retally.shared.core.strings.StringAssetIdentifiers
+import com.retally.shared.data.category.CategoryRepository
+import com.retally.shared.data.store.StoreIconRepository
 import com.retally.shared.domain.ads.AdsSession
+import com.retally.shared.domain.category.backfillItemCategories
+import com.retally.shared.domain.receipt.ReceiptRepository
+import com.russhwolf.settings.Settings
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 
 /**
  * Bottom-navigation destinations, in on-screen order. Scan is not a tab — it is the centre
@@ -56,13 +62,26 @@ interface MainContract {
 
     sealed class SideEffect : Effect
 
-    class Store(adsSession: AdsSession) : com.retally.shared.core.Store<State, Action, SideEffect>() {
+    class Store(
+        adsSession: AdsSession,
+        private val categories: CategoryRepository,
+        private val storeIcons: StoreIconRepository,
+        private val receipts: ReceiptRepository,
+        private val settings: Settings,
+    ) : com.retally.shared.core.Store<State, Action, SideEffect>() {
         override fun initState() = State()
 
         init {
             adsSession.adsEnabled
                 .onEach { enabled -> currentState = currentState.copy(adsEnabled = enabled) }
                 .launchIn(this)
+            // Pull the server-pushed category list, then tag any receipts that predate it.
+            // Store icons refresh alongside; the UI falls back to monograms until they land.
+            launch {
+                val fetched = categories.refresh()
+                backfillItemCategories(receipts, fetched, settings)
+            }
+            launch { storeIcons.refresh() }
         }
 
         override fun dispatch(action: Action) {

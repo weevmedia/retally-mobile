@@ -69,7 +69,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImage
+import com.retally.shared.data.store.StoreIconRepository
+import com.retally.shared.domain.store.iconKeyOf
+import org.koin.compose.koinInject
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -770,8 +777,9 @@ private fun StorePickerScreen(
 }
 
 /**
- * One store tile in the picker grid: a white card with the store monogram, its name, and a
- * bare corner heart. Tapping the tile selects it — the heart alone shows selection
+ * One store tile in the picker grid: a white card with the store's logo (or its
+ * monogram until a logo is pushed from the server), its name, and a bare corner
+ * heart. Tapping the tile selects it — the heart alone shows selection
  * (red filled when selected, gray outline when not).
  */
 @Composable
@@ -779,7 +787,10 @@ private fun StoreGridTile(
     name: String,
     selected: Boolean,
     onToggle: () -> Unit,
+    storeIcons: StoreIconRepository = koinInject(),
 ) {
+    val icons by storeIcons.icons.collectAsState()
+    val iconUrl = icons[iconKeyOf(name)]?.iconUrl
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
@@ -792,19 +803,37 @@ private fun StoreGridTile(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(68.dp)
-                    .clip(CircleShape)
-                    .background(favoriteTint(FavoriteStoresRepository.keyOf(name))),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    monogram(name),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                )
+            if (iconUrl != null) {
+                // Server-pushed logo on a white disc; padding keeps it off the edge.
+                Box(
+                    modifier = Modifier
+                        .size(68.dp)
+                        .clip(CircleShape)
+                        .background(Color.White),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    AsyncImage(
+                        model = iconUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.size(52.dp),
+                    )
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(68.dp)
+                        .clip(CircleShape)
+                        .background(favoriteTint(FavoriteStoresRepository.keyOf(name))),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        monogram(name),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                    )
+                }
             }
             Spacer(Modifier.height(6.dp))
             Text(

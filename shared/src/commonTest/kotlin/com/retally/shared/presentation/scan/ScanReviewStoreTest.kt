@@ -1,14 +1,21 @@
 package com.retally.shared.presentation.scan
 
 import app.cash.turbine.test
+import com.retally.shared.domain.category.CategorySource
+import com.retally.shared.domain.category.ItemCategory
 import com.retally.shared.domain.cloud.CloudSyncResult
 import com.retally.shared.domain.cloud.CloudSyncService
 import com.retally.shared.domain.cloud.ReceiptBackup
+import com.retally.shared.domain.favorites.FavoriteStoresRepository
 import com.retally.shared.domain.receipt.model.Receipt
 import com.retally.shared.domain.scan.ReceiptParser
 import com.retally.shared.presentation.home.FakeReceiptRepository
+import com.russhwolf.settings.Settings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -42,8 +49,38 @@ class ScanReviewStoreTest {
     private fun store() = ScanReviewContract.Store(
         repository = repository,
         backup = ReceiptBackup(cloudSync = NoCloud, repository = repository),
+        favorites = FavoriteStoresRepository(settings = FakeSettings(), json = Json { ignoreUnknownKeys = true }),
+        categories = FakeCategories(),
         parser = ReceiptParser(idFactory = { "item-${counter++}" }),
     )
+
+    private class FakeCategories : CategorySource {
+        override val categories: StateFlow<List<ItemCategory>> =
+            MutableStateFlow(ItemCategory.bundled())
+    }
+
+    /** In-memory Settings so the store under test never touches the device. */
+    private class FakeSettings : Settings {
+        private val map = mutableMapOf<String, Any?>()
+        override val keys: Set<String> get() = map.keys
+        override val size: Int get() = map.size
+        override fun clear() = map.clear()
+        override fun remove(key: String) { map.remove(key) }
+        override fun hasKey(key: String) = map.containsKey(key)
+        override fun putInt(key: String, value: Int) { map[key] = value }
+        override fun getInt(key: String, defaultValue: Int) = map[key] as? Int ?: defaultValue
+        override fun putLong(key: String, value: Long) { map[key] = value }
+        override fun getLong(key: String, defaultValue: Long) = map[key] as? Long ?: defaultValue
+        override fun putString(key: String, value: String) { map[key] = value }
+        override fun getString(key: String, defaultValue: String) = map[key] as? String ?: defaultValue
+        override fun getStringOrNull(key: String) = map[key] as? String
+        override fun putFloat(key: String, value: Float) { map[key] = value }
+        override fun getFloat(key: String, defaultValue: Float) = map[key] as? Float ?: defaultValue
+        override fun putDouble(key: String, value: Double) { map[key] = value }
+        override fun getDouble(key: String, defaultValue: Double) = map[key] as? Double ?: defaultValue
+        override fun putBoolean(key: String, value: Boolean) { map[key] = value }
+        override fun getBoolean(key: String, defaultValue: Boolean) = map[key] as? Boolean ?: defaultValue
+    }
 
     /** Backup is skipped when no backend is configured — keeps these tests offline. */
     private object NoCloud : CloudSyncService {

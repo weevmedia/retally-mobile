@@ -347,6 +347,7 @@ internal fun HomeContent(
             }
             item { StatTiles(state) }
             item { NudgeCarousel(state.allNudges) }
+            item { SpendingBreakdown(state.spendingByCategory) }
             item {
                 RecentReceiptsHeader(
                     onSeeAll = onSeeAll,
@@ -467,6 +468,59 @@ private fun StatTile(
         Spacer(Modifier.height(d.xs))
         CappedTextScale {
             Text(value, style = ReTallyTheme.typography.price, color = c.ink, maxLines = 1)
+        }
+    }
+}
+
+/**
+ * This month's item spend grouped by the server-pushed categories: one labeled
+ * row per category with a proportional bar. Hidden when nothing is categorized
+ * yet (or there are no receipts).
+ */
+@Composable
+private fun SpendingBreakdown(spending: List<HomeContract.CategorySpend>) {
+    if (spending.isEmpty()) return
+    val d = ReTallyTheme.dimensions
+    val c = ReTallyTheme.colors
+    val max = spending.maxOf { it.total }.coerceAtLeast(1.0)
+    SurfaceCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(d.cardPadding),
+            verticalArrangement = Arrangement.spacedBy(d.sm),
+        ) {
+            Text(str(S.HOME_SPENDING_TITLE), style = ReTallyTheme.typography.title, color = c.ink)
+            spending.forEach { row ->
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            row.category.name,
+                            style = ReTallyTheme.typography.body,
+                            color = c.ink,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            formatCurrency(row.total),
+                            style = ReTallyTheme.typography.amount,
+                            color = c.ink,
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(c.muted.copy(alpha = 0.18f)),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth((row.total / max).toFloat().coerceIn(0f, 1f))
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(c.primary),
+                        )
+                    }
+                }
+            }
         }
     }
 }

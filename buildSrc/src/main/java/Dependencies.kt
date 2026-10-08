@@ -22,6 +22,10 @@ object Versions {
     const val koin = "4.1.0"
     const val ktor = "3.2.3"
     const val multiplatformSettings = "1.3.0"
+    // Coil 3.2.0 is the newest line built against compileSdk 35; 3.3.0+ publishes
+    // AAR metadata demanding compileSdk 36/37 and fails :androidApp:checkDebugAarMetadata.
+    // Revisit if androidCompileSdk is ever raised.
+    const val coil = "3.2.0"
     // SQLDelight 2.1.0 verified on Maven Central 2026-10-01; Kotlin 2.x era, KMP-ready.
     const val sqldelight = "2.1.0"
 
@@ -112,6 +116,13 @@ object Deps {
     object Common {
         const val multiplatformSettings = "com.russhwolf:multiplatform-settings:${Versions.multiplatformSettings}"
         const val multiplatformSettingsTest = "com.russhwolf:multiplatform-settings-test:${Versions.multiplatformSettings}"
+    }
+
+    object Coil {
+        // Compose Multiplatform AsyncImage; core has no network support on its own.
+        const val compose = "io.coil-kt.coil3:coil-compose:${Versions.coil}"
+        // HTTP fetching via Ktor 3 (matches Deps.KtorClient); needed for remote URLs.
+        const val networkKtor3 = "io.coil-kt.coil3:coil-network-ktor3:${Versions.coil}"
     }
 
     object SqlDelight {

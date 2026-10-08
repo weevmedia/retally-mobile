@@ -6,6 +6,9 @@ import com.retally.shared.core.strings.StringResolver
 import com.retally.shared.core.strings.getString
 import com.retally.shared.core.Effect
 import com.retally.shared.core.newId
+import com.retally.shared.domain.category.CategorySource
+import com.retally.shared.domain.category.ItemCategorizer
+import com.retally.shared.domain.category.ItemCategory
 import com.retally.shared.domain.cloud.ReceiptBackup
 import com.retally.shared.domain.favorites.FavoriteStoresRepository
 import com.retally.shared.domain.receipt.DuplicateMatcher
@@ -38,6 +41,10 @@ interface ScanReviewContract {
         val savedAt: kotlin.time.Instant? = null,
         /** Line the shopper asked to remove; the UI shows a confirmation until this is null. */
         val pendingRemoval: ReceiptItem? = null,
+        /** Line whose category the shopper is changing; the UI shows a picker until null. */
+        val categoryPickerItem: ReceiptItem? = null,
+        /** Server-pushed spending categories, for the picker and item badges. */
+        val categories: List<ItemCategory> = emptyList(),
         /** Whether the receipt's store is a favorite (toggled by the top-bar heart). */
         val isFavoriteStore: Boolean = false,
     ) : com.retally.shared.core.State {
@@ -58,6 +65,10 @@ interface ScanReviewContract {
         data class RemoveOneRequested(val id: String) : Action()
         data object RemoveOneConfirmed : Action()
         data object RemoveOneCancelled : Action()
+        /** Change an item's spending category (auto-tagged at scan time). */
+        data class ItemCategoryPickerOpened(val id: String) : Action()
+        data class ItemCategoryPicked(val categoryId: String) : Action()
+        data object ItemCategoryPickerDismissed : Action()
         /** Top-bar heart: favorite/unfavorite this receipt's store. */
         data object FavoriteStoreToggled : Action()
         data object CloseClicked : Action()
@@ -74,6 +85,7 @@ interface ScanReviewContract {
         private val repository: ReceiptRepository,
         private val backup: ReceiptBackup,
         private val favorites: FavoriteStoresRepository,
+        private val categories: CategorySource,
         private val parser: ReceiptParser = ReceiptParser(),
         private val clock: Clock = Clock.System,
         private val strings: StringResolver = EnglishStringResolver,
@@ -91,6 +103,11 @@ interface ScanReviewContract {
                     currentState = currentState.copy(isFavoriteStore = name != null && favorites.isFavorite(name))
                 }
             }
+            launch {
+                categories.categories.collect { list ->
+                    currentState = currentState.copy(categories = list)
+                }
+            }
         }
 
         override fun initState() = State()
@@ -106,6 +123,11 @@ interface ScanReviewContract {
                 )
                 Action.RemoveOneCancelled -> currentState = currentState.copy(pendingRemoval = null)
                 Action.RemoveOneConfirmed -> removeOne()
+                is Action.ItemCategoryPickerOpened -> currentState = currentState.copy(
+                    categoryPickerItem = currentState.receipt?.items?.firstOrNull { it.id == action.id },
+                )
+                is Action.ItemCategoryPicked -> changeItemCategory(action.categoryId)
+                Action.ItemCategoryPickerDismissed -> currentState = currentState.copy(categoryPickerItem = null)
                 Action.FavoriteStoreToggled -> toggleFavoriteStore()
                 Action.CloseClicked -> sideEffect(SideEffect.Closed)
             }
@@ -137,7 +159,14 @@ interface ScanReviewContract {
                 purchaseDate = parsed.purchaseDate ?: now,
                 paymentInfo = parsed.paymentInfo,
                 items = parsed.items.map {
-                    ReceiptItem(id = it.id, itemNumber = it.itemNumber, name = it.name, price = it.price, isDuplicate = it.isDuplicate)
+                    ReceiptItem(
+                        id = it.id,
+                        itemNumber = it.itemNumber,
+                        name = it.name,
+                        price = it.price,
+                        isDuplicate = it.isDuplicate,
+                        categoryId = ItemCategorizer.categorize(it.name, categories.categories.value),
+                    )
                 },
                 subtotal = parsed.subtotal,
                 tax = parsed.tax,
@@ -199,6 +228,18 @@ interface ScanReviewContract {
             currentState = currentState.copy(receipt = updated, pendingRemoval = null, isSaving = true)
             persist(updated, announce = false)
             sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.RECEIPT_MSG_REMOVED_ONE, target.name)))
+        }
+
+        /** Manual category fix: the shopper's choice wins and is never auto-retagged. */
+        private fun changeItemCategory(categoryId: String) {
+            val receipt = currentState.receipt ?: return
+            val target = currentState.categoryPickerItem ?: return
+            val updated = receipt.copy(
+                items = receipt.items.map { if (it.id == target.id) it.copy(categoryId = categoryId) else it },
+                syncedAt = null, // changed locally → needs re-upload
+            )
+            currentState = currentState.copy(receipt = updated, categoryPickerItem = null, isSaving = true)
+            persist(updated, announce = false)
         }
 
         private fun persist(receipt: Receipt, announce: Boolean) {

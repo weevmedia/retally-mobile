@@ -73,6 +73,7 @@
     <string name="home_msg_how_it_works">Scan a receipt → ReTally reads every line → identical items at the same price are flagged as double charges.</string>
     <string name="home_msg_notifications_soon">Notifications are coming soon.</string>
     <string name="home_msg_sample_added">Sample receipt added</string>
+    <string name="home_spending_title">Spending</string>
     <string name="home_msg_deleted">Deleted %1$s</string>
     <string name="home_msg_sign_in_soon">Sign in is coming soon — your receipts are safe on this device.</string>
     <string name="home_ai_insight_due">You buy %1$s every %2$d days — </string>
