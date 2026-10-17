@@ -117,6 +117,9 @@ final class NearbyStoreMonitor: NSObject, CLLocationManagerDelegate {
 
     // MARK: - Local notification
 
+    /// userInfo key carrying the store name to open the Shopping List on.
+    static let shoppingStoreKey = "shoppingStore"
+
     private func postNotification(storeName: String) {
         let content = UNMutableNotificationContent()
         // The shared string uses %1$s (Java/Compose style). Apple's
@@ -124,7 +127,12 @@ final class NearbyStoreMonitor: NSObject, CLLocationManagerDelegate {
         // ("You're near aÙú"), so substitute directly instead of formatting.
         content.title = NSLocalizedString("nearby_notify_title", comment: "")
             .replacingOccurrences(of: "%1$s", with: storeName)
-        content.body = NSLocalizedString("nearby_notify_body", comment: "")
+        // Real items from the cached AI shopping list when there is one (works offline and
+        // after a background relaunch); otherwise the generic "check your list" copy.
+        content.body = IosDependencies.shared.shoppingListSummary(storeName: storeName)
+            ?? NSLocalizedString("nearby_notify_body", comment: "")
+        // Tapping opens the Shopping List on this store (see AppDelegate.didReceive).
+        content.userInfo = [NearbyStoreMonitor.shoppingStoreKey: storeName]
         let request = UNNotificationRequest(
             identifier: "nearby-\(storeName)-\(Date().timeIntervalSince1970)",
             content: content,

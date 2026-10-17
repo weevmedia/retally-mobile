@@ -57,3 +57,21 @@ functions/*.log
 # Logs
 *.log
 npm-debug.log*
+
+# Kotlin compiler caches
+.kotlin/
+
+# Local working files from AI assistants — not part of the app
+Claude outputs/
+
+# Google service-account keys (any name) — full admin access to the project, never commit
+*-firebase-adminsdk-*.json
+serviceAccount*.json
+*.json.key
+
+# Firebase emulator / local secrets
+.runtimeconfig.json
+.secret.local
+firebase-debug.log
+firestore-debug.log
+ui-debug.log

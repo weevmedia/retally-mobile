@@ -43,3 +43,9 @@ UPDATE receipt SET synced_at = :syncedAt WHERE id IN :ids;
 
 deleteAll:
 DELETE FROM receipt;
+
+selectOlderThan:
+SELECT * FROM receipt WHERE purchase_date < :cutoff;
+
+deleteOlderThan:
+DELETE FROM receipt WHERE purchase_date < :cutoff;

@@ -12,6 +12,9 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Icon
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import com.retally.shared.domain.auth.Account
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -29,9 +32,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DocumentScanner
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -81,9 +89,7 @@ internal fun EmptyHome(
                 GuestBanner(onSignIn = onSignIn)
             }
             Spacer(Modifier.height(d.lg))
-            ReceiptSearchIllustration(
-                modifier = Modifier.fillMaxWidth().height(d.emptyIllustration),
-            )
+            FoldableIllustration()
             Spacer(Modifier.height(d.lg))
             Text(
                 str(S.HOME_EMPTY_TITLE),
@@ -196,16 +202,40 @@ internal fun greetingKey(clock: Clock = Clock.System, timeZone: TimeZone = TimeZ
  * Empty-state illustration: the receipt-and-magnifier artwork shipped as a Compose
  * Multiplatform drawable (shared/src/commonMain/composeResources/drawable/empty_receipts.png).
  *
- * Replaces the earlier Canvas line-art. The PNG has a transparent background so it sits on
- * whatever surface hosts it, but unlike the drawn version its colours are fixed and do not
- * follow the theme tokens.
+ * Foldable — tap to collapse/expand with a spring animation. Collapsed state shows
+ * just a chevron so the empty state takes less vertical space.
  */
 @Composable
-internal fun ReceiptSearchIllustration(modifier: Modifier = Modifier) {
-    Image(
-        painter = painterResource(Res.drawable.empty_receipts),
-        contentDescription = null,
-        contentScale = ContentScale.Fit,
-        modifier = modifier,
-    )
+internal fun FoldableIllustration(modifier: Modifier = Modifier) {
+    val d = ReTallyTheme.dimensions
+    var expanded by remember { mutableStateOf(true) }
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .animateContentSize(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        if (expanded) {
+            Image(
+                painter = painterResource(Res.drawable.empty_receipts),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(d.emptyIllustration)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { expanded = false },
+                    ),
+            )
+        }
+        androidx.compose.material3.IconButton(onClick = { expanded = !expanded }) {
+            androidx.compose.material3.Icon(
+                if (expanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
+                contentDescription = if (expanded) "Collapse illustration" else "Expand illustration",
+                tint = ReTallyTheme.colors.ink.copy(alpha = 0.5f),
+            )
+        }
+    }
 }

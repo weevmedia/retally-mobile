@@ -56,4 +56,10 @@ class FirebaseAuthRepository(
     } catch (e: Exception) {
         false
     }
+
+    override suspend fun getIdToken(forceRefresh: Boolean): String? = try {
+        auth.currentUser?.getIdToken(forceRefresh)
+    } catch (e: Exception) {
+        null
+    }
 }

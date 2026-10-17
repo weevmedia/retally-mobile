@@ -29,6 +29,7 @@ import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.SearchOff
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
@@ -58,6 +59,8 @@ import androidx.compose.ui.unit.dp
 import com.retally.shared.domain.category.ItemCategory
 import com.retally.shared.domain.receipt.model.Receipt
 import com.retally.shared.domain.receipt.model.ReceiptItem
+import com.retally.shared.domain.receipt.model.ParseSource
+import com.retally.shared.domain.receipt.model.ScanStatus
 import com.retally.shared.presentation.scan.ScanReviewContract
 import com.retally.shared.ui.barcode.BarcodeImage
 import com.retally.shared.ui.image.ReceiptImageViewer
@@ -93,6 +96,9 @@ fun ScanReviewScreen(
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
 ) {
+    // Hoisted above the Scaffold so the image viewer overlays the top bar too.
+    var showPhoto by remember { mutableStateOf(false) }
+    Box(Modifier.fillMaxSize()) {
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -130,7 +136,7 @@ fun ScanReviewScreen(
         val receipt = state.receipt
         when {
             state.isLoading -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+                ScanCookingAnimation(isAiMode = state.isAiParsing)
             }
             receipt == null -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 EmptyState(
@@ -150,6 +156,9 @@ fun ScanReviewScreen(
                 onKeepBoth = { dispatch(ScanReviewContract.Action.KeepBoth(it)) },
                 onRemoveOne = { dispatch(ScanReviewContract.Action.RemoveOneRequested(it)) },
                 onCategoryClick = { dispatch(ScanReviewContract.Action.ItemCategoryPickerOpened(it)) },
+                onPhotoClick = { showPhoto = true },
+                onShare = { dispatch(ScanReviewContract.Action.ShareClicked) },
+                onSave = { dispatch(ScanReviewContract.Action.SaveToPhotosClicked) },
             )
         }
     }
@@ -169,6 +178,25 @@ fun ScanReviewScreen(
             onDismiss = { dispatch(ScanReviewContract.Action.ItemCategoryPickerDismissed) },
         )
     }
+    // Full-screen image viewer overlay — drawn above the Scaffold so the receipt
+    // top bar (X / Receipt / heart) is hidden while viewing. Back dismisses only this.
+    androidx.compose.animation.AnimatedVisibility(
+        visible = showPhoto,
+        enter = androidx.compose.animation.slideInVertically(initialOffsetY = { it }) +
+            androidx.compose.animation.fadeIn(),
+        exit = androidx.compose.animation.slideOutVertically(targetOffsetY = { it }) +
+            androidx.compose.animation.fadeOut(),
+    ) {
+        state.receipt?.imagePath?.let {
+            ReceiptImageViewer(
+                imagePath = it,
+                onDismiss = { showPhoto = false },
+                onShare = { dispatch(ScanReviewContract.Action.ShareClicked) },
+                onSave = { dispatch(ScanReviewContract.Action.SaveToPhotosClicked) },
+            )
+        }
+    }
+    } // Close root Box
 }
 
 /** Pick an item's spending category; the shopper's choice is never auto-retagged. */
@@ -276,10 +304,12 @@ private fun ReceiptBody(
     onKeepBoth: (String) -> Unit,
     onRemoveOne: (String) -> Unit,
     onCategoryClick: (String) -> Unit,
+    onPhotoClick: () -> Unit,
+    onShare: () -> Unit = {},
+    onSave: () -> Unit = {},
 ) {
     val d = ReTallyTheme.dimensions
     var showBarcode by remember { mutableStateOf(false) }
-    var showPhoto by remember { mutableStateOf(false) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
@@ -289,7 +319,11 @@ private fun ReceiptBody(
         ),
         verticalArrangement = Arrangement.spacedBy(d.md),
     ) {
-        item { StoreHeader(receipt, onPhotoClick = { showPhoto = true }) }
+        item { StoreHeader(receipt, onPhotoClick = onPhotoClick) }
+        // Torn/faded receipt notice — shown when the scan was incomplete.
+        if (receipt.scanStatus != ScanStatus.COMPLETE) {
+            item { PartialScanBanner(receipt) }
+        }
         item { DoubleChargeVerdict(receipt) }
 
         item { SectionHeader(str(S.RECEIPT_ITEMS_HEADER, receipt.items.size), modifier = Modifier.padding(top = d.sm)) }
@@ -338,14 +372,65 @@ private fun ReceiptBody(
     if (showBarcode) {
         BarcodeModal(receipt = receipt, onDismiss = { showBarcode = false })
     }
-    if (showPhoto) {
-        receipt.imagePath?.let { ReceiptImageViewer(imagePath = it, onDismiss = { showPhoto = false }) }
+    // Note: the full-screen image viewer is hoisted to ScanReviewScreen (above the
+    // Scaffold) so it covers the receipt top bar while viewing.
+}
+
+/**
+ * Banner shown when a receipt scan was incomplete (torn, faded, or cut off).
+ * Uses the approved copy — never asks for another retake.
+ */
+@Composable
+private fun PartialScanBanner(receipt: Receipt) {
+    val colors = MaterialTheme.colorScheme
+    val message = when (receipt.scanStatus) {
+        ScanStatus.PARTIAL -> "This receipt looks torn or faded. We saved what we could read."
+        ScanStatus.MANUAL_ENTRY -> "We couldn't read this receipt. Enter the details below."
+        ScanStatus.COMPLETE -> return
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(colors.tertiaryContainer.copy(alpha = 0.6f))
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(
+            Icons.Rounded.Warning,
+            contentDescription = null,
+            tint = colors.onTertiaryContainer,
+            modifier = Modifier.size(20.dp),
+        )
+        Column(Modifier.weight(1f)) {
+            Text(
+                message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.onTertiaryContainer,
+            )
+            if (receipt.missingFields.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Missing: " + receipt.missingFields.joinToString(", "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onTertiaryContainer.copy(alpha = 0.8f),
+                )
+            }
+            if (receipt.parseSource == ParseSource.CLOUD_AI) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Read by AI",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = colors.onTertiaryContainer.copy(alpha = 0.7f),
+                )
+            }
+        }
     }
 }
 
 /**
- * Store name and address on the left, the scanned receipt photo pinned to the extreme
- * right beside the date/time row. The map pin sits left of the first address line and
+ * Store name and address on the left. The map pin sits left of the first address line and
  * opens the address in Maps; then date/time.
  * Payment is shown with the totals, not here.
  */

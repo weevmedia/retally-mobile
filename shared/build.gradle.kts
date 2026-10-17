@@ -80,6 +80,7 @@ kotlin {
             with(Deps.Firebase) {
                 implementation(auth)
                 implementation(firestore)
+                implementation(storage)
             }
 
             // Local persistence
@@ -97,6 +98,7 @@ kotlin {
         }
         androidMain.dependencies {
             implementation(Deps.Kotlinx.coroutinesAndroid)
+            implementation(Deps.Kotlinx.coroutinesPlayServices)
             implementation(Deps.KtorClient.okhttp)
             implementation(Deps.Android.playServicesAds)
             implementation(Deps.Koin.android)

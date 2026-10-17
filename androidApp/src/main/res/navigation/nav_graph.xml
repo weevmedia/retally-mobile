@@ -121,13 +121,52 @@
             app:popEnterAnim="@anim/nav_default_pop_enter_anim"
             app:popExitAnim="@anim/nav_default_pop_exit_anim" />
         <action
+            android:id="@+id/action_home_to_customScanner"
+            app:destination="@id/customScannerFragment"
+            app:enterAnim="@anim/nav_default_enter_anim"
+            app:exitAnim="@anim/nav_default_exit_anim"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+        <action
             android:id="@+id/action_home_to_duplicates"
             app:destination="@id/duplicatesFragment"
             app:enterAnim="@anim/nav_default_enter_anim"
             app:exitAnim="@anim/nav_default_exit_anim"
             app:popEnterAnim="@anim/nav_default_pop_enter_anim"
             app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+        <action
+            android:id="@+id/action_home_to_budget"
+            app:destination="@id/budgetFragment"
+            app:enterAnim="@anim/nav_default_enter_anim"
+            app:exitAnim="@anim/nav_default_exit_anim"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+        <action
+            android:id="@+id/action_home_to_alerts"
+            app:destination="@id/alertsFragment"
+            app:enterAnim="@anim/nav_default_enter_anim"
+            app:exitAnim="@anim/nav_default_exit_anim"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
     </fragment>
+
+    <!-- Food recall alerts (FDA + USDA), opened from the Home bell. -->
+    <fragment
+        android:id="@+id/alertsFragment"
+        android:name="com.retally.app.ui.alerts.AlertsFragment"
+        android:label="@string/nav_alerts">
+        <action
+            android:id="@+id/action_alerts_to_auth"
+            app:destination="@id/authFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out" />
+    </fragment>
+
+    <!-- Monthly grocery budget: pace-based 3-color bar, opened from the Home Spent tile. -->
+    <fragment
+        android:id="@+id/budgetFragment"
+        android:name="com.retally.app.ui.budget.BudgetFragment"
+        android:label="@string/nav_budget" />
 
     <!-- "Duplicates found": items repeated across receipts + receipts with unresolved double charges. -->
     <fragment
@@ -136,6 +175,20 @@
         android:label="@string/nav_duplicates">
         <action
             android:id="@+id/action_duplicates_to_scanReview"
+            app:destination="@id/scanReviewFragment"
+            app:enterAnim="@anim/nav_default_enter_anim"
+            app:exitAnim="@anim/nav_default_exit_anim"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+    </fragment>
+
+    <!-- ML Kit document scanner: auto edge detection, perspective correction, straight to review. -->
+    <fragment
+        android:id="@+id/customScannerFragment"
+        android:name="com.retally.app.ui.scan.MlKitScannerFragment"
+        android:label="@string/nav_custom_scanner">
+        <action
+            android:id="@+id/action_customScanner_to_scanReview"
             app:destination="@id/scanReviewFragment"
             app:enterAnim="@anim/nav_default_enter_anim"
             app:exitAnim="@anim/nav_default_exit_anim"
@@ -180,11 +233,17 @@
             app:popExitAnim="@anim/nav_default_pop_exit_anim" />
     </fragment>
 
-    <!-- Placeholder tabs (shell present, feature pending). -->
+    <!-- AI Shopping List tab. -->
     <fragment
         android:id="@+id/aiListFragment"
-        android:name="com.retally.app.ui.placeholder.AiListFragment"
-        android:label="@string/nav_ai_list" />
+        android:name="com.retally.app.ui.shopping.ShoppingListFragment"
+        android:label="@string/nav_ai_list">
+        <action
+            android:id="@+id/action_aiList_to_auth"
+            app:destination="@id/authFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out" />
+    </fragment>
 
     <fragment
         android:id="@+id/settingsFragment"

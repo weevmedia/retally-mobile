@@ -16,10 +16,11 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
-import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.DocumentScanner
+import com.retally.shared.ui.components.ShoppingBasketIcon
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material3.Icon
@@ -135,7 +136,7 @@ private class NotchedBarShape(
 }
 
 /**
- * tab-bar with scan-fab: a floating rounded surface with Home · Receipts · [Scan] · AI List ·
+ * tab-bar with scan-fab: a floating rounded surface with Home · Receipts · [Scan] · Shopping List ·
  * More. The centre slot is the raised green FAB using the app's scan icon, labelled "Scan"
  * inside the bar. Shared by both platforms so the shell looks identical on iOS and Android.
  *
@@ -159,11 +160,18 @@ fun ReTallyTabBar(
     val barShadow = Color(0x26000000)
     // FAB centre in bar coordinates. The cutout is the collar plus a hairline gap so
     // the notch edge stays visible against the white ring.
-    val notchShape = NotchedBarShape(
-        cornerRadius = t.cornerRadius,
-        notchCenterY = t.notchCenterY,
-        notchRadius = t.notchRadius,
-    )
+    // The scan FAB (and its notch and label) is hidden on the Shopping List tab. The centre
+    // slot keeps its width so the other tabs don't shift under the user's finger.
+    val showScan = selected != MainTab.AI_LIST
+    val notchShape: Shape = if (showScan) {
+        NotchedBarShape(
+            cornerRadius = t.cornerRadius,
+            notchCenterY = t.notchCenterY,
+            notchRadius = t.notchRadius,
+        )
+    } else {
+        RoundedCornerShape(t.cornerRadius)
+    }
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -194,18 +202,22 @@ fun ReTallyTabBar(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Bottom,
             ) {
-                Text(str(S.TAB_SCAN), style = ReTallyTheme.typography.caption, color = TabBarColors.unselected)
-                Spacer(Modifier.height(14.dp))
+                if (showScan) {
+                    Text(str(S.TAB_SCAN), style = ReTallyTheme.typography.caption, color = TabBarColors.unselected)
+                    Spacer(Modifier.height(14.dp))
+                }
             }
-            TabItem(MainTab.AI_LIST, Icons.Rounded.AutoAwesome, selected == MainTab.AI_LIST, onSelect, Modifier.weight(1f))
+            TabItem(MainTab.AI_LIST, ShoppingBasketIcon, selected == MainTab.AI_LIST, onSelect, Modifier.weight(1f))
             TabItem(MainTab.MORE, Icons.Rounded.MoreHoriz, selected == MainTab.MORE, onSelect, Modifier.weight(1f))
         }
-        ScanFab(
-            onClick = onScan,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = -t.fabOverhang + 4.dp),
-        )
+        if (showScan) {
+            ScanFab(
+                onClick = onScan,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = -t.fabOverhang + 4.dp),
+            )
+        }
     }
 }
 

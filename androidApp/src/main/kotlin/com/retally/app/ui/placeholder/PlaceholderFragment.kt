@@ -23,4 +23,3 @@ abstract class PlaceholderFragment(private val placeholder: PlaceholderTab) : Fr
         }
 }
 
-class AiListFragment : PlaceholderFragment(PlaceholderTab.AI_LIST)

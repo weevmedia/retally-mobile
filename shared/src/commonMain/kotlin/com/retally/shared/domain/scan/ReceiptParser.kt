@@ -27,6 +27,11 @@ data class ParsedReceipt(
     val total: Double? = null,
     /** Digits of the barcode printed at the bottom, when found. */
     val barcode: String? = null,
+    /**
+     * Item count printed on the receipt ("ITEMS SOLD: 12"), null when not printed.
+     * Compare against [items].size to detect incomplete scans.
+     */
+    val declaredItemCount: Int? = null,
 ) {
     val duplicateCount: Int get() = items.count { it.isDuplicate }
 }
@@ -73,8 +78,10 @@ class ReceiptParser(
             items = flagDuplicates(detectItems(clean)),
             subtotal = detectAmount(clean, SUBTOTAL),
             tax = detectTax(clean),
-            total = detectAmount(clean, TOTAL, preferLast = true),
+            total = detectAmount(clean, TOTAL, preferLast = true)
+                ?: detectAmount(clean, AMOUNT_LINE),
             barcode = detectBarcode(clean),
+            declaredItemCount = detectItemCount(clean),
         )
     }
 
@@ -291,6 +298,18 @@ class ReceiptParser(
     }
 
     /**
+     * Declared item count printed on the receipt ("ITEMS SOLD: 12"). Returns null when
+     * the receipt doesn't print a count — absence is not a failure signal.
+     */
+    private fun detectItemCount(lines: List<String>): Int? {
+        for (line in lines) {
+            val m = ITEM_COUNT.find(line) ?: continue
+            return m.groupValues[1].toIntOrNull()
+        }
+        return null
+    }
+
+    /**
      * A line is an item only when it ends in a plain price (no minus sign, so discount and
      * refund lines such as "0000389072 / 2040045 5.00-" are skipped). The item number is
      * whichever the receipt prints, if any:
@@ -431,6 +450,13 @@ class ReceiptParser(
         private val SUBTOTAL = Regex("""(?i)\bSUB\s?-?\s?TOTAL\b""")
         /** The grand total line — not "TOTAL TAX", "TOTAL SAVINGS" or "TOTAL NUMBER OF ITEMS". */
         private val TOTAL = Regex("""(?i)^\s*\**\s*TOTAL\b(?!\s*(?:TAX|SAVINGS|DISCOUNT|NUMBER|ITEMS|QTY))""")
+        /** Fallback when the TOTAL amount isn't readable (e.g., inverted/white-on-black print): "AMOUNT: $265.43" in the payment block. */
+        private val AMOUNT_LINE = Regex("""(?i)^\s*AMOUNT\s*:""")
+        /**
+         * Declared item count: "ITEMS SOLD: 12", "TOTAL ITEMS: 15", "# ITEMS 8".
+         * Null when the receipt doesn't print a count — absence is not a failure.
+         */
+        private val ITEM_COUNT = Regex("""(?i)\b(?:TOTAL\s+)?(?:NUMBER\s+OF\s+)?ITEMS(?:\s+SOLD)?\s*:?\s*(\d{1,4})\b""")
         private val TAX = Regex("""(?i)\bTAX\b""")
         private val TRAILING_PRICE = Regex("""\$?\s?(-?\d{1,5}[.,]\d{2})\s?[A-Za-z*]?\s*$""")
         /** A line holding only a price, e.g. Costco's total amount above "**** TOTAL". */

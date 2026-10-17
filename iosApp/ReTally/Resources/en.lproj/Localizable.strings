@@ -41,7 +41,7 @@
 
 "tab_scan" = "Scan";
 
-"tab_ai_list" = "AI List";
+"tab_ai_list" = "SmartList";
 
 "tab_more" = "More";
 
@@ -50,8 +50,6 @@
 /********** Placeholders **********/
 
 "placeholder_receipts_body" = "Every receipt you scan will be listed here — searchable by store, date and item.";
-
-"placeholder_ai_list_body" = "ReTally will learn what you buy and how often, and draft your next grocery list for you.";
 
 "placeholder_more_body" = "Settings, account, export and help will live here.";
 
@@ -135,6 +133,18 @@
 /********** Scan **********/
 
 "scan_source_gallery" = "Upload from gallery";
+
+"scan_align_receipt" = "Align receipt in the frame";
+
+"scan_capture_a11y" = "Capture receipt photo";
+
+"scan_flash_toggle" = "Toggle flash";
+
+"scan_camera_denied_title" = "Camera access needed";
+
+"scan_camera_denied_body" = "Allow camera access in Settings to scan receipts.";
+
+"scan_open_settings" = "Open Settings";
 
 /********** Receipt **********/
 
@@ -510,3 +520,108 @@
 "otp_error_rate_limited" = "Too many attempts — wait a bit and try again.";
 
 "otp_accessibility" = "6-digit verification code";
+
+/********** Budget **********/
+
+"budget_title" = "Monthly Budget";
+
+"budget_monthly_budget" = "Monthly grocery budget";
+
+"budget_set" = "Set budget";
+
+"budget_set_hint" = "Set a budget to track your pace";
+
+"budget_edit" = "Edit Budget";
+
+"budget_save" = "Save";
+
+"budget_remaining" = "Remaining";
+
+"budget_days_left" = "Left in month";
+
+"budget_days_suffix" = "days";
+
+"budget_spent_suffix" = "spent";
+
+"budget_projected" = "Projected month-end";
+
+"budget_on_track" = "On track — under budget";
+
+"budget_warning" = "Heading over — slow down";
+
+"budget_over" = "Over pace — cut back";
+
+"budget_reset_note" = "Resets automatically on the 1st of every month";
+
+"budget_saved" = "Budget saved";
+
+"budget_invalid" = "Enter a valid amount";
+
+"budget_amount_hint" = "e.g. 500";
+
+"budget_tap_hint" = "Tap to set budget";
+"budget_spent_so_far" = "Spent so far";
+"budget_badge_on_track" = "On track";
+"budget_badge_near_limit" = "Near limit";
+"budget_badge_over_pace" = "Over pace";
+"budget_over_pace_by" = "Over pace by";
+"budget_title_suffix" = "Budget";
+
+"budget_amount_hint" = "e.g. 500";
+
+/* Shopping list */
+"shopping_preparing_title" = "Preparing your list";
+"shopping_step_1" = "Reading your receipts…";
+"shopping_step_2" = "Matching items across stores…";
+"shopping_step_3" = "Checking what's due…";
+"shopping_step_4" = "Almost ready…";
+"shopping_section_due" = "Due at %1$s";
+"shopping_section_also" = "Grab here too";
+"shopping_section_added" = "Added by you";
+"shopping_section_staples" = "Your staples";
+"shopping_usual_day" = "Usually %1$s";
+"shopping_updated_just_now" = "Updated just now";
+"shopping_updated_minutes" = "Updated %1$d min ago";
+"shopping_updated_hours" = "Updated %1$dh ago";
+"shopping_updated_days" = "Updated %1$dd ago";
+"shopping_usually_from" = "Usually from %1$s";
+"shopping_add_hint" = "Add an item";
+"shopping_add" = "Add";
+"shopping_not_needed" = "Not needed";
+"shopping_done" = "Done shopping";
+"shopping_share" = "Share";
+"shopping_refresh" = "Refresh";
+"shopping_share_title" = "%1$s list";
+"shopping_dismissed" = "%1$s removed for this trip";
+"shopping_refresh_failed" = "Couldn't refresh. Showing your last list.";
+"shopping_guest_title" = "Sign in for your smart list";
+"shopping_guest_body" = "ReTally builds your shopping list from the receipts you scan. Sign in so your receipts sync and we can predict what you need.";
+"shopping_sign_in" = "Sign in";
+"shopping_no_history_title" = "Not enough receipts yet";
+"shopping_no_history_body" = "Scan a few more receipts and we'll start predicting what you need.";
+"shopping_failed_title" = "Couldn't build your list";
+"shopping_failed_body" = "Check your connection and try again.";
+"shopping_retry" = "Try again";
+"shopping_all_set_title" = "You're all set";
+"shopping_all_set_body" = "Nothing is due at %1$s right now.";
+
+/* Food recall alerts */
+"alerts_title" = "Alerts";
+"alerts_section_matched" = "May affect you";
+"alerts_section_latest" = "Food recalls";
+"alerts_match" = "You bought %1$s on %2$s";
+"alerts_match_disclaimer" = "Matched by item name from your receipts. Check the brand, size and lot code in the notice before throwing anything out.";
+"alerts_read_more" = "Read the full notice";
+"alerts_empty_title" = "No alerts right now";
+"alerts_empty_body" = "We'll let you know about food recalls, price drops and more.";
+"alerts_failed_title" = "Couldn't load alerts";
+"alerts_failed_body" = "Check your connection and try again.";
+"alerts_refresh_failed" = "Couldn't refresh. Showing your last alerts.";
+"alerts_sign_in_title" = "Check recalls against your purchases";
+"alerts_sign_in_body" = "Sign in and ReTally will flag recalls that mention something you bought recently.";
+"alerts_sources_note" = "Sources: U.S. FDA and USDA Food Safety and Inspection Service. Recalls from the last 60 days.";
+
+/* Receipt restore */
+"home_restoring_title" = "Restoring your receipts…";
+"home_restoring_body" = "Bringing back the receipts saved to your account.";
+"home_msg_restored" = "Restored %1$d receipts from your account";

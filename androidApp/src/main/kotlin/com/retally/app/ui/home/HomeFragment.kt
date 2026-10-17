@@ -1,17 +1,15 @@
 package com.retally.app.ui.home
 
-import android.app.Activity
-import androidx.activity.result.IntentSenderRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import com.retally.app.ui.base.BaseComposeFragment
 import com.retally.app.ui.main.MainViewModel
 import com.retally.shared.presentation.home.HomeContract.Action
 import com.retally.shared.presentation.home.HomeContract.SideEffect
 import com.retally.shared.presentation.home.HomeContract.SideEffect.LaunchScanner
+import com.retally.shared.presentation.home.HomeContract.SideEffect.OpenAlerts
+import com.retally.shared.presentation.home.HomeContract.SideEffect.OpenBudget
 import com.retally.shared.presentation.home.HomeContract.SideEffect.OpenDuplicates
 import com.retally.shared.presentation.home.HomeContract.SideEffect.OpenSignIn
 import com.retally.shared.presentation.home.HomeContract.SideEffect.OpenReceipt
@@ -30,15 +28,6 @@ class HomeFragment : BaseComposeFragment<State, Action, SideEffect, HomeViewMode
     override val viewModel: HomeViewModel by viewModel()
     private val mainViewModel: MainViewModel by activityViewModel()
 
-    private val scannerLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-        val scan = if (result.resultCode == Activity.RESULT_OK) {
-            GmsDocumentScanningResult.fromActivityResultIntent(result.data)
-        } else {
-            null
-        }
-        viewModel.onScannerResult(scan)
-    }
-
     @Composable
     override fun ScreenContent(state: State) {
         val shell by mainViewModel.store.observeState().collectAsStateWithLifecycle()
@@ -53,9 +42,8 @@ class HomeFragment : BaseComposeFragment<State, Action, SideEffect, HomeViewMode
 
     override suspend fun onViewEffect(effect: SideEffect) {
         when (effect) {
-            LaunchScanner -> viewModel.requestScannerIntent(requireActivity()) { sender ->
-                scannerLauncher.launch(IntentSenderRequest.Builder(sender).build())
-            }
+            // Custom scanner (CameraX): capture or gallery upload, straight to review.
+            LaunchScanner -> navigate(HomeFragmentDirections.actionHomeToCustomScanner())
             is OpenScanReview -> navigate(
                 HomeFragmentDirections.actionHomeToScanReview(
                     recognizedText = effect.lines.joinToString("\n"),
@@ -64,6 +52,8 @@ class HomeFragment : BaseComposeFragment<State, Action, SideEffect, HomeViewMode
             )
             is OpenReceipt -> navigate(HomeFragmentDirections.actionHomeToScanReview(receiptId = effect.id))
             OpenDuplicates -> navigate(HomeFragmentDirections.actionHomeToDuplicates())
+            OpenBudget -> navigate(HomeFragmentDirections.actionHomeToBudget())
+            OpenAlerts -> navigate(HomeFragmentDirections.actionHomeToAlerts())
             // Home lists only the newest few; "See all" hands over to the Receipts tab.
             OpenReceipts -> mainViewModel.store.dispatch(MainContract.Action.SelectTab(MainTab.RECEIPTS))
             OpenSignIn -> Unit // TODO(sign-in): present the account-linking flow

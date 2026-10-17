@@ -9,9 +9,10 @@
     <string name="nav_splash">Splash</string>
     <string name="nav_home">Home</string>
     <string name="nav_receipts">Receipts</string>
-    <string name="nav_ai_list">AI List</string>
+    <string name="nav_ai_list">Shopping List</string>
     <string name="nav_settings">Settings</string>
     <string name="nav_scan_review">Review receipt</string>
+    <string name="nav_custom_scanner">Scan receipt</string>
     <string name="nav_duplicates">Duplicates found</string>
     <string name="nav_onboarding">Onboarding</string>
 
@@ -36,13 +37,12 @@
     <string name="tab_home">Home</string>
     <string name="tab_receipts">Receipts</string>
     <string name="tab_scan">Scan</string>
-    <string name="tab_ai_list">AI List</string>
+    <string name="tab_ai_list">SmartList</string>
     <string name="tab_more">More</string>
     <string name="tab_scan_receipt_a11y">Scan receipt</string>
 
     <!-- Placeholders -->
     <string name="placeholder_receipts_body">Every receipt you scan will be listed here — searchable by store, date and item.</string>
-    <string name="placeholder_ai_list_body">ReTally will learn what you buy and how often, and draft your next grocery list for you.</string>
     <string name="placeholder_more_body">Settings, account, export and help will live here.</string>
 
     <!-- Home -->
@@ -295,4 +295,87 @@
     <string name="otp_accessibility">6-digit verification code</string>
     <string name="nav_auth">Sign in</string>
     <string name="nav_otp">Enter code</string>
+    <string name="nav_budget">Monthly Budget</string>
+
+    <!-- Budget -->
+    <string name="budget_title">Monthly Budget</string>
+    <string name="budget_monthly_budget">Monthly grocery budget</string>
+    <string name="budget_set">Set budget</string>
+    <string name="budget_set_hint">Set a budget to track your pace</string>
+    <string name="budget_edit">Edit Budget</string>
+    <string name="budget_save">Save</string>
+    <string name="budget_remaining">Remaining</string>
+    <string name="budget_days_left">Left in month</string>
+    <string name="budget_days_suffix">days</string>
+    <string name="budget_spent_suffix">spent</string>
+    <string name="budget_projected">Projected month-end</string>
+    <string name="budget_on_track">On track — under budget</string>
+    <string name="budget_warning">Heading over — slow down</string>
+    <string name="budget_over">Over pace — cut back</string>
+    <string name="budget_reset_note">Resets automatically on the 1st of every month</string>
+    <string name="budget_saved">Budget saved</string>
+    <string name="budget_invalid">Enter a valid amount</string>
+    <string name="budget_amount_hint">e.g. 500</string>
+    <string name="budget_tap_hint">Tap to set budget</string>
+    <string name="budget_spent_so_far">Spent so far</string>
+    <string name="budget_badge_on_track">On track</string>
+    <string name="budget_badge_near_limit">Near limit</string>
+    <string name="budget_badge_over_pace">Over pace</string>
+    <string name="budget_over_pace_by">Over pace by</string>
+    <string name="budget_title_suffix">Budget</string>
+    <!-- Shopping list -->
+    <string name="shopping_preparing_title">Preparing your list</string>
+    <string name="shopping_step_1">Reading your receipts…</string>
+    <string name="shopping_step_2">Matching items across stores…</string>
+    <string name="shopping_step_3">Checking what\'s due…</string>
+    <string name="shopping_step_4">Almost ready…</string>
+    <string name="shopping_section_due">Due at %1$s</string>
+    <string name="shopping_section_also">Grab here too</string>
+    <string name="shopping_section_added">Added by you</string>
+    <string name="shopping_section_staples">Your staples</string>
+    <string name="shopping_usual_day">Usually %1$s</string>
+    <string name="shopping_updated_just_now">Updated just now</string>
+    <string name="shopping_updated_minutes">Updated %1$d min ago</string>
+    <string name="shopping_updated_hours">Updated %1$dh ago</string>
+    <string name="shopping_updated_days">Updated %1$dd ago</string>
+    <string name="shopping_usually_from">Usually from %1$s</string>
+    <string name="shopping_add_hint">Add an item</string>
+    <string name="shopping_add">Add</string>
+    <string name="shopping_not_needed">Not needed</string>
+    <string name="shopping_done">Done shopping</string>
+    <string name="shopping_share">Share</string>
+    <string name="shopping_refresh">Refresh</string>
+    <string name="shopping_share_title">%1$s list</string>
+    <string name="shopping_dismissed">%1$s removed for this trip</string>
+    <string name="shopping_refresh_failed">Couldn\'t refresh. Showing your last list.</string>
+    <string name="shopping_guest_title">Sign in for your smart list</string>
+    <string name="shopping_guest_body">ReTally builds your shopping list from the receipts you scan. Sign in so your receipts sync and we can predict what you need.</string>
+    <string name="shopping_sign_in">Sign in</string>
+    <string name="shopping_no_history_title">Not enough receipts yet</string>
+    <string name="shopping_no_history_body">Scan a few more receipts and we\'ll start predicting what you need.</string>
+    <string name="shopping_failed_title">Couldn\'t build your list</string>
+    <string name="shopping_failed_body">Check your connection and try again.</string>
+    <string name="shopping_retry">Try again</string>
+    <string name="shopping_all_set_title">You\'re all set</string>
+    <string name="shopping_all_set_body">Nothing is due at %1$s right now.</string>
+    <!-- Food recall alerts -->
+    <string name="alerts_title">Alerts</string>
+    <string name="alerts_section_matched">May affect you</string>
+    <string name="alerts_section_latest">Food recalls</string>
+    <string name="alerts_match">You bought %1$s on %2$s</string>
+    <string name="alerts_match_disclaimer">Matched by item name from your receipts. Check the brand, size and lot code in the notice before throwing anything out.</string>
+    <string name="alerts_read_more">Read the full notice</string>
+    <string name="alerts_empty_title">No alerts right now</string>
+    <string name="alerts_empty_body">We\'ll let you know about food recalls, price drops and more.</string>
+    <string name="alerts_failed_title">Couldn\'t load alerts</string>
+    <string name="alerts_failed_body">Check your connection and try again.</string>
+    <string name="alerts_refresh_failed">Couldn\'t refresh. Showing your last alerts.</string>
+    <string name="alerts_sign_in_title">Check recalls against your purchases</string>
+    <string name="alerts_sign_in_body">Sign in and ReTally will flag recalls that mention something you bought recently.</string>
+    <string name="alerts_sources_note">Sources: U.S. FDA and USDA Food Safety and Inspection Service. Recalls from the last 60 days.</string>
+    <string name="nav_alerts">Alerts</string>
+    <!-- Receipt restore -->
+    <string name="home_restoring_title">Restoring your receipts…</string>
+    <string name="home_restoring_body">Bringing back the receipts saved to your account.</string>
+    <string name="home_msg_restored">Restored %1$d receipts from your account</string>
 </resources>

@@ -42,6 +42,10 @@ object Versions {
     // Receipt scanning: Play-services-delivered ML Kit (no bundled model, small APK).
     const val mlkitDocumentScanner = "16.0.0-beta1"
     const val mlkitTextRecognition = "19.0.1"
+    // Custom scanner UI (replaces the ML Kit document scanner): CameraX for the live preview.
+    const val cameraX = "1.3.4"
+    // Guava ListenableFuture (required by CameraX ProcessCameraProvider).
+    const val guava = "32.1.2-android"
 
     const val turbine = "1.2.1"
 
@@ -95,6 +99,11 @@ object Deps {
         const val userMessagingPlatform = "com.google.android.ump:user-messaging-platform:${Versions.userMessagingPlatform}"
         const val mlkitDocumentScanner = "com.google.android.gms:play-services-mlkit-document-scanner:${Versions.mlkitDocumentScanner}"
         const val mlkitTextRecognition = "com.google.android.gms:play-services-mlkit-text-recognition:${Versions.mlkitTextRecognition}"
+        const val cameraXCore = "androidx.camera:camera-core:${Versions.cameraX}"
+        const val cameraXCamera2 = "androidx.camera:camera-camera2:${Versions.cameraX}"
+        const val cameraXLifecycle = "androidx.camera:camera-lifecycle:${Versions.cameraX}"
+        const val cameraXView = "androidx.camera:camera-view:${Versions.cameraX}"
+        const val guava = "com.google.guava:guava:${Versions.guava}"
     }
 
     object Koin {
@@ -123,6 +132,8 @@ object Deps {
         const val compose = "io.coil-kt.coil3:coil-compose:${Versions.coil}"
         // HTTP fetching via Ktor 3 (matches Deps.KtorClient); needed for remote URLs.
         const val networkKtor3 = "io.coil-kt.coil3:coil-network-ktor3:${Versions.coil}"
+        // Animated GIF decoding for the scan-cooking loading animation.
+        const val gif = "io.coil-kt.coil3:coil-gif:${Versions.coil}"
     }
 
     object SqlDelight {
@@ -134,6 +145,7 @@ object Deps {
     object Firebase {
         const val auth = "dev.gitlive:firebase-auth:${Versions.gitliveFirebase}"
         const val firestore = "dev.gitlive:firebase-firestore:${Versions.gitliveFirebase}"
+        const val storage = "dev.gitlive:firebase-storage:${Versions.gitliveFirebase}"
         // Root buildscript classpath entry for `id("com.google.gms.google-services")`.
         const val googleServicesPlugin = "com.google.gms:google-services:${Versions.googleServicesPlugin}"
     }

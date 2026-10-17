@@ -12,5 +12,12 @@ struct ScanReviewView: View {
             .ignoresSafeArea()
             .toolbar(.hidden, for: .navigationBar) // Compose draws the top bar with its own Close.
             .toolbar(.hidden, for: .tabBar)
+            .onAppear {
+                // Hide the native scan FAB while the receipt page (or its image viewer) is open.
+                NotificationCenter.default.post(name: .retallyHideScanButton, object: nil)
+            }
+            .onDisappear {
+                NotificationCenter.default.post(name: .retallyShowScanButton, object: nil)
+            }
     }
 }

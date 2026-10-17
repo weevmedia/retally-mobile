@@ -2,11 +2,14 @@ package com.retally.app.di
 
 import com.retally.app.scan.ReceiptTextRecognizer
 import com.retally.app.ui.home.HomeViewModel
+import com.retally.app.ui.budget.BudgetViewModel
 import com.retally.app.ui.scan.ScanReviewViewModel
 import com.retally.app.ui.duplicates.DuplicatesViewModel
 import com.retally.app.ui.main.MainViewModel
 import com.retally.app.ui.receipts.ReceiptsViewModel
 import com.retally.app.ui.settings.SettingsViewModel
+import com.retally.app.ui.shopping.ShoppingListViewModel
+import com.retally.app.ui.alerts.AlertsViewModel
 import com.retally.app.ui.splash.SplashViewModel
 import com.retally.app.ui.onboarding.OnboardingViewModel
 import com.retally.app.ui.auth.AuthViewModel
@@ -31,6 +34,9 @@ val viewModelModule = module {
     viewModel { ScanReviewViewModel(store = get()) }
     viewModel { DuplicatesViewModel(store = get()) }
     viewModel { ReceiptsViewModel(store = get()) }
+    viewModel { BudgetViewModel(store = get()) }
+    viewModel { ShoppingListViewModel(store = get()) }
+    viewModel { AlertsViewModel(store = get()) }
 
     single { ReceiptTextRecognizer(androidContext()) }
 }

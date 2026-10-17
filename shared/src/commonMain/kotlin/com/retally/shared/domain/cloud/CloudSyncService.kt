@@ -23,6 +23,22 @@ interface CloudSyncService {
 
     /** Uploads [receipts] that have not been synced yet. Never throws. */
     suspend fun upload(receipts: List<Receipt>): CloudSyncResult
+
+    /**
+     * Receipts the signed-in shopper has in the cloud that are not in [skipIds] (already on
+     * this device, or deleted here). Soft-deleted cloud receipts are excluded. Never throws.
+     * Backends without a download path return an empty success.
+     */
+    suspend fun download(skipIds: Set<String>): CloudRestoreResult = CloudRestoreResult.Success(emptyList())
+
+    /** Soft-deletes the cloud copy (sets `deletedAt`) so other devices and restores skip it. Best-effort. */
+    suspend fun markDeleted(ids: Collection<String>) {}
+}
+
+/** Outcome of [CloudSyncService.download]. */
+sealed interface CloudRestoreResult {
+    data class Success(val receipts: List<Receipt>) : CloudRestoreResult
+    data class Failure(val message: String) : CloudRestoreResult
 }
 
 /**

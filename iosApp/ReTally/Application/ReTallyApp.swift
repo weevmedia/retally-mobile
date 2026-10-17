@@ -3,6 +3,7 @@ import SwiftUI
 import Shared
 import UIKit
 import UserNotifications
+import AppTrackingTransparency
 
 /// Ensures the nearby-store location monitor exists from the earliest launch moment
 /// so geofence entries can wake the app even after termination.
@@ -16,6 +17,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         // Show local-notification banners even while the app is in the foreground
         // (iOS suppresses them by default) — needed for the TEST-LOCATION-PING.
         UNUserNotificationCenter.current().delegate = self
+        // Ask for ad tracking permission (drives AdMob fill). Delayed so it doesn't
+        // collide with location/notification prompts on first launch.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            ATTrackingManager.requestTrackingAuthorization { _ in }
+        }
         return true
     }
 
@@ -25,6 +31,19 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void,
     ) {
         completionHandler([.banner, .sound])
+    }
+
+    /// "You're near {store}" tap: open the Shopping List tab on that store's list.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void,
+    ) {
+        if let store = response.notification.request.content.userInfo[NearbyStoreMonitor.shoppingStoreKey] as? String {
+            IosDependencies.shared.getShoppingListRepository().pendingStoreName = store
+            IosDependencies.shared.getMainStore().dispatch(action: MainContractAction.SelectTab(tab: .aiList))
+        }
+        completionHandler()
     }
 }
 

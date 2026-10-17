@@ -75,14 +75,11 @@ android {
             applicationIdSuffix = ".debug"
             // NOTE: no versionNameSuffix — the More menu shows a clean version (e.g. 1.0.0),
             // never "1.0.0-debug".
-            // Google's demo unit, not the real one. The AdMob account is still pending approval,
-            // so the real unit answers every request with "Account not approved yet" and no
-            // banner ever renders. Demo units are not tied to the account and always fill.
-            // Once the account is approved, swap this back to AdMob.androidHomeBannerUnitId —
-            // AndroidAdsInitializer already registers the emulator and DEBUG_TEST_DEVICE_IDS as
-            // test devices, so the real unit will serve "Test Ad" creatives without counting
-            // as live impressions.
-            buildConfigField("String", "HOME_BANNER_UNIT_ID", "\"${AdMob.TEST_BANNER_UNIT}\"")
+            // Production unit in debug too (per request) — debug builds now request the real ad unit.
+            // AndroidAdsInitializer registers the emulator and DEBUG_TEST_DEVICE_IDS as test
+            // devices, so the real unit serves "Test Ad" creatives without counting as live
+            // impressions.
+            buildConfigField("String", "HOME_BANNER_UNIT_ID", "\"${AdMob.androidHomeBannerUnitId}\"") 
         }
         release {
             buildConfigField("String", "HOME_BANNER_UNIT_ID", "\"${AdMob.androidHomeBannerUnitId}\"")
@@ -152,4 +149,12 @@ dependencies {
     implementation(Deps.Android.mlkitDocumentScanner)
     implementation(Deps.Android.mlkitTextRecognition)
     implementation(Deps.Kotlinx.coroutinesPlayServices)
+    // Custom scanner UI: CameraX live preview (replaces the ML Kit scanner UI).
+    implementation(Deps.Android.cameraXCore)
+    implementation(Deps.Android.cameraXCamera2)
+    implementation(Deps.Android.cameraXLifecycle)
+    implementation(Deps.Android.cameraXView)
+    implementation(Deps.Android.guava)
+    // Material icons for the scanner UI (close, flash, gallery buttons).
+    implementation("androidx.compose.material:material-icons-extended:1.7.8")
 }

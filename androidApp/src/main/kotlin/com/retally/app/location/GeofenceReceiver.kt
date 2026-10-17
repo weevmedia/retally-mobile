@@ -7,6 +7,8 @@ import android.util.Log
 import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingEvent
 import com.retally.shared.domain.location.StoreLocationRepository
+import com.retally.shared.domain.shopping.ShoppingListRepository
+import com.retally.shared.domain.shopping.notificationSummary
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -37,11 +39,16 @@ class GeofenceReceiver : BroadcastReceiver() {
             try {
                 val appContext = context.applicationContext
                 val repo: StoreLocationRepository = GlobalContext.get().get()
+                val lists: ShoppingListRepository = GlobalContext.get().get()
                 val now = System.currentTimeMillis()
                 ids.forEach { id ->
                     if (repo.shouldNotifyAndMark(id, now)) {
                         val name = repo.locationName(id) ?: return@forEach
-                        NearbyNotifications.show(appContext, name)
+                        // Cached AI list for this store: works offline and with the app closed.
+                        val summary = lists.cachedListFor(name)?.let { list ->
+                            list.notificationSummary(lists.dismissedItems(list.storeKey))
+                        }
+                        NearbyNotifications.show(appContext, name, summary)
                     }
                 }
             } catch (e: Exception) {

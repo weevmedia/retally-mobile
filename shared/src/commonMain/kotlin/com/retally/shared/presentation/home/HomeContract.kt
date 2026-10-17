@@ -8,6 +8,7 @@ import com.retally.shared.core.Effect
 import com.retally.shared.data.category.CategoryRepository
 import com.retally.shared.domain.auth.Account
 import com.retally.shared.domain.auth.AuthRepository
+import com.retally.shared.domain.cloud.ReceiptRestore
 import com.retally.shared.domain.category.ItemCategory
 import com.retally.shared.domain.receipt.CrossReceiptDuplicate
 import com.retally.shared.domain.receipt.CrossReceiptDuplicateFinder
@@ -47,6 +48,8 @@ interface HomeContract {
         val account: Account = Account.Guest,
         /** Server-pushed spending categories, for the Spending breakdown. */
         val categories: List<ItemCategory> = emptyList(),
+        /** Downloading the account's receipts after sign-in / reinstall. */
+        val isRestoring: Boolean = false,
     ) : com.retally.shared.core.State {
         val totalOvercharge: Double get() = receipts.sumOf { it.overchargeAmount }
 
@@ -132,6 +135,8 @@ interface HomeContract {
         data object AddSampleReceipt : Action()
         /** "Duplicates found" tapped → open the cross-receipt list. */
         data object DuplicatesClicked : Action()
+        /** Spent tile tapped → open the monthly budget screen. */
+        data object BudgetClicked : Action()
         /** "See all" beside Recent receipts → switch to the Receipts tab. */
         data object SeeAllReceiptsClicked : Action()
         /** "See how it works" link on the empty state. */
@@ -150,6 +155,10 @@ interface HomeContract {
         data class OpenScanReview(val lines: List<String>, val imagePath: String? = null) : SideEffect()
         data class ShowMessage(val message: String) : SideEffect()
         data object OpenDuplicates : SideEffect()
+        /** Host: navigate to the monthly budget screen. */
+        data object OpenBudget : SideEffect()
+        /** Bell: food recall alerts. */
+        data object OpenAlerts : SideEffect()
         /** Host: select the Receipts tab (Home only lists the newest few). */
         data object OpenReceipts : SideEffect()
         /** Host: present the sign-in / account-linking flow. */
@@ -162,6 +171,7 @@ interface HomeContract {
         private val crossReceiptFinder: CrossReceiptDuplicateFinder = CrossReceiptDuplicateFinder(),
         authRepository: AuthRepository? = null,
         private val strings: StringResolver = EnglishStringResolver,
+        restore: ReceiptRestore? = null,
     ) : com.retally.shared.core.Store<State, Action, SideEffect>() {
 
         override fun initState() = State()
@@ -179,6 +189,18 @@ interface HomeContract {
             categories.categories
                 .onEach { list -> updateStateSafely { it.copy(categories = list) } }
                 .launchIn(this)
+            restore?.let { r ->
+                r.isRestoring
+                    .onEach { restoring ->
+                        val finished = currentState.isRestoring && !restoring
+                        updateStateSafely { it.copy(isRestoring = restoring) }
+                        val n = r.restoredCount.value
+                        if (finished && n > 0) {
+                            sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.HOME_MSG_RESTORED, n)))
+                        }
+                    }
+                    .launchIn(this)
+            }
             // The shell's scan FAB routes here so the scanner flow stays owned by Home.
             ScanRequests.flow
                 .onEach { dispatch(Action.ScanClicked) }
@@ -204,11 +226,12 @@ interface HomeContract {
                 Action.DeleteCancelled -> currentState = currentState.copy(pendingDelete = null)
                 Action.DeleteConfirmed -> confirmDelete()
                 Action.DuplicatesClicked -> sideEffect(SideEffect.OpenDuplicates)
+                Action.BudgetClicked -> sideEffect(SideEffect.OpenBudget)
                 Action.SeeAllReceiptsClicked -> sideEffect(SideEffect.OpenReceipts)
                 Action.HowItWorksClicked -> sideEffect(
                     SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.HOME_MSG_HOW_IT_WORKS)),
                 )
-                Action.NotificationsClicked -> sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.HOME_MSG_NOTIFICATIONS_SOON)))
+                Action.NotificationsClicked -> sideEffect(SideEffect.OpenAlerts)
                 // Sign-in / account linking is not built yet: say so instead of routing to the host.
                 Action.SignInClicked -> sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.HOME_MSG_SIGN_IN_SOON)))
                 Action.AddSampleReceipt -> launch {

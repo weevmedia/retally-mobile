@@ -28,11 +28,19 @@ object NearbyNotifications {
         )
     }
 
-    fun show(context: Context, storeName: String) {
+    /** Intent extra: tapping the notification opens the Shopping List on this store. */
+    const val EXTRA_SHOPPING_STORE = "com.retally.app.extra.SHOPPING_STORE"
+
+    /**
+     * @param listSummary items from the cached AI shopping list ("3 due: Banana, Milk…");
+     * null keeps the generic "check your list" copy.
+     */
+    fun show(context: Context, storeName: String, listSummary: String? = null) {
         ensureChannel(context)
         val launch = context.packageManager
             .getLaunchIntentForPackage(context.packageName)
             ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            ?.putExtra(EXTRA_SHOPPING_STORE, storeName)
         val contentIntent = launch?.let {
             PendingIntent.getActivity(
                 context,
@@ -44,7 +52,8 @@ object NearbyNotifications {
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_pin)
             .setContentTitle(context.getString(R.string.nearby_notify_title, storeName))
-            .setContentText(context.getString(R.string.nearby_notify_body))
+            .setContentText(listSummary ?: context.getString(R.string.nearby_notify_body))
+            .setStyle(listSummary?.let { NotificationCompat.BigTextStyle().bigText(it) })
             .setContentIntent(contentIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)

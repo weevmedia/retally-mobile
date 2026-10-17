@@ -27,8 +27,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -225,24 +227,38 @@ fun EmptyState(
     title: String,
     body: String,
     modifier: Modifier = Modifier,
+    iconSize: Dp = ReTallyDimensions.emptyStateIcon,
     action: (@Composable () -> Unit)? = null,
+    /** False draws the bare icon with no tinted disc behind it. */
+    showIconDisc: Boolean = true,
+    /** Bold supporting copy. */
+    bodyBold: Boolean = false,
 ) {
     Column(
         modifier = modifier.fillMaxWidth().padding(ReTallyTheme.dimensions.xl),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
-            modifier = Modifier
-                .size(ReTallyDimensions.emptyStateDisc)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center,
-        ) {
+        if (showIconDisc) {
+            Box(
+                modifier = Modifier
+                    .size(ReTallyDimensions.emptyStateDisc)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(iconSize),
+                )
+            }
+        } else {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(ReTallyDimensions.emptyStateIcon),
+                tint = ReTallyTheme.colors.ink,
+                modifier = Modifier.size(iconSize),
             )
         }
         Spacer(Modifier.height(ReTallyTheme.dimensions.lg))
@@ -251,6 +267,7 @@ fun EmptyState(
         Text(
             body,
             style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (bodyBold) FontWeight.Bold else null,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )

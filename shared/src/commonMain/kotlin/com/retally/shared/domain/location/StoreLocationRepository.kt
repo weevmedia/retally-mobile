@@ -41,7 +41,9 @@ class StoreLocationRepository(
     private val json: Json,
     private val database: ReTallyDatabase,
 ) {
-    private val _locations = MutableStateFlow(loadCached())
+    private val _locations = MutableStateFlow(
+        runCatching { loadCached() }.getOrDefault(emptyList())
+    )
     val locations: StateFlow<List<StoreLocation>> = _locations.asStateFlow()
 
     val isEnabled: Boolean get() = settings[KEY_ENABLED, false]
@@ -201,21 +203,28 @@ class StoreLocationRepository(
     private fun ensureMigrated() {
         if (migrationDone) return
         migrationDone = true
-        val queries = database.knownStoreQueries
-        if (queries.selectAll().executeAsList().isNotEmpty()) {
-            settings.remove(KEY_KNOWN_STORES)
-            return
-        }
-        val raw = settings.getStringOrNull(KEY_KNOWN_STORES) ?: return
-        val seeded = runCatching {
-            json.decodeFromString(ListSerializer(StoreLocation.serializer()), raw)
-        }.getOrDefault(emptyList())
-        if (seeded.isNotEmpty()) {
-            queries.transaction {
-                seeded.forEach { insertKnownStore(it) }
+        // Guard against corrupted DB or bad legacy data: on any failure, drop the
+        // legacy key so we never retry, and continue with an empty table. Geofences
+        // rebuild from receipts on the next refreshLocations() (scan-save).
+        runCatching {
+            val queries = database.knownStoreQueries
+            if (queries.selectAll().executeAsList().isNotEmpty()) {
+                settings.remove(KEY_KNOWN_STORES)
+                return@runCatching
             }
+            val raw = settings.getStringOrNull(KEY_KNOWN_STORES) ?: return@runCatching
+            val seeded = runCatching {
+                json.decodeFromString(ListSerializer(StoreLocation.serializer()), raw)
+            }.getOrDefault(emptyList())
+            if (seeded.isNotEmpty()) {
+                queries.transaction {
+                    seeded.forEach { insertKnownStore(it) }
+                }
+            }
+            settings.remove(KEY_KNOWN_STORES)
+        }.onFailure {
+            runCatching { settings.remove(KEY_KNOWN_STORES) }
         }
-        settings.remove(KEY_KNOWN_STORES)
     }
 
     private fun loadLastNotified(): Map<String, Long> {

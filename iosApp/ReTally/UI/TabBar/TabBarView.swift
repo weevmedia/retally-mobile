@@ -2,6 +2,11 @@ import Shared
 import SwiftUI
 import UIKit
 
+extension Notification.Name {
+    static let retallyHideScanButton = Notification.Name("retallyHideScanButton")
+    static let retallyShowScanButton = Notification.Name("retallyShowScanButton")
+}
+
 /// Shell: Home · Receipts · AI List · More in the **native** `TabView` bar, with Scan as a
 /// floating button in the bottom-right corner above it.
 ///
@@ -11,6 +16,7 @@ import UIKit
 /// scan FAB, so the two shells differ here on purpose.
 struct TabBarView: View {
     @StateObject private var viewModel: TabBarViewModel
+    @SwiftUI.State private var isScanButtonHidden = false
 
     init(adsReady: Bool) {
         _viewModel = StateObject(wrappedValue: TabBarViewModel(adsReady: adsReady))
@@ -32,18 +38,34 @@ struct TabBarView: View {
                     }
                 }
                 .tag(MainTab.receipts)
-            PlaceholderView(tab: .aiList)
-                .tabItem { Label(NSLocalizedString("tab_ai_list", comment: ""), systemImage: "sparkles") }
+            ShoppingListView()
+                // The same basket-with-sparkle vector Android's Compose bar draws (ShoppingBasketIcon).
+                .tabItem {
+                    Label {
+                        Text(NSLocalizedString("tab_ai_list", comment: ""))
+                    } icon: {
+                        Image("ic_shopping_basket").renderingMode(.template)
+                    }
+                }
                 .tag(MainTab.aiList)
             SettingsView()
                 .tabItem { Label(NSLocalizedString("tab_more", comment: ""), systemImage: "ellipsis") }
                 .tag(MainTab.more)
         }
         // Sits above the native bar in the trailing corner, clear of every tab item.
+        // Hidden while the receipt page (or its image viewer) is open, and on the Shopping List tab.
         .overlay(alignment: .bottomTrailing) {
-            ScanFloatingButton(action: viewModel.scan)
-                .padding(.trailing, ScanFloatingButton.trailingInset)
-                .padding(.bottom, ScanFloatingButton.tabBarHeight + ScanFloatingButton.gapAboveTabBar)
+            if !isScanButtonHidden && viewModel.selectedTab != .aiList {
+                ScanFloatingButton(action: viewModel.scan)
+                    .padding(.trailing, ScanFloatingButton.trailingInset)
+                    .padding(.bottom, ScanFloatingButton.tabBarHeight + ScanFloatingButton.gapAboveTabBar)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .retallyHideScanButton)) { _ in
+            isScanButtonHidden = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .retallyShowScanButton)) { _ in
+            isScanButtonHidden = false
         }
     }
 }

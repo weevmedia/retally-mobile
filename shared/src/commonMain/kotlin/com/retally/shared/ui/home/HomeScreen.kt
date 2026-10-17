@@ -78,6 +78,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -110,6 +111,8 @@ fun HomeContract.SideEffect.userMessage(): String? = when (this) {
     is HomeContract.SideEffect.ShowMessage -> message
     HomeContract.SideEffect.LaunchScanner,
     HomeContract.SideEffect.OpenDuplicates,
+    HomeContract.SideEffect.OpenBudget,
+    HomeContract.SideEffect.OpenAlerts,
     HomeContract.SideEffect.OpenReceipts,
     HomeContract.SideEffect.OpenSignIn,
     is HomeContract.SideEffect.OpenScanReview,
@@ -184,6 +187,7 @@ fun HomeScreen(
                 onBarcodeClick = { barcodeReceipt = it },
                 onDelete = { dispatch(HomeContract.Action.DeleteRequested(it)) },
                 onDuplicatesClick = { dispatch(HomeContract.Action.DuplicatesClicked) },
+                onSpentClick = { dispatch(HomeContract.Action.BudgetClicked) },
                 onHowItWorks = { dispatch(HomeContract.Action.HowItWorksClicked) },
                 onSignIn = { dispatch(HomeContract.Action.SignInClicked) },
                 onSeeAll = { dispatch(HomeContract.Action.SeeAllReceiptsClicked) },
@@ -195,7 +199,7 @@ fun HomeScreen(
                 enabled = showFloatingStrip,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = padding.calculateBottomPadding() + bottomContentInset + d.md),
+                    .padding(bottom = padding.calculateBottomPadding() + bottomContentInset + 10.dp),
             )
         }
     }
@@ -309,6 +313,7 @@ internal fun HomeContent(
     onDelete: (String) -> Unit,
     onBarcodeClick: (Receipt) -> Unit = {},
     onDuplicatesClick: () -> Unit = {},
+    onSpentClick: () -> Unit = {},
     onHowItWorks: () -> Unit = {},
     onSignIn: () -> Unit = {},
     onSeeAll: () -> Unit = {},
@@ -317,6 +322,10 @@ internal fun HomeContent(
 ) {
     val d = ReTallyTheme.dimensions
 
+    if (state.isEmpty && state.isRestoring) {
+        RestoringReceipts(contentPadding)
+        return
+    }
     if (state.isEmpty) {
         EmptyHome(
             account = state.account,
@@ -345,7 +354,15 @@ internal fun HomeContent(
             if (state.account.isGuest) {
                 item { GuestBanner(onSignIn = onSignIn) }
             }
-            item { StatTiles(state) }
+            item {
+                Text(
+                    "Expense Overview",
+                    style = ReTallyTheme.typography.sectionHeader,
+                    color = ReTallyTheme.colors.ink,
+                    modifier = Modifier.padding(top = ReTallyTheme.dimensions.sm),
+                )
+            }
+            item { StatTiles(state, onSpentClick = onSpentClick) }
             item { NudgeCarousel(state.allNudges) }
             item { SpendingBreakdown(state.spendingByCategory) }
             item {
@@ -387,7 +404,7 @@ internal fun HomeContent(
  * level when one figure wraps.
  */
 @Composable
-private fun StatTiles(state: HomeContract.State) {
+private fun StatTiles(state: HomeContract.State, onSpentClick: () -> Unit = {}) {
     val d = ReTallyTheme.dimensions
     Row(
         modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
@@ -402,7 +419,9 @@ private fun StatTiles(state: HomeContract.State) {
                 bottom = Color(0xFF8BD9AC),
                 badge = Color(0xFF2F9E63),
             ),
+            onClick = onSpentClick,
             modifier = Modifier.weight(1f),
+            hint = str(S.BUDGET_TAP_HINT),
         )
         StatTile(
             label = str(S.HOME_STAT_RECEIPTS),
@@ -439,6 +458,8 @@ private fun StatTile(
     icon: ImageVector,
     palette: StatPalette,
     modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    hint: String? = null,
 ) {
     val d = ReTallyTheme.dimensions
     val c = ReTallyTheme.colors
@@ -447,6 +468,7 @@ private fun StatTile(
             .fillMaxHeight()
             .clip(RoundedCornerShape(d.cardRadius))
             .background(Brush.verticalGradient(listOf(palette.top, palette.bottom)))
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(d.md),
     ) {
         Box(
@@ -464,10 +486,36 @@ private fun StatTile(
             style = ReTallyTheme.typography.caption,
             color = c.ink,
             maxLines = 2,
+            fontWeight = FontWeight.Bold,
         )
         Spacer(Modifier.height(d.xs))
         CappedTextScale {
-            Text(value, style = ReTallyTheme.typography.price, color = c.ink, maxLines = 1)
+            Text(value, style = ReTallyTheme.typography.price, color = c.ink, maxLines = 1, fontWeight = FontWeight.Bold)
+        }
+        // Tap hint (e.g. Spent tile → budget screen).
+        if (hint != null) {
+            Spacer(Modifier.height(d.xs))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    hint,
+                    style = ReTallyTheme.typography.caption.copy(fontSize = 10.sp),
+                    color = c.ink.copy(alpha = 0.7f),
+                    maxLines = 1,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f),
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Icon(
+                    Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = c.ink.copy(alpha = 0.7f),
+                    modifier = Modifier.size(14.dp),
+                )
+            }
         }
     }
 }
@@ -874,3 +922,30 @@ internal fun ReceiptRow(receipt: Receipt, onClick: () -> Unit, onBarcodeClick: (
     }
 }
 
+/** Fresh install, signed in: the account's receipts are on their way down from the cloud. */
+@Composable
+private fun RestoringReceipts(contentPadding: PaddingValues) {
+    val c = ReTallyTheme.colors
+    val d = ReTallyTheme.dimensions
+    Column(
+        Modifier.fillMaxSize().padding(contentPadding).padding(horizontal = d.screen),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        androidx.compose.material3.CircularProgressIndicator(color = c.primary)
+        Spacer(Modifier.height(d.lg))
+        Text(
+            str(S.HOME_RESTORING_TITLE),
+            style = ReTallyTheme.typography.title,
+            color = c.ink,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
+        Spacer(Modifier.height(d.xs))
+        Text(
+            str(S.HOME_RESTORING_BODY),
+            style = ReTallyTheme.typography.secondaryBody,
+            color = c.muted,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
+    }
+}

@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <link rel="icon" href="data:," />
+  <title>Gemini Flash Integration Diagrams</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f5f7f6;
+      --surface: #ffffff;
+      --surface-2: #edf1ef;
+      --surface-3: #e4ebe7;
+      --ink: #122019;
+      --muted: #50625a;
+      --line: #cbd7d0;
+      --line-strong: #9db0a6;
+      --emerald: #07845f;
+      --emerald-soft: #dff4eb;
+      --blue: #2165a8;
+      --blue-soft: #e2eef9;
+      --amber: #b75c06;
+      --amber-soft: #fff0db;
+      --red: #b83a3a;
+      --shadow: 0 12px 28px rgba(26, 51, 39, .08);
+      --radius-lg: 22px;
+      --radius-md: 14px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1411;
+        --surface: #131d18;
+        --surface-2: #192620;
+        --surface-3: #203029;
+        --ink: #eef7f1;
+        --muted: #a9bbb1;
+        --line: #2d4137;
+        --line-strong: #4a6557;
+        --emerald: #37d39b;
+        --emerald-soft: #143c2f;
+        --blue: #75b7f1;
+        --blue-soft: #142f49;
+        --amber: #ffac55;
+        --amber-soft: #462d16;
+        --red: #ff8989;
+        --shadow: 0 18px 40px rgba(0, 0, 0, .24);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      background:
+        linear-gradient(var(--line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--line) 1px, transparent 1px),
+        var(--bg);
+      background-size: 34px 34px;
+      color: var(--ink);
+      font-family: "Manrope", sans-serif;
+      font-size: 16px;
+      line-height: 1.55;
+    }
+    button { font: inherit; }
+    button:focus-visible, a:focus-visible { outline: 3px solid color-mix(in srgb, var(--emerald) 42%, transparent); outline-offset: 3px; }
+
+    .page {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 34px 0 72px;
+    }
+
+    .intro {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 290px;
+      gap: 24px;
+      align-items: end;
+      padding: 30px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius-lg);
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      margin: 0 0 12px;
+      font: 600 12px/1.2 "IBM Plex Mono", monospace;
+      color: var(--emerald);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before { content: ""; width: 23px; height: 2px; background: currentColor; }
+    h1 {
+      max-width: 780px;
+      margin: 0;
+      font-size: clamp(34px, 6vw, 66px);
+      line-height: 1.02;
+      letter-spacing: -.05em;
+    }
+    .lede { max-width: 760px; margin: 18px 0 0; font-size: 18px; color: var(--muted); }
+    .lede strong { color: var(--ink); }
+
+    .difficulty {
+      border-left: 1px solid var(--line);
+      padding-left: 24px;
+    }
+    .difficulty .label { font: 500 12px/1.2 "IBM Plex Mono", monospace; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+    .scoreline { display: flex; align-items: baseline; gap: 8px; margin: 8px 0 12px; }
+    .score { font-size: 48px; line-height: 1; font-weight: 800; color: var(--emerald); }
+    .outof { color: var(--muted); font-size: 14px; }
+    .meter { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+    .meter span { height: 7px; background: var(--surface-3); border-radius: 2px; }
+    .meter span.on { background: var(--emerald); }
+    .difficulty p { margin: 13px 0 0; color: var(--muted); font-size: 13px; }
+
+    .tabs {
+      display: flex;
+      gap: 7px;
+      margin: 28px 0 18px;
+      padding: 5px;
+      width: fit-content;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+    .tab {
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 17px;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      font-weight: 700;
+      transition: color .18s ease, background .18s ease, box-shadow .18s ease;
+    }
+    .tab[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 2px 8px rgba(16, 45, 31, .08); }
+    .panel[hidden] { display: none; }
+
+    .section-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .section-head { padding: 24px 26px 18px; display: flex; justify-content: space-between; gap: 24px; align-items: end; border-bottom: 1px solid var(--line); }
+    .section-head h2 { margin: 0; font-size: clamp(23px, 3vw, 32px); letter-spacing: -.03em; }
+    .section-head p { margin: 6px 0 0; color: var(--muted); }
+    .legend { display: flex; flex-wrap: wrap; justify-content: end; gap: 8px 14px; font: 500 11px/1.3 "IBM Plex Mono", monospace; color: var(--muted); }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .legend i { width: 9px; height: 9px; border-radius: 50%; background: var(--emerald); }
+    .legend .cloud { background: var(--blue); }
+    .legend .ai { background: var(--amber); }
+
+    .architecture { padding: 28px; }
+    .lane {
+      display: grid;
+      grid-template-columns: 1fr 44px 1fr 44px 1fr;
+      align-items: stretch;
+      margin-bottom: 16px;
+    }
+    .node {
+      border: 1px solid var(--line);
+      background: var(--surface-2);
+      padding: 18px;
+      min-height: 158px;
+      border-radius: var(--radius-md);
+      position: relative;
+      cursor: pointer;
+      transition: border-color .18s ease, background .18s ease, transform .18s ease;
+    }
+    .node:hover { border-color: var(--line-strong); transform: translateY(-2px); }
+    .node.active { border-color: var(--emerald); background: var(--emerald-soft); }
+    .node.cloud-node.active { border-color: var(--blue); background: var(--blue-soft); }
+    .node.ai-node.active { border-color: var(--amber); background: var(--amber-soft); }
+    .node:focus-visible { outline: 3px solid color-mix(in srgb, var(--emerald) 38%, transparent); outline-offset: 3px; }
+    .node-top { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+    .node-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; color: var(--emerald); background: var(--emerald-soft); font: 600 13px/1 "IBM Plex Mono", monospace; }
+    .cloud-node .node-icon { color: var(--blue); background: var(--blue-soft); }
+    .ai-node .node-icon { color: var(--amber); background: var(--amber-soft); }
+    .node small { color: var(--muted); font: 500 10px/1.2 "IBM Plex Mono", monospace; text-transform: uppercase; letter-spacing: .08em; }
+    .node h3 { margin: 2px 0 7px; font-size: 17px; line-height: 1.2; }
+    .node p { margin: 0; color: var(--muted); font-size: 13px; }
+    .arrow { display: grid; place-items: center; color: var(--line-strong); font: 500 19px/1 "IBM Plex Mono", monospace; }
+    .arrow::before { content: "→"; }
+    .architecture-label { margin: 20px 0 10px; font: 600 11px/1.2 "IBM Plex Mono", monospace; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+    .fallback {
+      display: grid;
+      grid-template-columns: 1fr 44px 1fr;
+      align-items: stretch;
+      max-width: 76%;
+      margin-left: auto;
+    }
+    .detail {
+      display: grid;
+      grid-template-columns: 45px 1fr;
+      gap: 13px;
+      align-items: start;
+      margin-top: 24px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: var(--bg);
+    }
+    .detail-code { display: grid; place-items: center; width: 45px; height: 45px; border-radius: 50%; color: white; background: var(--emerald); font: 600 13px/1 "IBM Plex Mono", monospace; }
+    .detail h3 { margin: 0 0 4px; font-size: 16px; }
+    .detail p { margin: 0; color: var(--muted); font-size: 14px; }
+
+    .sequence-wrap { padding: 28px; }
+    .sequence {
+      display: grid;
+      grid-template-columns: 170px repeat(5, minmax(100px, 1fr));
+      border-top: 1px solid var(--line);
+      border-left: 1px solid var(--line);
+    }
+    .seq-cell {
+      min-height: 74px;
+      padding: 13px 12px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+    }
+    .seq-head { min-height: 64px; background: var(--surface-2); font: 600 11px/1.3 "IBM Plex Mono", monospace; color: var(--muted); justify-content: center; text-align: center; }
+    .seq-step { color: var(--muted); font-weight: 700; gap: 10px; }
+    .seq-step b { display: grid; flex: 0 0 28px; width: 28px; height: 28px; place-items: center; border-radius: 50%; background: var(--ink); color: var(--surface); font: 600 11px/1 "IBM Plex Mono", monospace; }
+    .message { position: relative; background: var(--emerald-soft); color: var(--ink); font-weight: 700; }
+    .message.ai-msg { background: var(--amber-soft); }
+    .message.cloud-msg { background: var(--blue-soft); }
+    .message::after { content: "→"; position: absolute; right: 8px; font-family: "IBM Plex Mono", monospace; color: var(--muted); }
+    .message.return::after { content: "←"; right: auto; left: 8px; }
+    .message.return { padding-left: 28px; }
+    .empty { background: color-mix(in srgb, var(--surface) 92%, var(--surface-2)); }
+
+    .mobile-sequence { display: none; }
+    .mobile-step { display: grid; grid-template-columns: 44px 1fr; gap: 12px; position: relative; }
+    .mobile-step:not(:last-child)::before { content: ""; position: absolute; left: 21px; top: 42px; bottom: -12px; width: 2px; background: var(--line); }
+    .mobile-num { width: 44px; height: 44px; display: grid; place-items: center; background: var(--ink); color: var(--surface); border-radius: 50%; font: 600 12px/1 "IBM Plex Mono", monospace; z-index: 1; }
+    .mobile-copy { padding: 1px 0 23px; }
+    .mobile-copy code { font: 600 10px/1.2 "IBM Plex Mono", monospace; color: var(--emerald); }
+    .mobile-copy h3 { font-size: 15px; margin: 5px 0 4px; }
+    .mobile-copy p { margin: 0; color: var(--muted); font-size: 13px; }
+
+    .grid-two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px; }
+    .info-card { padding: 24px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+    .info-card h2 { margin: 0 0 14px; font-size: 21px; letter-spacing: -.02em; }
+    .info-card ul { margin: 0; padding: 0; list-style: none; }
+    .info-card li { position: relative; padding: 10px 0 10px 25px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+    .info-card li::before { content: ""; position: absolute; left: 2px; top: 18px; width: 8px; height: 8px; border: 2px solid var(--emerald); border-radius: 50%; }
+    .info-card li:first-child { border-top: 0; }
+    .info-card strong { color: var(--ink); }
+    .phase { display: grid; grid-template-columns: 68px 1fr; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+    .phase:first-of-type { border-top: 0; }
+    .phase-time { font: 600 11px/1.4 "IBM Plex Mono", monospace; color: var(--emerald); }
+    .phase h3 { margin: 0 0 3px; font-size: 14px; }
+    .phase p { margin: 0; color: var(--muted); font-size: 13px; }
+
+    .decision {
+      margin-top: 18px;
+      padding: 26px;
+      background: var(--ink);
+      color: var(--surface);
+      border-radius: var(--radius-lg);
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 18px;
+      align-items: center;
+    }
+    .decision-mark { width: 46px; height: 46px; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--surface) 38%, transparent); border-radius: 50%; font-size: 22px; }
+    .decision h2 { margin: 0 0 5px; font-size: 19px; }
+    .decision p { margin: 0; opacity: .78; font-size: 14px; }
+
+    @media (max-width: 900px) {
+      .intro { grid-template-columns: 1fr; }
+      .difficulty { border-left: 0; border-top: 1px solid var(--line); padding: 19px 0 0; }
+      .scoreline { margin-bottom: 9px; }
+      .score { font-size: 38px; }
+      .difficulty .meter { max-width: 260px; }
+      .lane { grid-template-columns: 1fr 34px 1fr; row-gap: 12px; }
+      .lane .node:nth-of-type(3) { grid-column: 3; }
+      .lane .arrow:nth-of-type(2) { display: none; }
+      .lane .node:last-child { grid-column: 1 / -1; min-height: auto; }
+      .fallback { max-width: 100%; }
+      .sequence { display: none; }
+      .mobile-sequence { display: grid; gap: 0; }
+    }
+
+    @media (max-width: 640px) {
+      .page { width: min(100% - 20px, 1180px); padding-top: 12px; padding-bottom: 40px; }
+      .intro { padding: 22px 18px; border-radius: 17px; }
+      h1 { font-size: 39px; }
+      .lede { font-size: 16px; }
+      .tabs { width: 100%; }
+      .tab { flex: 1; padding: 10px 8px; }
+      .section-card, .info-card, .decision { border-radius: 17px; }
+      .section-head { align-items: start; padding: 20px 18px 15px; flex-direction: column; }
+      .legend { justify-content: start; }
+      .architecture, .sequence-wrap { padding: 18px; }
+      .lane, .fallback { grid-template-columns: 1fr; gap: 8px; }
+      .lane .node, .lane .node:nth-of-type(3), .lane .node:last-child { grid-column: 1; }
+      .node { min-height: auto; }
+      .arrow { height: 24px; }
+      .arrow::before { content: "↓"; }
+      .lane .arrow:nth-of-type(2) { display: grid; }
+      .fallback { margin: 0; }
+      .detail { grid-template-columns: 37px 1fr; }
+      .detail-code { width: 37px; height: 37px; }
+      .grid-two { grid-template-columns: 1fr; }
+      .decision { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="intro" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">Recommended integration</p>
+        <h1 id="page-title">A guarded fallback, not a rewrite.</h1>
+        <p class="lede">Keep the fast, free scanner path. Send only <strong>torn or low-confidence receipts</strong> to Gemini Flash through a protected Firebase function, then let the person correct the result before saving.</p>
+      </div>
+      <aside class="difficulty" aria-label="Integration difficulty estimate">
+        <div class="label">Difficulty</div>
+        <div class="scoreline"><span class="score">2.5</span><span class="outof">/ 5 · moderate</span></div>
+        <div class="meter" aria-hidden="true"><span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span></div>
+        <p>Prototype: roughly 2–4 engineering days. Production hardening: about 1–2 weeks.</p>
+      </aside>
+    </section>
+
+    <nav class="tabs" role="tablist" aria-label="Diagram selection">
+      <button class="tab" id="architecture-tab" role="tab" aria-controls="architecture-panel" aria-selected="true">Architecture</button>
+      <button class="tab" id="sequence-tab" role="tab" aria-controls="sequence-panel" aria-selected="false">Sequence</button>
+    </nav>
+
+    <section id="architecture-panel" class="panel" role="tabpanel" aria-labelledby="architecture-tab">
+      <div class="section-card">
+        <header class="section-head">
+          <div>
+            <h2>Hybrid receipt-reading architecture</h2>
+            <p>Tap any component to see why it exists.</p>
+          </div>
+          <div class="legend" aria-label="Architecture legend">
+            <span><i></i> device</span><span><i class="cloud"></i> your cloud</span><span><i class="ai"></i> Gemini</span>
+          </div>
+        </header>
+
+        <div class="architecture">
+          <div class="lane" aria-label="Primary receipt processing flow">
+            <article class="node active" tabindex="0" data-code="01" data-title="Capture and crop on device" data-detail="Keep the custom camera, receipt rectangle detection and crop. A tighter receipt image reduces token use and gives the model less background noise to misread.">
+              <div class="node-top"><span class="node-icon">01</span><small>ReTally · device</small></div>
+              <h3>Capture + crop</h3><p>CameraX / Vision isolates the receipt from its background.</p>
+            </article>
+            <div class="arrow" aria-hidden="true"></div>
+            <article class="node" tabindex="0" data-code="02" data-title="Use the existing fast path first" data-detail="Run ML Kit or Apple Vision and the existing parser before calling the cloud. Clean scans stay instant and free; only uncertain results are escalated.">
+              <div class="node-top"><span class="node-icon">02</span><small>ReTally · device</small></div>
+              <h3>OCR + parser</h3><p>Current on-device flow extracts text and line items.</p>
+            </article>
+            <div class="arrow" aria-hidden="true"></div>
+            <article class="node" tabindex="0" data-code="03" data-title="Make escalation deterministic" data-detail="Escalate when text coverage is low, totals do not reconcile, price/name pairs are missing, or the person taps “Improve scan.” This is more controllable than sending every receipt to AI.">
+              <div class="node-top"><span class="node-icon">03</span><small>Policy · device</small></div>
+              <h3>Confidence gate</h3><p>Good scan → current flow. Damaged scan → AI fallback.</p>
+            </article>
+          </div>
+
+          <p class="architecture-label">Escalation path for a torn / unreadable receipt</p>
+          <div class="fallback">
+            <article class="node cloud-node" tabindex="0" data-code="04" data-title="Protect the model behind your backend" data-detail="Upload the cropped image to a short-lived Storage path. A callable Firebase function verifies signed-in user and App Check, enforces size and rate limits, then reads the image. Never ship a Gemini API key in the app.">
+              <div class="node-top"><span class="node-icon">04</span><small>Firebase · cloud</small></div>
+              <h3>Storage + Cloud Function</h3><p>Auth, App Check, rate limits and temporary image access.</p>
+            </article>
+            <div class="arrow" aria-hidden="true"></div>
+            <article class="node ai-node" tabindex="0" data-code="05" data-title="Ask for strict structured output" data-detail="Send the image plus any OCR text as supporting context. Request one JSON schema containing store, date, line items, prices, totals and per-field confidence. Instruct the model to use null—not guesses—when evidence is missing.">
+              <div class="node-top"><span class="node-icon">05</span><small>Gemini Flash · API</small></div>
+              <h3>Vision + JSON</h3><p>Gemini reconstructs the best-supported receipt structure.</p>
+            </article>
+          </div>
+
+          <p class="architecture-label">Safe return path</p>
+          <div class="lane" aria-label="Validation and review flow">
+            <article class="node cloud-node" tabindex="0" data-code="06" data-title="Treat AI output as untrusted data" data-detail="Validate the JSON schema, normalize currency, reject impossible prices, recalculate subtotal and compare tax plus total. One repair request is reasonable; after that, return a partial result instead of looping.">
+              <div class="node-top"><span class="node-icon">06</span><small>Firebase · cloud</small></div>
+              <h3>Validate + reconcile</h3><p>Schema checks and receipt math catch malformed responses.</p>
+            </article>
+            <div class="arrow" aria-hidden="true"></div>
+            <article class="node" tabindex="0" data-code="07" data-title="Keep a human in the loop" data-detail="Highlight uncertain or reconstructed fields in the existing review screen. The person can correct names and prices; do not silently overwrite higher-confidence on-device fields.">
+              <div class="node-top"><span class="node-icon">07</span><small>ReTally · review</small></div>
+              <h3>Merge + highlight</h3><p>Prefer stronger evidence and flag uncertain fields.</p>
+            </article>
+            <div class="arrow" aria-hidden="true"></div>
+            <article class="node" tabindex="0" data-code="08" data-title="Persist only after review" data-detail="Save the confirmed receipt through the existing ReceiptRepository. Record which fields were AI-assisted and the model version for debugging, but keep the original user correction as the final source of truth.">
+              <div class="node-top"><span class="node-icon">08</span><small>ReTally · data</small></div>
+              <h3>Confirm + save</h3><p>The reviewed receipt enters the normal SQLite / backup flow.</p>
+            </article>
+          </div>
+
+          <aside class="detail" aria-live="polite">
+            <span class="detail-code" id="detail-code">01</span>
+            <div><h3 id="detail-title">Capture and crop on device</h3><p id="detail-copy">Keep the custom camera, receipt rectangle detection and crop. A tighter receipt image reduces token use and gives the model less background noise to misread.</p></div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section id="sequence-panel" class="panel" role="tabpanel" aria-labelledby="sequence-tab" hidden>
+      <div class="section-card">
+        <header class="section-head">
+          <div><h2>Sequence for a difficult receipt</h2><p>The clean-receipt path stops after step 3 and never calls Gemini.</p></div>
+        </header>
+        <div class="sequence-wrap">
+          <div class="sequence" aria-label="Desktop sequence diagram">
+            <div class="seq-cell seq-head">event</div><div class="seq-cell seq-head">Person</div><div class="seq-cell seq-head">ReTally app</div><div class="seq-cell seq-head">On-device OCR</div><div class="seq-cell seq-head">Firebase</div><div class="seq-cell seq-head">Gemini Flash</div>
+
+            <div class="seq-cell seq-step"><b>1</b> Capture</div><div class="seq-cell message">scan receipt</div><div class="seq-cell message">crop + normalize</div><div class="seq-cell empty"></div><div class="seq-cell empty"></div><div class="seq-cell empty"></div>
+            <div class="seq-cell seq-step"><b>2</b> First pass</div><div class="seq-cell empty"></div><div class="seq-cell message">process image</div><div class="seq-cell message return">text + bounds</div><div class="seq-cell empty"></div><div class="seq-cell empty"></div>
+            <div class="seq-cell seq-step"><b>3</b> Decide</div><div class="seq-cell empty"></div><div class="seq-cell message">score confidence</div><div class="seq-cell empty"></div><div class="seq-cell empty"></div><div class="seq-cell empty"></div>
+            <div class="seq-cell seq-step"><b>4</b> Escalate</div><div class="seq-cell empty"></div><div class="seq-cell cloud-msg message">upload + path</div><div class="seq-cell empty"></div><div class="seq-cell cloud-msg message">verify request</div><div class="seq-cell empty"></div>
+            <div class="seq-cell seq-step"><b>5</b> Understand</div><div class="seq-cell empty"></div><div class="seq-cell empty"></div><div class="seq-cell empty"></div><div class="seq-cell ai-msg message">image + OCR + schema</div><div class="seq-cell ai-msg message return">receipt JSON</div>
+            <div class="seq-cell seq-step"><b>6</b> Validate</div><div class="seq-cell empty"></div><div class="seq-cell empty"></div><div class="seq-cell empty"></div><div class="seq-cell cloud-msg message">schema + math checks</div><div class="seq-cell empty"></div>
+            <div class="seq-cell seq-step"><b>7</b> Review</div><div class="seq-cell message return">highlight uncertainty</div><div class="seq-cell message return">merged receipt</div><div class="seq-cell empty"></div><div class="seq-cell empty"></div><div class="seq-cell empty"></div>
+            <div class="seq-cell seq-step"><b>8</b> Save</div><div class="seq-cell message">confirm edits</div><div class="seq-cell message">persist receipt</div><div class="seq-cell empty"></div><div class="seq-cell empty"></div><div class="seq-cell empty"></div>
+          </div>
+
+          <div class="mobile-sequence" aria-label="Mobile sequence diagram">
+            <article class="mobile-step"><span class="mobile-num">01</span><div class="mobile-copy"><code>PERSON → APP</code><h3>Capture and crop</h3><p>The person scans; ReTally isolates and normalizes the receipt.</p></div></article>
+            <article class="mobile-step"><span class="mobile-num">02</span><div class="mobile-copy"><code>APP ↔ ON-DEVICE OCR</code><h3>Run the free first pass</h3><p>OCR returns text and bounds; the current parser creates a candidate receipt.</p></div></article>
+            <article class="mobile-step"><span class="mobile-num">03</span><div class="mobile-copy"><code>APP</code><h3>Score confidence</h3><p>If text and totals reconcile, show review immediately. Otherwise escalate.</p></div></article>
+            <article class="mobile-step"><span class="mobile-num">04</span><div class="mobile-copy"><code>APP → FIREBASE</code><h3>Upload the damaged scan</h3><p>Send a temporary Storage path through an authenticated callable function.</p></div></article>
+            <article class="mobile-step"><span class="mobile-num">05</span><div class="mobile-copy"><code>FIREBASE ↔ GEMINI</code><h3>Request receipt JSON</h3><p>Gemini receives the image, OCR clues and strict output schema.</p></div></article>
+            <article class="mobile-step"><span class="mobile-num">06</span><div class="mobile-copy"><code>FIREBASE</code><h3>Validate and reconcile</h3><p>Check the schema, totals, currency and impossible values.</p></div></article>
+            <article class="mobile-step"><span class="mobile-num">07</span><div class="mobile-copy"><code>APP → PERSON</code><h3>Show uncertainty</h3><p>Merge the result and highlight names or prices that need attention.</p></div></article>
+            <article class="mobile-step"><span class="mobile-num">08</span><div class="mobile-copy"><code>PERSON → APP</code><h3>Confirm and save</h3><p>The person corrects the receipt and then enters the normal save flow.</p></div></article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid-two" aria-label="Implementation guidance">
+      <article class="info-card">
+        <h2>What makes this “moderate”</h2>
+        <ul>
+          <li><strong>Already built:</strong> capture, crop, OCR, parser, review UI and Firebase foundation.</li>
+          <li><strong>New work:</strong> confidence policy, temporary upload, callable function, Gemini request and JSON validation.</li>
+          <li><strong>Hardest part:</strong> deciding when AI helps and how to merge two imperfect answers without hiding uncertainty.</li>
+          <li><strong>Non-negotiable:</strong> API key stays server-side; auth, App Check, rate limits and deletion policy are enforced.</li>
+        </ul>
+      </article>
+
+      <article class="info-card">
+        <h2>Practical delivery plan</h2>
+        <div class="phase"><span class="phase-time">2–4 days</span><div><h3>Proof of concept</h3><p>One callable function, strict JSON, manual “Improve scan” button and review-screen result.</p></div></div>
+        <div class="phase"><span class="phase-time">3–5 days</span><div><h3>Automatic fallback</h3><p>Confidence rules, field merge, total reconciliation, retry and user-friendly failure states.</p></div></div>
+        <div class="phase"><span class="phase-time">2–3 days</span><div><h3>Production guardrails</h3><p>App Check, quotas, logging without receipt text, image retention rules and device tests.</p></div></div>
+      </article>
+    </section>
+
+    <aside class="decision">
+      <span class="decision-mark" aria-hidden="true">✓</span>
+      <div><h2>Recommendation</h2><p>Start with a manual “Improve scan” fallback on the review screen. Once real scans show reliable gains, add automatic escalation for low-confidence receipts. This limits cost, risk and scope while proving the feature with actual torn receipts.</p></div>
+    </aside>
+  </main>
+
+  <script>
+    (function () {
+      var tabs = Array.prototype.slice.call(document.querySelectorAll('[role="tab"]'));
+      var panels = Array.prototype.slice.call(document.querySelectorAll('[role="tabpanel"]'));
+
+      function selectTab(tab) {
+        tabs.forEach(function (item) {
+          var selected = item === tab;
+          item.setAttribute('aria-selected', selected ? 'true' : 'false');
+          item.tabIndex = selected ? 0 : -1;
+        });
+        panels.forEach(function (panel) {
+          panel.hidden = panel.id !== tab.getAttribute('aria-controls');
+        });
+      }
+
+      tabs.forEach(function (tab, index) {
+        tab.addEventListener('click', function () { selectTab(tab); });
+        tab.addEventListener('keydown', function (event) {
+          if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+          event.preventDefault();
+          var nextIndex = event.key === 'ArrowRight' ? (index + 1) % tabs.length : (index - 1 + tabs.length) % tabs.length;
+          tabs[nextIndex].focus();
+          selectTab(tabs[nextIndex]);
+        });
+      });
+
+      var nodes = Array.prototype.slice.call(document.querySelectorAll('.node'));
+      var code = document.getElementById('detail-code');
+      var title = document.getElementById('detail-title');
+      var copy = document.getElementById('detail-copy');
+
+      function selectNode(node) {
+        nodes.forEach(function (item) { item.classList.toggle('active', item === node); });
+        code.textContent = node.getAttribute('data-code');
+        title.textContent = node.getAttribute('data-title');
+        copy.textContent = node.getAttribute('data-detail');
+      }
+
+      nodes.forEach(function (node) {
+        node.addEventListener('click', function () { selectNode(node); });
+        node.addEventListener('keydown', function (event) {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            selectNode(node);
+          }
+        });
+      });
+    }());
+  </script>
+</body>
+</html>

@@ -9,9 +9,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,12 +27,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -44,17 +55,50 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 
 /**
  * Round thumbnail of the scanned page with the caption below the circle; the "original"
  * the shopper can pull up for a cashier. Renders nothing when the image file is missing.
+ * Shows a downloading indicator while fetching from cloud.
  */
 @Composable
 fun ReceiptThumbnail(imagePath: String?, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val bitmap = rememberLocalImage(imagePath, maxDimension = 400) ?: return
+    val imageState = rememberReceiptImage(imagePath, maxDimension = 400)
     val colors = MaterialTheme.colorScheme
+    when (imageState) {
+        is CloudImageState.Loading, is CloudImageState.Downloading -> {
+            // Show a placeholder with downloading indicator.
+            Column(
+                modifier = modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .padding(6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .background(colors.surfaceVariant),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp,
+                        color = colors.primary,
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    if (imageState is CloudImageState.Downloading) "Downloading…" else str(S.PHOTO_ORIGINAL),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = colors.onBackground,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+        is CloudImageState.Missing -> return
+        is CloudImageState.Loaded -> {
+            val bitmap = imageState.bitmap
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
@@ -85,68 +129,138 @@ fun ReceiptThumbnail(imagePath: String?, onClick: () -> Unit, modifier: Modifier
             textAlign = TextAlign.Center,
         )
     }
+        } // Close CloudImageState.Loaded
+    } // Close when
 }
 
 /**
- * Full-screen photo viewer: black backdrop, pinch to zoom, drag to pan, double-tap to reset,
- * close via the X or a single tap on the backdrop.
+ * Full-screen photo viewer: app background, receipt-narrow image centered like a paper
+ * receipt, vertical scroll for long receipts, pinch to zoom with pan when zoomed,
+ * double-tap to reset. Scroll is disabled while zoomed so gestures never fight.
+ * Share, Save, X grouped top-right — no top bar, no title. No heart icon here
+ * (heart is only on the receipt page).
+ * Slides up from the bottom (wrap in AnimatedVisibility at the call site).
  */
 @Composable
-fun ReceiptImageViewer(imagePath: String, onDismiss: () -> Unit) {
-    val bitmap = rememberLocalImage(imagePath, maxDimension = 2400)
+fun ReceiptImageViewer(
+    imagePath: String,
+    onDismiss: () -> Unit,
+    onShare: () -> Unit = {},
+    onSave: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
+    val imageState = rememberReceiptImage(imagePath, maxDimension = 2400)
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
-    val transform = rememberTransformableState { zoom, pan, _ ->
-        scale = (scale * zoom).coerceIn(1f, 6f)
-        offset = if (scale == 1f) Offset.Zero else offset + pan
-    }
+    val colors = MaterialTheme.colorScheme
 
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(Color.Black)
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss),
-        ) {
-            if (bitmap != null) {
-                Image(
-                    bitmap = bitmap,
-                    contentDescription = str(S.PHOTO_RECEIPT_A11Y),
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            scaleX = scale
-                            scaleY = scale
-                            translationX = offset.x
-                            translationY = offset.y
-                        }
-                        .transformable(transform)
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onDoubleTap = { scale = 1f; offset = Offset.Zero },
-                                onTap = { if (scale == 1f) onDismiss() },
-                            )
-                        },
-                )
-            } else {
+    Box(
+        modifier
+            .fillMaxSize()
+            .background(colors.background),
+    ) {
+        when (imageState) {
+            is CloudImageState.Loading, is CloudImageState.Downloading -> {
+                // Show downloading indicator in the center.
+                Column(
+                    Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        modifier = Modifier.size(48.dp),
+                        color = colors.primary,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        if (imageState is CloudImageState.Downloading) "Downloading…" else "Loading…",
+                        color = colors.onBackground,
+                    )
+                }
+            }
+            is CloudImageState.Missing -> {
                 Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
                     Spacer(Modifier.weight(1f))
-                    Icon(Icons.Rounded.Image, contentDescription = null, tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(48.dp))
+                    androidx.compose.material.icons.Icons.Rounded.Image.let {
+                        Icon(it, contentDescription = null, tint = colors.onSurfaceVariant.copy(alpha = 0.6f), modifier = Modifier.size(48.dp))
+                    }
                     Spacer(Modifier.height(12.dp))
-                    Text(str(S.PHOTO_MISSING), color = Color.White.copy(alpha = 0.8f))
+                    Text(str(S.PHOTO_MISSING), color = colors.onSurfaceVariant.copy(alpha = 0.8f))
                     Spacer(Modifier.weight(1f))
                 }
             }
-            IconButton(
-                onClick = onDismiss,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .statusBarsPadding()
-                    .padding(8.dp)
-                    .background(Color.White.copy(alpha = 0.15f), CircleShape),
-            ) {
-                Icon(Icons.Rounded.Close, contentDescription = str(S.ACTION_CLOSE), tint = Color.White)
+            is CloudImageState.Loaded -> {
+                val bitmap = imageState.bitmap
+                val scrollState = rememberScrollState()
+                // Zoom state: transformable handles pinch + pan. The vertical scroll is
+                // only enabled at 1x — once zoomed, all gestures go to pan/zoom. This
+                // avoids the gesture fight where detectTransformGestures consumed
+                // single-finger drags and scroll worked intermittently.
+                val transformState = rememberTransformableState { zoomChange, panChange, _ ->
+                    val newScale = (scale * zoomChange).coerceIn(1f, 6f)
+                    scale = newScale
+                    offset = if (newScale > 1f) offset + panChange else Offset.Zero
+                }
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scrollState, enabled = scale <= 1f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Image(
+                        bitmap = bitmap,
+                        contentDescription = str(S.PHOTO_RECEIPT_A11Y),
+                        contentScale = ContentScale.FillWidth,
+                        modifier = Modifier
+                            .widthIn(max = 420.dp)
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 76.dp)
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                                translationX = offset.x
+                                translationY = offset.y
+                            }
+                            .transformable(transformState)
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onDoubleTap = { scale = 1f; offset = Offset.Zero },
+                                    // Tap no longer dismisses — use the X button to close.
+                                )
+                            },
+                    )
+                }
+            } // Close CloudImageState.Loaded
+        } // Close when
+        // Share, Save, X grouped top-right. Floating over the image, no top bar.
+        // Tap on the image no longer dismisses — X is the only way to close.
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                IconButton(
+                    onClick = onShare,
+                    modifier = Modifier.background(colors.surfaceVariant.copy(alpha = 0.85f), CircleShape),
+                ) {
+                    Icon(Icons.Rounded.Share, contentDescription = "Share", tint = colors.onSurface)
+                }
+                IconButton(
+                    onClick = onSave,
+                    modifier = Modifier.background(colors.surfaceVariant.copy(alpha = 0.85f), CircleShape),
+                ) {
+                    Icon(Icons.Rounded.Download, contentDescription = "Save to Photos", tint = colors.onSurface)
+                }
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.background(colors.surfaceVariant.copy(alpha = 0.85f), CircleShape),
+                ) {
+                    Icon(Icons.Rounded.Close, contentDescription = "Close", tint = colors.onSurface)
+                }
             }
         }
     }

@@ -44,6 +44,13 @@ interface AuthRepository {
      * local data themselves.
      */
     suspend fun deleteAccount(): Boolean
+
+    /**
+     * Firebase ID token for authenticated backend calls. Null when not signed in.
+     * Used for the Authorization header on Cloud Function calls. [forceRefresh] mints a new
+     * token instead of the cached one (use after the server rejects a token).
+     */
+    suspend fun getIdToken(forceRefresh: Boolean = false): String?
 }
 
 /** Minimal identity for the UI. Guests (anonymous Firebase users) have no name. */

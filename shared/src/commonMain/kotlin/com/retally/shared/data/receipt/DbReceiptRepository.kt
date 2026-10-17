@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 
 /**
@@ -85,6 +87,23 @@ internal class DbReceiptRepository(
         ensureMigrated()
         database.receiptQueries.deleteAll()
         loadAll()
+    }
+
+    /**
+     * Deletes receipts older than [maxAgeDays] (default 30). Used for guests (anonymous
+     * users) who get local-only storage with FIFO retention. Returns the image paths
+     * of deleted receipts so the caller can delete the files.
+     */
+    override suspend fun pruneOldReceipts(maxAgeDays: Int): List<String> = withContext(ioDispatcher) {
+        ensureMigrated()
+        val cutoff = Clock.System.now() - maxAgeDays.days
+        val cutoffMillis = cutoff.toEpochMilliseconds()
+        val old = database.receiptQueries.selectOlderThan(cutoffMillis).executeAsList()
+        if (old.isEmpty()) return@withContext emptyList()
+        val imagePaths = old.mapNotNull { it.image_path }
+        database.receiptQueries.deleteOlderThan(cutoffMillis)
+        receipts.value = loadAll()
+        imagePaths
     }
 
     private suspend fun mutate(block: () -> List<Receipt>) {

@@ -20,16 +20,11 @@ enum AppConfig {
     private static let testBannerUnitId = "ca-app-pub-3940256099942544/2435281174"
     private static let releaseHomeBannerUnitId = "ca-app-pub-3023631555197048/7212690817"
 
-    /// Debug requests Google's demo unit; release requests the real one.
-    ///
-    /// The AdMob account is still pending approval, so the real unit answers every debug
-    /// request with "Account not approved yet" and no banner renders. Demo units are not tied
-    /// to the account and always fill. Once the account is approved this can go back to
-    /// returning `releaseHomeBannerUnitId` in every build — `AdsBridge` already registers the
-    /// simulator and `testDeviceIdentifiers`, so the real unit serves creatives labelled
-    /// "Test Ad" on those devices instead of counting as live impressions.
+    /// Both debug and release request the production unit (per request).
+    /// `AdsBridge` registers the simulator and `testDeviceIdentifiers`, so the real unit
+    /// serves creatives labelled "Test Ad" on those devices instead of counting as live
+    /// impressions.
     static var homeBannerUnitId: String {
-        if isDebug { return testBannerUnitId }
         return releaseHomeBannerUnitId.hasPrefix("ca-app-pub-") ? releaseHomeBannerUnitId : testBannerUnitId
     }
     static var splashBannerUnitId: String { homeBannerUnitId }
@@ -37,7 +32,8 @@ enum AppConfig {
     /// Hashed ids of physical dev phones. On first ad request the SDK prints
     /// "To get test ads on this device, set: ... testDeviceIdentifiers = [ "<hash>" ]" —
     /// paste that hash here. Simulators are added automatically (see AdsBridge).
-    static let testDeviceIdentifiers: [String] = []
+    /// Note: the hash resets on uninstall/reinstall — update it when it changes.
+    static let testDeviceIdentifiers: [String] = ["d482edfbedb920fcb34374a8b450baf3"]
 
     /// Empty keeps cloud backup in placeholder mode.
     static let cloudBaseUrl = ""

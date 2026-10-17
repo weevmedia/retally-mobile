@@ -11,16 +11,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.ComposeUIViewController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.retally.shared.presentation.duplicates.DuplicatesContract
+import com.retally.shared.presentation.budget.BudgetContract
 import com.retally.shared.presentation.receipts.ReceiptsContract
 import com.retally.shared.presentation.home.HomeContract
 import com.retally.shared.presentation.main.MainContract
+import com.retally.shared.ui.recalls.RecallsScreen
+import com.retally.shared.presentation.recalls.RecallsContract
 import com.retally.shared.presentation.scan.ScanReviewContract
 import com.retally.shared.presentation.settings.SettingsContract
+import com.retally.shared.presentation.shopping.ShoppingListContract
 import com.retally.shared.presentation.splash.SplashContract
 import com.retally.shared.presentation.onboarding.OnboardingContract
 import com.retally.shared.presentation.auth.AuthContract
 import com.retally.shared.presentation.auth.OtpContract
 import com.retally.shared.ui.duplicates.DuplicatesScreen
+import com.retally.shared.ui.budget.BudgetScreen
 import com.retally.shared.ui.home.HomeScreen
 import com.retally.shared.ui.navigation.ReTallyTabBar
 import com.retally.shared.ui.navigation.ReTallyTabBarDefaults
@@ -29,6 +34,7 @@ import com.retally.shared.ui.receipts.ReceiptsScreen
 import com.retally.shared.ui.placeholder.PlaceholderTab
 import com.retally.shared.ui.scan.ScanReviewScreen
 import com.retally.shared.ui.settings.SettingsScreen
+import com.retally.shared.ui.shopping.ShoppingListScreen
 import com.retally.shared.ui.splash.SplashScreen
 import com.retally.shared.ui.onboarding.OnboardingScreen
 import com.retally.shared.ui.auth.AuthScreen
@@ -172,6 +178,31 @@ object IosScreens {
     fun duplicates(store: DuplicatesContract.Store): ComposeScreen = screen { snackbar ->
         val state by store.observeState().collectAsStateWithLifecycle()
         DuplicatesScreen(state = state, dispatch = store::dispatch, snackbarHostState = snackbar)
+    }
+
+    /** AI Shopping List tab. */
+    fun shoppingList(store: ShoppingListContract.Store, mainStore: MainContract.Store): ComposeScreen = screen { snackbar ->
+        val state by store.observeState().collectAsStateWithLifecycle()
+        val shell by mainStore.observeState().collectAsStateWithLifecycle()
+        ShoppingListScreen(
+            state = state,
+            dispatch = store::dispatch,
+            snackbarHostState = snackbar,
+            adsEnabled = shell.adsEnabled,
+            bannerAdUnitId = IosDependencies.getAdsConfig().homeBannerUnitId,
+        )
+    }
+
+    /** Food recall alerts, opened from Home's bell. */
+    fun alerts(store: RecallsContract.Store): ComposeScreen = screen { snackbar ->
+        val state by store.observeState().collectAsStateWithLifecycle()
+        RecallsScreen(state = state, dispatch = store::dispatch, snackbarHostState = snackbar)
+    }
+
+    /** Monthly grocery budget, opened from Home's Spent tile. */
+    fun budget(store: BudgetContract.Store): ComposeScreen = screen { snackbar ->
+        val state by store.observeState().collectAsStateWithLifecycle()
+        BudgetScreen(state = state, dispatch = store::dispatch, snackbarHostState = snackbar)
     }
 
     fun scanReview(store: ScanReviewContract.Store): ComposeScreen = screen { snackbar ->
