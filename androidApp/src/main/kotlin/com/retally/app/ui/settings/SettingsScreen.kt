@@ -12,6 +12,14 @@ fun SettingsScreen(
     state: State,
     dispatch: (Action) -> Unit,
     snackbarHostState: SnackbarHostState,
+    adsEnabled: Boolean = false,
+    adUnitId: String = "",
 ) {
-    SharedSettingsScreen(state = state, dispatch = dispatch, snackbarHostState = snackbarHostState)
+    SharedSettingsScreen(
+        state = state,
+        dispatch = dispatch,
+        snackbarHostState = snackbarHostState,
+        adsEnabled = adsEnabled,
+        adUnitId = adUnitId,
+    )
 }

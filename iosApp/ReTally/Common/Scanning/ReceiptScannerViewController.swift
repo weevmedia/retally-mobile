@@ -15,6 +15,17 @@ private struct Quad {
 
     var points: [CGPoint] { [topLeft, topRight, bottomRight, bottomLeft] }
 
+    /// Share of the frame the quad covers (0...1), via the shoelace formula.
+    var area: CGFloat {
+        let p = points
+        var sum: CGFloat = 0
+        for i in 0..<p.count {
+            let a = p[i], b = p[(i + 1) % p.count]
+            sum += a.x * b.y - b.x * a.y
+        }
+        return abs(sum) / 2
+    }
+
     /// Average corner movement between two frames.
     func distance(to other: Quad) -> CGFloat {
         zip(points, other.points)
@@ -71,9 +82,14 @@ final class ReceiptScannerViewController: UIViewController {
     /// frames don't stretch the wait the way a frame count did).
     private let stableDuration: CFTimeInterval = 0.45
     private let stabilityThreshold: CGFloat = 0.02
-    /// Rectangle detection rate. Running Vision on every 30fps frame starved the preview
+    /// Detection rate. Running Vision on every 30fps frame starved the preview
     /// and made the overlay stutter; ~12 detections a second tracks just as well.
     private let detectInterval: CFTimeInterval = 1.0 / 12.0
+    /// Document detection (Apple's document-segmentation model, the one the system scanner
+    /// uses) is trusted from this confidence; below it we fall back to rectangle detection.
+    private static let minDocumentConfidence: Float = 0.5
+    /// Ignore detections smaller than this share of the frame (a logo, a card, a shadow).
+    private static let minQuadArea: CGFloat = 0.04
     /// Long edge for post-capture processing. A 12MP photo through perspective correction +
     /// document enhancement took ~1s; OCR and storage only need ~2000px anyway.
     private let processingMaxEdge: CGFloat = 2600
@@ -106,7 +122,8 @@ final class ReceiptScannerViewController: UIViewController {
     private var lastQuad: Quad?
     private var stableSince: CFTimeInterval?
     private var lastDetectAt: CFTimeInterval = 0
-    private lazy var liveRequest = Self.makeRectangleRequest()
+    private lazy var liveDocumentRequest = VNDetectDocumentSegmentationRequest()
+    private lazy var liveRectangleRequest = Self.makeRectangleRequest()
     private var isCapturing = false
     private var autoCapture = true
     private var captureQuad: Quad?
@@ -130,6 +147,8 @@ final class ReceiptScannerViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        // No-op if launch already did it; covers a scan started right after launch.
+        ReceiptTextRecognizer.prewarm()
         view.backgroundColor = .black
         setUpPreview()
         setUpControls()
@@ -441,9 +460,32 @@ final class ReceiptScannerViewController: UIViewController {
     // MARK: Image processing
 
     private static func detectQuad(in image: CIImage) -> Quad? {
-        let request = makeRectangleRequest()
-        try? VNImageRequestHandler(ciImage: image, orientation: .up).perform([request])
-        return request.results?.first.map(Quad.init)
+        detectQuad(
+            with: VNImageRequestHandler(ciImage: image, orientation: .up),
+            document: VNDetectDocumentSegmentationRequest(),
+            rectangles: makeRectangleRequest()
+        )
+    }
+
+    /// Finds the receipt. Apple's document-segmentation model first: it is trained on paper
+    /// documents, so it locks onto curled, low-contrast receipts with corners off-screen that
+    /// plain rectangle detection (straight edges + four clear corners) keeps missing. Rectangle
+    /// detection stays as the fallback.
+    private static func detectQuad(
+        with handler: VNImageRequestHandler,
+        document: VNDetectDocumentSegmentationRequest,
+        rectangles: VNDetectRectanglesRequest
+    ) -> Quad? {
+        if (try? handler.perform([document])) != nil,
+           let observation = document.results?.first,
+           observation.confidence >= minDocumentConfidence {
+            let quad = Quad(observation)
+            if quad.area >= minQuadArea { return quad }
+        }
+        guard (try? handler.perform([rectangles])) != nil,
+              let observation = rectangles.results?.first else { return nil }
+        let quad = Quad(observation)
+        return quad.area >= minQuadArea ? quad : nil
     }
 
     /// Scales a full-resolution photo down to [processingMaxEdge] before any filtering.
@@ -539,6 +581,18 @@ final class ReceiptScannerViewController: UIViewController {
         }
     }
 
+    private func showReadingSpinner() {
+        let spinner = UIActivityIndicatorView(style: .large)
+        spinner.color = .white
+        spinner.translatesAutoresizingMaskIntoConstraints = false
+        spinner.startAnimating()
+        view.addSubview(spinner)
+        NSLayoutConstraint.activate([
+            spinner.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            spinner.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+        ])
+    }
+
     private func finish(with image: UIImage?) {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
@@ -547,6 +601,9 @@ final class ReceiptScannerViewController: UIViewController {
                 sessionQueue.async { [session] in session.stopRunning() }   // camera freezes on the last frame, as Apple's does
                 onCaptured?(image)            // start OCR while the animation plays
                 playCapturePreview(image) { [weak self] in
+                    // If reading the text is still running, show it's working rather than
+                    // a frozen camera; the presenter closes the scanner when OCR is done.
+                    self?.showReadingSpinner()
                     self?.onScan?(image)      // presenter closes the scanner here
                 }
             } else {
@@ -569,10 +626,8 @@ extension ReceiptScannerViewController: AVCaptureVideoDataOutputSampleBufferDele
         lastDetectAt = now
         evaluateAutoTorch(sampleBuffer, now: now)
 
-        let request = liveRequest
-        try? VNImageRequestHandler(cvPixelBuffer: buffer, orientation: .up).perform([request])
-
-        guard let quad = request.results?.first.map(Quad.init) else {
+        let handler = VNImageRequestHandler(cvPixelBuffer: buffer, orientation: .up)
+        guard let quad = Self.detectQuad(with: handler, document: liveDocumentRequest, rectangles: liveRectangleRequest) else {
             missedFrames += 1
             if missedFrames > maxMissedFrames {          // really lost it, so hide
                 smoothedQuad = nil; lastQuad = nil; stableSince = nil

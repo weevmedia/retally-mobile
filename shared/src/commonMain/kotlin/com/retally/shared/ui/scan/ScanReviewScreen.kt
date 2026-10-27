@@ -1,5 +1,17 @@
 package com.retally.shared.ui.scan
 
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
+import com.retally.shared.ui.format.formatShortDate
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.Path
+import androidx.compose.foundation.Canvas
+import com.retally.shared.ui.components.CircleIconButton
 import com.retally.shared.core.strings.StringAssetIdentifiers as S
 import com.retally.shared.core.strings.str
 import androidx.compose.foundation.background
@@ -24,6 +36,7 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CloudDone
 import androidx.compose.material.icons.rounded.CreditCard
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Place
@@ -96,6 +109,40 @@ fun ScanReviewScreen(
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
 ) {
+    // While the receipt is being read: nothing but the scan animation, centred on a blank page
+    // (no top bar, no content).
+    if (state.isLoading) {
+        Box(
+            modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                ScanCookingAnimation(isAiMode = state.isAiParsing)
+                // The slower AI read gets a line of copy so the wait doesn't feel stuck.
+                androidx.compose.animation.AnimatedVisibility(visible = state.isAiParsing) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(top = 20.dp, start = 40.dp, end = 40.dp),
+                    ) {
+                        Text(
+                            str(S.RECEIPT_AI_READING_TITLE),
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center,
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            str(S.RECEIPT_AI_READING_BODY),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
+            }
+        }
+        return
+    }
     // Hoisted above the Scaffold so the image viewer overlays the top bar too.
     var showPhoto by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxSize()) {
@@ -105,12 +152,28 @@ fun ScanReviewScreen(
             TopAppBar(
                 title = { Text(str(S.RECEIPT_TITLE), style = ReTallyTheme.typography.display) },
                 navigationIcon = {
-                    IconButton(onClick = { dispatch(ScanReviewContract.Action.CloseClicked) }) {
+                    CircleIconButton(onClick = { dispatch(ScanReviewContract.Action.CloseClicked) }) {
                         Icon(Icons.Rounded.Close, contentDescription = str(S.ACTION_CLOSE))
                     }
                 },
                 actions = {
-                    IconButton(onClick = { dispatch(ScanReviewContract.Action.FavoriteStoreToggled) }) {
+                    // Delete and favorite only make sense for a saved receipt: hidden while
+                    // loading and on the "no receipt found" result.
+                    val hasReceipt = state.receipt != null && !state.nothingFound
+                    if (hasReceipt) {
+                        CircleIconButton(onClick = { dispatch(ScanReviewContract.Action.DeleteClicked) }) {
+                            Icon(
+                                Icons.Outlined.Delete,
+                                contentDescription = str(S.ACTION_DELETE),
+                                tint = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    if (hasReceipt) CircleIconButton(
+                        onClick = { dispatch(ScanReviewContract.Action.FavoriteStoreToggled) },
+                        selected = state.isFavoriteStore,
+                    ) {
                         if (state.isFavoriteStore) {
                             Icon(
                                 Icons.Rounded.Favorite,
@@ -135,14 +198,12 @@ fun ScanReviewScreen(
     ) { padding ->
         val receipt = state.receipt
         when {
-            state.isLoading -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                ScanCookingAnimation(isAiMode = state.isAiParsing)
-            }
             receipt == null -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 EmptyState(
                     icon = Icons.Rounded.SearchOff,
                     title = str(S.RECEIPT_NO_ITEMS_TITLE),
                     body = str(S.RECEIPT_NO_ITEMS_BODY),
+                    illustration = { NoItemsIllustration() },
                     action = {
                         PrimaryButton(text = str(S.RECEIPT_BACK_TO_RECEIPTS), onClick = { dispatch(ScanReviewContract.Action.CloseClicked) })
                     },
@@ -157,8 +218,26 @@ fun ScanReviewScreen(
                 onRemoveOne = { dispatch(ScanReviewContract.Action.RemoveOneRequested(it)) },
                 onCategoryClick = { dispatch(ScanReviewContract.Action.ItemCategoryPickerOpened(it)) },
                 onPhotoClick = { showPhoto = true },
+                onEditStore = { dispatch(ScanReviewContract.Action.EditStoreClicked) },
                 onShare = { dispatch(ScanReviewContract.Action.ShareClicked) },
                 onSave = { dispatch(ScanReviewContract.Action.SaveToPhotosClicked) },
+            )
+        }
+    }
+    if (state.confirmingDelete) {
+        state.receipt?.let { receipt ->
+            AlertDialog(
+                onDismissRequest = { dispatch(ScanReviewContract.Action.DeleteCancelled) },
+                title = { Text(str(S.HOME_DELETE_TITLE)) },
+                text = { Text(str(S.HOME_DELETE_BODY, receipt.storeName, formatShortDate(receipt.purchaseDate))) },
+                confirmButton = {
+                    TextButton(onClick = { dispatch(ScanReviewContract.Action.DeleteConfirmed) }) {
+                        Text(str(S.ACTION_DELETE), color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { dispatch(ScanReviewContract.Action.DeleteCancelled) }) { Text(str(S.ACTION_CANCEL)) }
+                },
             )
         }
     }
@@ -177,6 +256,19 @@ fun ScanReviewScreen(
             onPick = { dispatch(ScanReviewContract.Action.ItemCategoryPicked(it)) },
             onDismiss = { dispatch(ScanReviewContract.Action.ItemCategoryPickerDismissed) },
         )
+    }
+    // "Edit store" page: slides in over the receipt (top bar included) with its own Back.
+    // Keeps the last draft while sliding out, after the store has cleared it.
+    val lastStoreEdit = remember { mutableStateOf<ScanReviewContract.StoreEdit?>(null) }
+    state.storeEdit?.let { if (lastStoreEdit.value != it) lastStoreEdit.value = it }
+    androidx.compose.animation.AnimatedVisibility(
+        visible = state.storeEdit != null,
+        enter = androidx.compose.animation.slideInHorizontally(initialOffsetX = { it }),
+        exit = androidx.compose.animation.slideOutHorizontally(targetOffsetX = { it }),
+    ) {
+        (state.storeEdit ?: lastStoreEdit.value)?.let { edit ->
+            EditStorePage(edit = edit, dispatch = dispatch, modifier = Modifier.fillMaxSize())
+        }
     }
     // Full-screen image viewer overlay — drawn above the Scaffold so the receipt
     // top bar (X / Receipt / heart) is hidden while viewing. Back dismisses only this.
@@ -305,6 +397,7 @@ private fun ReceiptBody(
     onRemoveOne: (String) -> Unit,
     onCategoryClick: (String) -> Unit,
     onPhotoClick: () -> Unit,
+    onEditStore: () -> Unit = {},
     onShare: () -> Unit = {},
     onSave: () -> Unit = {},
 ) {
@@ -319,7 +412,7 @@ private fun ReceiptBody(
         ),
         verticalArrangement = Arrangement.spacedBy(d.md),
     ) {
-        item { StoreHeader(receipt, onPhotoClick = onPhotoClick) }
+        item { StoreHeader(receipt, onPhotoClick = onPhotoClick, onEditStore = onEditStore) }
         // Torn/faded receipt notice — shown when the scan was incomplete.
         if (receipt.scanStatus != ScanStatus.COMPLETE) {
             item { PartialScanBanner(receipt) }
@@ -435,7 +528,7 @@ private fun PartialScanBanner(receipt: Receipt) {
  * Payment is shown with the totals, not here.
  */
 @Composable
-private fun StoreHeader(receipt: Receipt, onPhotoClick: () -> Unit) {
+private fun StoreHeader(receipt: Receipt, onPhotoClick: () -> Unit, onEditStore: () -> Unit) {
     val d = ReTallyTheme.dimensions
     val colors = MaterialTheme.colorScheme
     val muted = colors.onSurfaceVariant
@@ -448,11 +541,23 @@ private fun StoreHeader(receipt: Receipt, onPhotoClick: () -> Unit) {
         verticalAlignment = Alignment.Top,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(
-                receipt.storeName,
-                style = ReTallyTheme.typography.storeName,
-                color = colors.onBackground,
-            )
+            // Name with a pencil right after it: opens "Edit store" to fix a misread name/address.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    receipt.storeName,
+                    style = ReTallyTheme.typography.storeName,
+                    color = colors.onBackground,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                IconButton(onClick = onEditStore, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        Icons.Rounded.Edit,
+                        contentDescription = str(S.RECEIPT_EDIT_STORE_A11Y),
+                        tint = colors.primary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
             receipt.storeAddress?.lines()?.map { it.trim() }?.filter { it.isNotEmpty() }?.takeIf { it.isNotEmpty() }?.let { lines ->
                 Spacer(Modifier.height(d.xs))
                 Row(
@@ -686,5 +791,66 @@ private fun TotalRow(label: String, amount: Double, emphasize: Boolean = false, 
             color = color ?: colors.onSurface,
             textDecoration = if (strike) TextDecoration.LineThrough else null,
         )
+    }
+}
+
+/**
+ * "No items found": a blank receipt (empty dashed lines where items should be) with a
+ * magnifying glass over it. Large, centred, no background disc.
+ */
+@Composable
+private fun NoItemsIllustration() {
+    val c = ReTallyTheme.colors
+    val paper = c.primary
+    val faint = c.muted.copy(alpha = 0.45f)
+    val lens = c.ink
+    Canvas(Modifier.size(150.dp)) {
+        val u = size.minDimension / 150f
+        val stroke = Stroke(width = 5f * u, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        // Receipt: top at y=18, zig-zag bottom at y≈128, x 25..97 (shifted left so receipt +
+        // glass sit centred together).
+        val left = 25f * u; val right = 97f * u; val top = 18f * u; val bottom = 120f * u
+        val teeth = 6
+        val tooth = (right - left) / teeth
+        val body = Path().apply {
+            moveTo(left, top)
+            lineTo(right, top)
+            lineTo(right, bottom)
+            for (i in 0 until teeth) {
+                val x0 = right - i * tooth
+                lineTo(x0 - tooth / 2f, bottom + 8f * u)
+                lineTo(x0 - tooth, bottom)
+            }
+            close()
+        }
+        drawPath(body, paper, style = stroke)
+        // Empty item lines: dashed, faded — nothing to read.
+        val dash = PathEffect.dashPathEffect(floatArrayOf(7f * u, 7f * u))
+        listOf(40f to 0.8f, 56f to 0.55f, 72f to 0.8f, 88f to 0.45f).forEach { (y, w) ->
+            drawLine(
+                faint,
+                Offset(left + 12f * u, y * u),
+                Offset(left + 12f * u + (right - left - 24f * u) * w, y * u),
+                strokeWidth = 4f * u,
+                cap = StrokeCap.Round,
+                pathEffect = dash,
+            )
+        }
+        // Magnifying glass, bottom-right, overlapping the receipt.
+        val center = Offset(91f * u, 98f * u)
+        val radius = 22f * u
+        drawCircle(c.background, radius = radius + 4f * u, center = center) // clears the lines under the lens
+        drawCircle(lens, radius = radius, center = center, style = Stroke(width = 6f * u))
+        drawLine(
+            lens,
+            Offset(center.x + radius * 0.72f, center.y + radius * 0.72f),
+            Offset(center.x + radius * 1.55f, center.y + radius * 1.55f),
+            strokeWidth = 9f * u,
+            cap = StrokeCap.Round,
+        )
+        // A small "x" in the lens: searched, found nothing.
+        val k = radius * 0.38f
+        drawLine(lens, Offset(center.x - k, center.y - k), Offset(center.x + k, center.y + k), strokeWidth = 4.5f * u, cap = StrokeCap.Round)
+        drawLine(lens, Offset(center.x + k, center.y - k), Offset(center.x - k, center.y + k), strokeWidth = 4.5f * u, cap = StrokeCap.Round)
     }
 }

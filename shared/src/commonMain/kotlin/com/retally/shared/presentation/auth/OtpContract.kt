@@ -1,5 +1,6 @@
 package com.retally.shared.presentation.auth
 
+import com.retally.shared.domain.preferences.AppPreferences
 import com.retally.shared.core.Effect
 import com.retally.shared.core.strings.StringAssetIdentifiers as S
 import com.retally.shared.core.strings.StringResolver
@@ -13,7 +14,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Email OTP verification: six numeric boxes, auto-advance, auto-verify once six digits
- * are entered (VERIFY button kept as a fallback; disabled while verifying),
+ * are entered (no Verify button; keyboard Done re-submits after a failure),
  * "That code didn't match — try again." on mismatch, 2-minute resend cooldown.
  *
  * The host dispatches [Action.Started] with the validated email once; the store sends
@@ -90,6 +91,7 @@ interface OtpContract {
         private val otpService: OtpService,
         private val authRepository: AuthRepository,
         private val strings: StringResolver,
+        private val preferences: AppPreferences? = null,
     ) : com.retally.shared.core.Store<State, Action, SideEffect>() {
         override fun initState(): State = State()
 
@@ -185,6 +187,7 @@ interface OtpContract {
                                 ?: strings.getString(S.AUTH_WELCOME_BACK)
                             sideEffect(SideEffect.ShowMessage(welcomeBack))
                         }
+                        preferences?.hasLaunchedBefore = true
                         sideEffect(SideEffect.NavigateToMain)
                     }
                     .onFailure {

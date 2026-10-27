@@ -119,6 +119,11 @@ data class ReceiptItem(
      * fall back to the default grocery bucket.
      */
     val categoryId: String = ItemCategory.DEFAULT_ID,
+    /**
+     * The shopper picked [categoryId] by hand: automatic tagging (keywords or the server's
+     * AI pass) never changes it again. Synced as `userCorrected`.
+     */
+    val categoryLocked: Boolean = false,
 )
 
 /** ISO-8601 wire format for [kotlin.time.Instant] ("2026-09-13T14:03:00Z"). */

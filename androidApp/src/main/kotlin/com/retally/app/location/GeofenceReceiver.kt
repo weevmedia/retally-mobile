@@ -39,6 +39,12 @@ class GeofenceReceiver : BroadcastReceiver() {
             try {
                 val appContext = context.applicationContext
                 val repo: StoreLocationRepository = GlobalContext.get().get()
+                // Toggle off or location permission gone (a fence registered earlier can still
+                // fire): never notify — clean the fences up instead.
+                if (!repo.isEnabled || !NearbyStoreScheduler.hasLocationPermission(appContext)) {
+                    NearbyGeofenceManager(appContext).stop()
+                    return@launch
+                }
                 val lists: ShoppingListRepository = GlobalContext.get().get()
                 val now = System.currentTimeMillis()
                 ids.forEach { id ->

@@ -1,5 +1,8 @@
 package com.retally.shared.presentation.scan
 
+import com.retally.shared.core.crash.CrashReporting
+import com.retally.shared.domain.category.ItemCategoryClassifier
+import com.retally.shared.data.store.StoreIconRepository
 import com.retally.shared.core.strings.EnglishStringResolver
 import com.retally.shared.core.strings.StringAssetIdentifiers
 import com.retally.shared.core.strings.StringResolver
@@ -61,12 +64,86 @@ interface ScanReviewContract {
         val categories: List<ItemCategory> = emptyList(),
         /** Whether the receipt's store is a favorite (toggled by the top-bar heart). */
         val isFavoriteStore: Boolean = false,
+        /** Non-null while the "Edit store" page is open: the shopper's draft name and address. */
+        val storeEdit: StoreEdit? = null,
+        /** True while the "Delete receipt?" confirmation is up (top-bar trash icon). */
+        val confirmingDelete: Boolean = false,
     ) : com.retally.shared.core.State {
         val duplicates: List<ReceiptItem> get() = receipt?.duplicates.orEmpty()
         val overchargeAmount: Double get() = receipt?.overchargeAmount ?: 0.0
     }
 
+    /** A US address split for editing (see [StoreEdit.splitAddress]). */
+    data class AddressParts(val street: String, val city: String, val state: String, val zip: String)
+
+    /**
+     * Draft on the "Edit receipt details" page. The address is edited as street / city /
+     * state / ZIP and saved back as the receipt's usual two-line text
+     * ("123 Main St\nEdison, NJ 08817"), so nothing else changes.
+     */
+    data class StoreEdit(
+        val name: String,
+        val street: String,
+        val city: String,
+        val state: String,
+        val zip: String,
+        val purchaseDate: kotlin.time.Instant,
+    ) {
+        val canSave: Boolean get() = name.isNotBlank()
+
+        /** The address as stored on the receipt: street line(s), then "City, ST ZIP". */
+        val address: String
+            get() {
+                val region = listOf(state.trim(), zip.trim()).filter { it.isNotEmpty() }.joinToString(" ")
+                val cityLine = listOf(city.trim(), region).filter { it.isNotEmpty() }.joinToString(", ")
+                return (street.lines().map { it.trim() } + cityLine).filter { it.isNotEmpty() }.joinToString("\n")
+            }
+
+        companion object {
+            fun of(name: String, address: String?, purchaseDate: kotlin.time.Instant): StoreEdit {
+                val parts = splitAddress(address.orEmpty())
+                return StoreEdit(name, parts.street, parts.city, parts.state, parts.zip, purchaseDate)
+            }
+
+            /**
+             * Best-effort split of a printed US address. "123 Main St\nEDISON NJ 08817" and
+             * "123 Main St, Edison, NJ 08817" both give street / city / state / ZIP. Anything it
+             * can't place stays in the street, so no text is ever lost.
+             */
+            fun splitAddress(address: String): AddressParts {
+                val text = address.trim()
+                if (text.isEmpty()) return AddressParts("", "", "", "")
+                val tail = Regex("""[,\s]+([A-Za-z]{2})\.?\s+(\d{5}(?:-\d{4})?)\s*$""").find(text)
+                    ?: Regex("""[,\s]+([A-Z]{2})\s*$""").find(text)
+                    ?: return AddressParts(text, "", "", "")
+                val state = tail.groupValues[1].uppercase()
+                val zip = tail.groupValues.getOrNull(2).orEmpty()
+                val rest = text.substring(0, tail.range.first).trimEnd(',', ' ')
+                val (street, city) = when {
+                    '\n' in rest -> rest.substringBeforeLast('\n').trim() to rest.substringAfterLast('\n').trim().trimEnd(',')
+                    ',' in rest -> rest.substringBeforeLast(',').trim() to rest.substringAfterLast(',').trim()
+                    else -> rest to ""
+                }
+                return AddressParts(street, city, state, zip)
+            }
+        }
+    }
+
     sealed class Action : com.retally.shared.core.Action {
+        /** Pencil beside the store name: open the "Edit store" page seeded with the receipt's values. */
+        data object EditStoreClicked : Action()
+        data class StoreNameChanged(val name: String) : Action()
+        data class StoreStreetChanged(val street: String) : Action()
+        data class StoreCityChanged(val city: String) : Action()
+        /** Two-letter state; the store uppercases and trims it. */
+        data class StoreStateChanged(val state: String) : Action()
+        data class StoreZipChanged(val zip: String) : Action()
+        /** New purchase date/time picked on the edit page (date and time pickers both land here). */
+        data class PurchaseDateChanged(val purchaseDate: kotlin.time.Instant) : Action()
+        data object StoreEditSaveClicked : Action()
+        /** Back on the "Edit store" page: discard the draft. */
+        data object StoreEditDismissed : Action()
+
         /** OCR result from the scanner. Idempotent: the first call wins. */
         data class TextRecognized(val lines: List<String>, val imagePath: String? = null) : Action()
         /** Show an existing receipt (from the Home list). */
@@ -90,6 +167,10 @@ interface ScanReviewContract {
         /** Save the receipt image to the device photo library. */
         data object SaveToPhotosClicked : Action()
         data object CloseClicked : Action()
+        /** Top-bar trash icon: asks to confirm, then deletes the receipt and closes. */
+        data object DeleteClicked : Action()
+        data object DeleteConfirmed : Action()
+        data object DeleteCancelled : Action()
     }
 
     sealed class SideEffect : Effect {
@@ -101,6 +182,11 @@ interface ScanReviewContract {
         data class SaveToPhotos(val imagePath: String?) : SideEffect()
         data object Closed : SideEffect()
         data class ShowMessage(val message: String) : SideEffect()
+        /**
+         * The receipt's store name or address was edited and saved: the host re-arms the
+         * nearby-store geofences so the new store/address gets its fence now.
+         */
+        data object StoreLocationChanged : SideEffect()
     }
 
     class Store(
@@ -113,6 +199,10 @@ interface ScanReviewContract {
         private val strings: StringResolver = EnglishStringResolver,
         /** Gemini fallback for torn receipts. Null = AI disabled, local only. */
         private val tornReceiptClient: TornReceiptClient? = null,
+        /** Looks up the store's logo right after a scan / store edit (ignoring a cached "no logo"). */
+        private val storeIcons: StoreIconRepository? = null,
+        /** Server AI categories, applied right after a new scan is saved. Null = keywords only. */
+        private val itemClassifier: ItemCategoryClassifier? = null,
     ) : com.retally.shared.core.Store<State, Action, SideEffect>() {
 
         private var started = false
@@ -156,6 +246,83 @@ interface ScanReviewContract {
                 Action.ShareClicked -> sideEffect(SideEffect.ShareReceipt(currentState.receipt?.imagePath))
                 Action.SaveToPhotosClicked -> sideEffect(SideEffect.SaveToPhotos(currentState.receipt?.imagePath))
                 Action.CloseClicked -> sideEffect(SideEffect.Closed)
+                Action.DeleteClicked -> if (currentState.receipt != null && !currentState.isSaving) {
+                    currentState = currentState.copy(confirmingDelete = true)
+                }
+                Action.DeleteCancelled -> currentState = currentState.copy(confirmingDelete = false)
+                Action.DeleteConfirmed -> deleteReceipt()
+                Action.EditStoreClicked -> currentState.receipt?.let { receipt ->
+                    currentState = currentState.copy(
+                        storeEdit = StoreEdit.of(receipt.storeName, receipt.storeAddress, receipt.purchaseDate),
+                    )
+                }
+                is Action.StoreNameChanged -> currentState.storeEdit?.let {
+                    currentState = currentState.copy(storeEdit = it.copy(name = action.name))
+                }
+                is Action.StoreStreetChanged -> currentState.storeEdit?.let {
+                    currentState = currentState.copy(storeEdit = it.copy(street = action.street))
+                }
+                is Action.StoreCityChanged -> currentState.storeEdit?.let {
+                    currentState = currentState.copy(storeEdit = it.copy(city = action.city))
+                }
+                is Action.StoreStateChanged -> currentState.storeEdit?.let {
+                    val state = action.state.filter { c -> c.isLetter() }.take(2).uppercase()
+                    currentState = currentState.copy(storeEdit = it.copy(state = state))
+                }
+                is Action.StoreZipChanged -> currentState.storeEdit?.let {
+                    val zip = action.zip.filter { c -> c.isDigit() || c == '-' }.take(10)
+                    currentState = currentState.copy(storeEdit = it.copy(zip = zip))
+                }
+                is Action.PurchaseDateChanged -> currentState.storeEdit?.let {
+                    currentState = currentState.copy(storeEdit = it.copy(purchaseDate = action.purchaseDate))
+                }
+                Action.StoreEditSaveClicked -> saveStoreEdit()
+                Action.StoreEditDismissed -> currentState = currentState.copy(storeEdit = null)
+            }
+        }
+
+        /**
+         * The shopper's fix for a misread store name/address. Saved like any other correction
+         * (local first, then re-uploaded); a typed name also counts as a confirmed merchant.
+         */
+        private fun saveStoreEdit() {
+            val receipt = currentState.receipt ?: return
+            val draft = currentState.storeEdit ?: return
+            if (!draft.canSave) return
+            val name = draft.name.trim()
+            val address = draft.address.lines().map { it.trim() }.filter { it.isNotEmpty() }
+                .joinToString("\n").ifEmpty { null }
+            val dateChanged = draft.purchaseDate != receipt.purchaseDate
+            if (name == receipt.storeName && address == receipt.storeAddress && !dateChanged) {
+                currentState = currentState.copy(storeEdit = null)
+                return
+            }
+            val updated = receipt.copy(
+                storeName = name,
+                storeAddress = address,
+                purchaseDate = draft.purchaseDate,
+                // A typed name / picked date is the shopper confirming it.
+                missingFields = receipt.missingFields - "merchant" - (if (dateChanged) setOf("date") else emptySet()),
+                syncedAt = null, // changed locally → needs re-upload
+            )
+            currentState = currentState.copy(
+                receipt = updated,
+                storeEdit = null,
+                isSaving = true,
+                isFavoriteStore = favorites.isFavorite(name),
+            )
+            val storeChanged = name != receipt.storeName || address != receipt.storeAddress
+            persist(updated, announce = false, storeChanged = storeChanged)
+            sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.RECEIPT_STORE_UPDATED)))
+        }
+
+        /** Same delete as the swipe on Home / Receipts (local + cloud soft-delete), then close. */
+        private fun deleteReceipt() {
+            val receipt = currentState.receipt ?: return
+            currentState = currentState.copy(confirmingDelete = false)
+            launch {
+                repository.delete(receipt.id)
+                sideEffect(SideEffect.Closed)
             }
         }
 
@@ -260,12 +427,14 @@ interface ScanReviewContract {
                 tornReceiptClient != null && imagePath != null
             if (needsAi) {
                 println("[ReTallyScan] parseSource=LOCAL (incomplete: ${missingFields.joinToString()}) → trying CLOUD_AI")
+                CrashReporting.setValue("lastParseSource", "CLOUD_AI")
                 currentState = currentState.copy(isLoading = true, isAiParsing = true)
                 tryAiFallback(imagePath!!, receipt)
                 return
             }
 
             println("[ReTallyScan] parseSource=LOCAL outcome=$outcome status=$scanStatus")
+            CrashReporting.setValue("lastParseSource", "LOCAL")
             // Show it right away; persistence completes in the background.
             // Keep the cooking animation visible for at least 1.2s total so it's
             // perceptible — but don't add lag if OCR already took a while. The delay
@@ -324,6 +493,7 @@ interface ScanReviewContract {
                         persist(aiReceipt, announce = true)
                     }
                     is TornReceiptResult.Failure -> {
+                        CrashReporting.record(IllegalStateException("AI receipt read failed: ${result.reason}"))
                         showLocalFallback(fallback, result.reason)
                     }
                 }
@@ -375,14 +545,19 @@ interface ScanReviewContract {
                 storeName = dto.storeName?.trim()?.takeIf { it.isNotEmpty() } ?: fallback.storeName,
                 purchaseDate = aiDate ?: fallback.purchaseDate,
                 paymentInfo = dto.paymentInfo ?: fallback.paymentInfo,
-                items = dto.items.map {
+                // The AI sometimes lists discounts / refunds as negative "items"; they aren't.
+                // Then flag duplicates exactly like the local parser does — without this, an
+                // AI-read receipt never showed a double charge (4× WHOLE MILK $2.47, no flags).
+                items = dto.items.filter { it.price > 0.0 }.map {
                     ReceiptItem(
                         id = newId(),
+                        // Product code lets duplicates and price drops match by code, like a local read.
+                        itemNumber = it.itemNumber?.trim()?.takeIf { code -> code.count(Char::isDigit) >= 3 },
                         name = it.name,
                         price = it.price,
                         categoryId = ItemCategorizer.categorize(it.name, categories.categories.value),
                     )
-                }.takeIf { it.isNotEmpty() } ?: fallback.items,
+                }.takeIf { it.isNotEmpty() }?.let(DuplicateMatcher::flag) ?: fallback.items,
                 subtotal = dto.subtotal ?: fallback.subtotal,
                 tax = dto.tax ?: fallback.tax,
                 receiptTotal = dto.total ?: fallback.receiptTotal,
@@ -444,19 +619,60 @@ interface ScanReviewContract {
             val receipt = currentState.receipt ?: return
             val target = currentState.categoryPickerItem ?: return
             val updated = receipt.copy(
-                items = receipt.items.map { if (it.id == target.id) it.copy(categoryId = categoryId) else it },
+                items = receipt.items.map {
+                    if (it.id == target.id) it.copy(categoryId = categoryId, categoryLocked = true) else it
+                },
                 syncedAt = null, // changed locally → needs re-upload
             )
             currentState = currentState.copy(receipt = updated, categoryPickerItem = null, isSaving = true)
             persist(updated, announce = false)
         }
 
-        private fun persist(receipt: Receipt, announce: Boolean) {
+        /**
+         * Asks the server's AI for categories and applies them to the receipt on screen (items
+         * the shopper set by hand in the meantime are kept). Silent: on failure the keyword
+         * guesses stay.
+         */
+        private fun refineCategories(receiptId: String) {
+            val classifier = itemClassifier ?: return
+            launch {
+                val current = currentState.receipt?.takeIf { it.id == receiptId } ?: return@launch
+                val knownIds = categories.categories.value.map { it.id }.toSet()
+                val names = current.items.filter { !it.categoryLocked }.map { it.name }.distinct()
+                if (names.isEmpty()) return@launch
+                val result = runCatching { classifier.classify(current.storeName, names) }.getOrNull() ?: return@launch
+                // Re-read: the shopper may have edited the receipt while we waited.
+                val latest = currentState.receipt?.takeIf { it.id == receiptId } ?: return@launch
+                var changed = false
+                val items = latest.items.map { item ->
+                    val id = result[item.name]
+                    if (!item.categoryLocked && id != null && id in knownIds && id != item.categoryId) {
+                        changed = true
+                        item.copy(categoryId = id)
+                    } else {
+                        item
+                    }
+                }
+                if (!changed) return@launch
+                val updated = latest.copy(items = items, syncedAt = null)
+                currentState = currentState.copy(receipt = updated)
+                persist(updated, announce = false)
+            }
+        }
+
+        private fun persist(receipt: Receipt, announce: Boolean, storeChanged: Boolean = false) {
             launch {
                 runCatching { repository.upsert(receipt) }
                     .onSuccess {
                         currentState = currentState.copy(isSaving = false, savedAt = clock.now())
                         if (announce) sideEffect(SideEffect.Saved(receipt.id))
+                        // A new scan: let the server's AI replace the keyword guesses.
+                        if (announce) refineCategories(receipt.id)
+                        // After the write, so the geofence rebuild reads the edited store.
+                        if (storeChanged) sideEffect(SideEffect.StoreLocationChanged)
+                        // A just-scanned (or renamed) store: ask for its logo now, even if the
+                        // device remembered "no logo" — it may have been added since.
+                        launch { runCatching { storeIcons?.resolve(receipt.storeName, recheckMissing = true) } }
                         runCatching { backup.backUp(receipt) }
                     }
                     .onFailure { error ->

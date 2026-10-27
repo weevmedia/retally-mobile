@@ -1,5 +1,6 @@
 package com.retally.shared.ui.receipts
 
+import com.retally.shared.ui.components.AboveScanFab
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -48,6 +50,7 @@ import com.retally.shared.core.strings.str
 import com.retally.shared.presentation.receipts.ReceiptsContract
 import com.retally.shared.ui.components.AdBannerSlot
 import com.retally.shared.ui.components.AdFormat
+import com.retally.shared.ui.components.InFeedSquareAd
 import com.retally.shared.ui.components.EmptyState
 import com.retally.shared.ui.components.SectionHeader
 import com.retally.shared.ui.components.ReTallySnackbarHost
@@ -84,6 +87,8 @@ fun ReceiptsScreen(
 ) {
     val d = ReTallyTheme.dimensions
     val c = ReTallyTheme.colors
+    // Opening the list re-checks stores marked "no logo" (the store throttles repeats).
+    LaunchedEffect(Unit) { dispatch(ReceiptsContract.Action.Appeared) }
 
     Scaffold(
         modifier = modifier,
@@ -97,55 +102,81 @@ fun ReceiptsScreen(
         containerColor = c.background,
     ) { padding ->
         val bottomInset = padding.calculateBottomPadding() + bottomContentInset
+        val topPadding = padding.calculateTopPadding()
         // 5+ receipts: a 300×250 square ad inline after every 5th receipt. No ads while loading.
         val showInFeedAd = adsEnabled && !state.isLoading && state.visible.size >= IN_FEED_AD_MIN_RECEIPTS
+        // Fewer than 5: no in-feed square would ever appear, so pin one 320×50 banner above the
+        // tab bar's scan button instead (the list reserves room for it underneath).
+        val showBannerAd = adsEnabled && !state.isLoading && state.visible.size < IN_FEED_AD_MIN_RECEIPTS
+        val bannerReserve = if (showBannerAd) BANNER_RESERVE else 0.dp
 
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(top = padding.calculateTopPadding()),
-        ) {
-            if (state.months.size > 1) {
-                MonthFilterRow(
-                    months = state.months,
-                    selected = state.selectedMonth,
-                    onSelect = { dispatch(ReceiptsContract.Action.MonthSelected(it)) },
-                )
-            }
-
-            Box(
+        Box(Modifier.fillMaxSize()) {
+            Column(
                 Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
+                    .fillMaxSize()
+                    .padding(top = padding.calculateTopPadding()),
             ) {
-                when {
-                    state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-
-                    state.isEmpty -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        EmptyState(
-                            icon = Icons.AutoMirrored.Rounded.ReceiptLong,
-                            title = str(S.RECEIPTS_EMPTY_TITLE),
-                            body = str(S.RECEIPTS_EMPTY_BODY),
-                        )
-                    }
-
-                    state.isFilteredEmpty -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        EmptyState(
-                            icon = Icons.AutoMirrored.Rounded.ReceiptLong,
-                            title = str(S.RECEIPTS_FILTER_EMPTY_TITLE),
-                            body = str(S.RECEIPTS_FILTER_EMPTY_BODY),
-                        )
-                    }
-
-                    else -> ReceiptsList(
-                        state = state,
-                        dispatch = dispatch,
-                        bottomInset = bottomInset,
-                        showAd = showInFeedAd,
-                        adUnitId = bannerAdUnitId,
+                if (state.months.size > 1) {
+                    MonthFilterRow(
+                        months = state.months,
+                        selected = state.selectedMonth,
+                        onSelect = { dispatch(ReceiptsContract.Action.MonthSelected(it)) },
                     )
+                }
+
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                ) {
+                    when {
+                        state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+
+                        state.isEmpty -> Box(
+                            // Centre on the whole screen, not the area under the top bar: this Box
+                            // starts below the top bar, so shift up by half its height.
+                            Modifier.fillMaxSize().offset(y = -topPadding / 2),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            EmptyState(
+                                icon = Icons.AutoMirrored.Rounded.ReceiptLong,
+                                title = str(S.RECEIPTS_EMPTY_TITLE),
+                                body = str(S.RECEIPTS_EMPTY_BODY),
+                                iconSize = EMPTY_ICON_SIZE,
+                                showIconDisc = false,
+                            )
+                        }
+
+                        state.isFilteredEmpty -> Box(
+                            // Centre on the whole screen, not the area under the top bar: this Box
+                            // starts below the top bar, so shift up by half its height.
+                            Modifier.fillMaxSize().offset(y = -topPadding / 2),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            EmptyState(
+                                icon = Icons.AutoMirrored.Rounded.ReceiptLong,
+                                title = str(S.RECEIPTS_FILTER_EMPTY_TITLE),
+                                body = str(S.RECEIPTS_FILTER_EMPTY_BODY),
+                                iconSize = EMPTY_ICON_SIZE,
+                                showIconDisc = false,
+                            )
+                        }
+
+                        else -> ReceiptsList(
+                            state = state,
+                            dispatch = dispatch,
+                            bottomInset = bottomInset + bannerReserve,
+                            showAd = showInFeedAd,
+                            adUnitId = bannerAdUnitId,
+                        )
+                    }
+                }
+            }
+            if (showBannerAd) {
+                AboveScanFab(fallbackBottom = bottomInset + d.md) {
+                    ReceiptsBannerAd(adUnitId = bannerAdUnitId, modifier = Modifier.padding(horizontal = d.screen))
                 }
             }
         }
@@ -246,32 +277,18 @@ private fun ReceiptsList(
         }
 }
 
-/**
- * In-feed 300×250 square ad with an "Advertisement" caption, shown inline after every 5th
- * receipt. It scrolls with the list like any other row.
- */
+/** 320×50 banner with a small "Advertisement" caption, transparent on the screen background. */
 @Composable
-private fun InFeedSquareAd(adUnitId: String, modifier: Modifier = Modifier) {
+private fun ReceiptsBannerAd(adUnitId: String, modifier: Modifier = Modifier) {
     val d = ReTallyTheme.dimensions
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(d.cardRadius),
-        color = Color.Transparent,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = str(S.GENERAL_ADVERTISEMENT),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = d.sm, bottom = d.xs),
-            )
-            AdBannerSlot(
-                adUnitId = adUnitId,
-                enabled = true,
-                format = AdFormat.MEDIUM_RECTANGLE,
-                modifier = Modifier.padding(bottom = d.sm),
-            )
-        }
+    Column(modifier = modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = str(S.GENERAL_ADVERTISEMENT),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = d.xs),
+        )
+        AdBannerSlot(adUnitId = adUnitId, enabled = true, format = AdFormat.BANNER)
     }
 }
 
@@ -323,9 +340,15 @@ private fun MonthChip(label: String, selected: Boolean, onClick: () -> Unit) {
 /** Rows from the end at which the next page is requested. */
 private const val LOAD_MORE_THRESHOLD = 3
 
+/** Bare receipt glyph on the empty state: twice the standard 40dp, no tinted disc. */
+private val EMPTY_ICON_SIZE = 80.dp
+
 /**
  * In-feed square ads repeat after every this many receipts, starting once the visible
  * list holds at least [IN_FEED_AD_MIN_RECEIPTS].
  */
 private const val IN_FEED_AD_MIN_RECEIPTS = 5
 private const val IN_FEED_AD_EVERY = 5
+
+/** Room the list leaves under its last row for the pinned banner (caption + 50dp + gap). */
+private val BANNER_RESERVE = 96.dp

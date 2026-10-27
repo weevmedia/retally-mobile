@@ -1,11 +1,16 @@
 package com.retally.shared.presentation.settings
 
+import com.russhwolf.settings.Settings
+import com.retally.shared.core.crash.CrashReporting
+import com.retally.shared.domain.ai.NudgeRepository
 import com.retally.shared.core.strings.EnglishStringResolver
 import com.retally.shared.core.strings.StringAssetIdentifiers
 import com.retally.shared.core.strings.StringResolver
 import com.retally.shared.core.strings.getString
 import com.retally.shared.core.Effect
 import com.retally.shared.core.Platform
+import com.retally.shared.domain.recalls.RecallsRepository
+import com.retally.shared.domain.shopping.ShoppingListRepository
 import com.retally.shared.domain.auth.Account
 import com.retally.shared.domain.auth.AuthRepository
 import com.retally.shared.domain.cloud.CloudSyncResult
@@ -63,7 +68,14 @@ interface SettingsContract {
         val showAccountPage: Boolean = false,
         val showLogoutConfirm: Boolean = false,
         val showDeleteAccountConfirm: Boolean = false,
+        /** Non-null while the "Edit name" page is open (Edit on the profile card). */
+        val nameEdit: NameEdit? = null,
     ) : com.retally.shared.core.State
+
+    /** Draft for the "Edit name" page. */
+    data class NameEdit(val firstName: String, val lastName: String, val isSaving: Boolean = false) {
+        val canSave: Boolean get() = firstName.isNotBlank() && !isSaving
+    }
 
     sealed class Action : com.retally.shared.core.Action {
         data class SetCloudBackupEnabled(val enabled: Boolean) : Action()
@@ -75,15 +87,25 @@ interface SettingsContract {
         data object SyncNowClicked : Action()
         /** DEBUG-ONLY (remove before release): clears the 24h nearby cooldowns for retesting. */
         data object ResetNearbyCooldownsClicked : Action()
+        /** DEBUG-ONLY: crash on purpose to check Crashlytics end to end. */
+        data object CrashTestClicked : Action()
         data object DeleteAllRequested : Action()
         data object DeleteAllConfirmed : Action()
         data object DeleteAllCancelled : Action()
         data object PrivacyPolicyClicked : Action()
         data object TermsClicked : Action()
         data object SupportClicked : Action()
+        /** More › Food recalls. */
+        data object RecallsClicked : Action()
         data object DismissSyncMessage : Action()
         // ── More menu: account & favorites ──
         data object AccountClicked : Action()
+        /** Edit on the profile card (signed-in shoppers): open the "Edit name" page. */
+        data object EditNameClicked : Action()
+        data class FirstNameChanged(val value: String) : Action()
+        data class LastNameChanged(val value: String) : Action()
+        data object NameSaveClicked : Action()
+        data object NameEditDismissed : Action()
         data object AccountDismissed : Action()
         /** Guest tapped "Log in / Sign up" — the host opens the auth flow. */
         data object LoginClicked : Action()
@@ -109,6 +131,8 @@ interface SettingsContract {
 
     sealed class SideEffect : Effect {
         data class OpenUrl(val url: String) : SideEffect()
+        /** Host: push the food recalls screen. */
+        data object OpenRecalls : SideEffect()
         data class ShowMessage(val message: String) : SideEffect()
         /** Host must run the location + notification permission prompts, then dispatch [Action.NearbyPermissionsResult]. */
         data object RequestNearbyPermissions : SideEffect()
@@ -133,8 +157,16 @@ interface SettingsContract {
         private val nearbyStores: StoreLocationRepository,
         private val auth: AuthRepository,
         private val favorites: FavoriteStoresRepository,
+        /** Cached recalls carry purchase matches; cleared with the account's other local data. */
+        private val recalls: RecallsRepository? = null,
+        /** Smart List cache: built from purchases, cleared with them. */
+        private val shoppingLists: ShoppingListRepository? = null,
+        /** Home nudges describe the account's purchases too. */
+        private val nudges: NudgeRepository? = null,
         private val links: LegalLinks = LegalLinks(),
         private val strings: StringResolver = EnglishStringResolver,
+        /** For the debug "Send test crash" (lets a debug build upload that one crash). */
+        private val settings: Settings? = null,
     ) : com.retally.shared.core.Store<State, Action, SideEffect>() {
 
         private var syncJob: Job? = null
@@ -154,8 +186,11 @@ interface SettingsContract {
                 auth.observeAccount(),
                 favorites.favorites,
             ) { prefs, list, account, favs ->
+                // One entry per store key: "PATEL BROTHERS" and "Patel Brothers" (e.g. after a
+                // store-name edit) are the same store — and the picker grid keys tiles by it,
+                // so duplicates crash Compose ("key was already used").
                 val known = list.mapNotNull { it.storeName.trim().takeIf(String::isNotEmpty) }
-                    .distinct()
+                    .distinctBy { FavoriteStoresRepository.keyOf(it) }
                     .sortedBy { it.lowercase() }
                 Tuple4(prefs, list.count { it.syncedAt == null }, account, favs to known)
             }.onEach { (prefs, unsynced, account, favsAndKnown) ->
@@ -175,7 +210,9 @@ interface SettingsContract {
 
         override fun dispatch(action: Action) {
             when (action) {
-                is Action.SetCloudBackupEnabled -> preferences.update { it.copy(cloudBackupEnabled = action.enabled) }
+                is Action.SetCloudBackupEnabled ->
+                    // Guests are local-only; the switch is disabled for them, this is the backstop.
+                    if (!currentState.account.isGuest) preferences.update { it.copy(cloudBackupEnabled = action.enabled) }
                 is Action.SetHighlightDuplicates -> preferences.update { it.copy(highlightDuplicates = action.enabled) }
                 is Action.SetHapticsEnabled -> preferences.update { it.copy(hapticsEnabled = action.enabled) }
                 is Action.SetNearbyNotificationsEnabled -> onNearbyToggle(action.enabled)
@@ -186,17 +223,38 @@ interface SettingsContract {
                     // DEBUG-ONLY hardcoded string; remove with the debug row.
                     sideEffect(SideEffect.ShowMessage("Nearby cooldowns reset — retest now (debug)"))
                 }
+                Action.CrashTestClicked -> settings?.let { CrashReporting.crashForTest(it) }
                 Action.DeleteAllRequested -> currentState = currentState.copy(showDeleteAllConfirmation = true)
                 Action.DeleteAllCancelled -> currentState = currentState.copy(showDeleteAllConfirmation = false)
                 Action.DeleteAllConfirmed -> deleteAll()
                 Action.PrivacyPolicyClicked -> sideEffect(SideEffect.OpenUrl(links.privacyPolicy))
                 Action.TermsClicked -> sideEffect(SideEffect.OpenUrl(links.terms))
                 Action.SupportClicked -> sideEffect(SideEffect.OpenUrl(links.support))
+                Action.RecallsClicked -> sideEffect(SideEffect.OpenRecalls)
                 Action.DismissSyncMessage -> currentState = currentState.copy(
                     syncMessage = null,
                     syncStatus = SyncStatus.IDLE,
                 )
                 Action.AccountClicked -> currentState = currentState.copy(showAccountPage = true)
+                Action.EditNameClicked -> {
+                    val full = currentState.account.displayName?.trim().orEmpty()
+                    currentState = currentState.copy(
+                        nameEdit = NameEdit(
+                            firstName = full.substringBefore(' '),
+                            lastName = full.substringAfter(' ', "").trim(),
+                        ),
+                    )
+                }
+                is Action.FirstNameChanged -> currentState.nameEdit?.let {
+                    currentState = currentState.copy(nameEdit = it.copy(firstName = action.value))
+                }
+                is Action.LastNameChanged -> currentState.nameEdit?.let {
+                    currentState = currentState.copy(nameEdit = it.copy(lastName = action.value))
+                }
+                Action.NameSaveClicked -> saveName()
+                Action.NameEditDismissed -> if (currentState.nameEdit?.isSaving != true) {
+                    currentState = currentState.copy(nameEdit = null)
+                }
                 Action.AccountDismissed -> currentState = currentState.copy(showAccountPage = false)
                 Action.LoginClicked -> sideEffect(SideEffect.OpenAuth)
                 Action.LogoutRequested -> currentState = currentState.copy(showLogoutConfirm = true)
@@ -268,11 +326,38 @@ interface SettingsContract {
             }
         }
 
+        /** Saves "First Last" as the account's display name (greeting, profile card, emails). */
+        private fun saveName() {
+            val draft = currentState.nameEdit ?: return
+            if (!draft.canSave) return
+            val displayName = listOf(draft.firstName, draft.lastName)
+                .map { it.trim() }.filter { it.isNotEmpty() }.joinToString(" ").take(100)
+            if (displayName == currentState.account.displayName?.trim()) {
+                currentState = currentState.copy(nameEdit = null)
+                return
+            }
+            currentState = currentState.copy(nameEdit = draft.copy(isSaving = true))
+            launch {
+                runCatching { auth.updateDisplayName(displayName) }
+                    .onSuccess {
+                        currentState = currentState.copy(nameEdit = null)
+                        sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.MORE_NAME_UPDATED)))
+                    }
+                    .onFailure {
+                        currentState = currentState.copy(nameEdit = currentState.nameEdit?.copy(isSaving = false))
+                        sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.MORE_NAME_UPDATE_FAILED)))
+                    }
+            }
+        }
+
         private fun logout() {
             currentState = currentState.copy(showLogoutConfirm = false)
             launch {
                 runCatching { auth.signOut() }
                     .onSuccess {
+                        recalls?.clearCache()
+                        shoppingLists?.clearCache()
+                        nudges?.clearCache()
                         sideEffect(SideEffect.LoggedOut(strings.getString(StringAssetIdentifiers.MORE_LOGGED_OUT)))
                     }
                     .onFailure {
@@ -289,6 +374,9 @@ interface SettingsContract {
                 if (ok) {
                     receipts.deleteAll()
                     favorites.clear()
+                    recalls?.clearCache()
+                    shoppingLists?.clearCache()
+                    nudges?.clearCache()
                     nearbyStores.clearKnownStores()
                     nearbyStores.setEnabled(false)
                     currentState = currentState.copy(nearbyNotificationsEnabled = false)
@@ -302,6 +390,11 @@ interface SettingsContract {
 
         private fun syncNow() {
             if (currentState.syncStatus == SyncStatus.SYNCING) return
+            // Guests have no cloud copy (the upload skips them), so don't report "backed up".
+            if (currentState.account.isGuest) {
+                sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.SETTINGS_BACKUP_SUB_GUEST)))
+                return
+            }
             if (!currentState.preferences.cloudBackupEnabled) {
                 sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.SETTINGS_MSG_TURN_ON_BACKUP)))
                 return
@@ -335,6 +428,11 @@ interface SettingsContract {
             currentState = currentState.copy(showDeleteAllConfirmation = false)
             launch {
                 receipts.deleteAll()
+                // Recall matches point at the purchases that were just deleted.
+                recalls?.clearCache()
+                // Smart Lists and nudges were built from those receipts.
+                shoppingLists?.clearCache()
+                nudges?.clearCache()
                 // The known-stores directory dies with the receipts — the one
                 // path where geofences are intentionally torn down.
                 nearbyStores.clearKnownStores()
@@ -371,7 +469,9 @@ interface SettingsContract {
 
 /** Store-listing URLs. Replace with your hosted pages before submission. */
 data class LegalLinks(
-    val privacyPolicy: String = "https://retally.app/privacy",
-    val terms: String = "https://retally.app/terms",
-    val support: String = "https://retally.app/support",
+    // Firebase Hosting (retally-backend/firestore/hosting). Swap to a custom domain here once
+    // one is connected in Firebase → Hosting.
+    val privacyPolicy: String = "https://retally-c5212.web.app/privacy",
+    val terms: String = "https://retally-c5212.web.app/terms",
+    val support: String = "https://retally-c5212.web.app/support",
 )

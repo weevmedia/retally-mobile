@@ -1,65 +1,52 @@
 package com.retally.shared.domain.ai
 
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.serialization.Serializable
+
 /**
- * One proactive nudge for the Home card. Sealed so the UI renders each type
- * exhaustively; every subtype carries exactly the data its copy needs and nothing
- * more. Higher [priority] wins when several nudges fire at once — Home shows one.
- *
- * Everything here is computed on-device from receipt history; no network, no account.
+ * One Home nudge, built on the server (`getNudges`, see the backend's nudges/compute.ts) from
+ * the shopper's purchase history across stores. Server-driven: the app renders whatever kinds
+ * arrive with one generic card, so new kinds need no app release. Every figure in [title],
+ * [body] and [highlight] is computed server-side from real receipts.
  */
-sealed interface Nudge {
-    val priority: Int
+@Serializable
+data class Nudge(
+    /** Stable while the same fact holds — "seen" tracking ([NudgeReadStore]) keys on it. */
+    val id: String,
+    /** "cheaper_elsewhere", "price_creep", "running_low", "double_charge", "spending_pace", … */
+    val kind: String,
+    val title: String,
+    val body: String,
+    /** The key figure shown large on the card ("$1.80 less", "+22%"); null for none. */
+    val highlight: String? = null,
+    /** What a tap opens; null = informational only. */
+    val action: NudgeAction? = null,
+    val priority: Int = 0,
+)
+
+/** Tap target for a nudge. Unknown [type]s from a newer server are treated as no action. */
+@Serializable
+data class NudgeAction(
+    /** "shopping_list" | "receipt" | "budget". */
+    val type: String,
+    val storeName: String? = null,
+    val receiptId: String? = null,
+)
+
+/**
+ * Home nudges for signed-in shoppers, cached on the device so Home shows them instantly and
+ * offline. Guests have none (the server needs a synced account, like the Smart List).
+ */
+interface NudgeRepository {
+    /** Last nudges from the server, highest priority first. */
+    val nudges: StateFlow<List<Nudge>>
 
     /**
-     * Stable identity for read-tracking: the same underlying nudge keeps the same id
-     * every time the engine recomputes it, so it only ever pulses as "new" once.
+     * Fetches fresh nudges unless the last fetch is under ~30 minutes old ([force] skips that).
+     * Never throws; on failure the cached nudges stay.
      */
-    val id: String
+    suspend fun refresh(force: Boolean = false)
 
-    /** An item's days-since-last-buy reached its median buy interval. */
-    data class RunningLow(
-        val itemName: String,
-        val intervalDays: Int,
-        val overdueDays: Int,
-        override val priority: Int,
-    ) : Nudge {
-        override val id: String get() = "running-low:${itemName.lowercase()}"
-    }
-
-    /** The latest price paid is well above the shopper's usual price for the item. */
-    data class PriceSpike(
-        val itemName: String,
-        val lastPrice: Double,
-        val usualPrice: Double,
-        override val priority: Int,
-    ) : Nudge {
-        override val id: String get() = "price-spike:${itemName.lowercase()}"
-    }
-
-    /** Longer than usual since the last grocery trip. */
-    data class GroceryRunOverdue(
-        val daysSinceLastTrip: Int,
-        val usualIntervalDays: Int,
-        override val priority: Int,
-    ) : Nudge {
-        override val id: String get() = "grocery-run-overdue"
-    }
-
-    /** The same item on two receipts inside a week — usually a forgotten pantry check. */
-    data class DoubleBought(
-        val itemName: String,
-        val receiptCount: Int,
-        override val priority: Int,
-    ) : Nudge {
-        override val id: String get() = "double-bought:${itemName.lowercase()}"
-    }
-
-    /** This month's spend is notably off the shopper's usual monthly pace. */
-    data class SavingsRecap(
-        val monthToDate: Double,
-        val usualMonthly: Double,
-        override val priority: Int,
-    ) : Nudge {
-        override val id: String get() = "savings-recap"
-    }
+    /** Drops the cache — they describe the account's purchases (sign-out, delete). */
+    fun clearCache()
 }

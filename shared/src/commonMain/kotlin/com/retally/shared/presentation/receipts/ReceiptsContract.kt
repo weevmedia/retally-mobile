@@ -1,5 +1,7 @@
 package com.retally.shared.presentation.receipts
 
+import kotlinx.coroutines.flow.first
+import com.retally.shared.data.store.StoreIconRepository
 import com.retally.shared.core.Effect
 import com.retally.shared.core.strings.EnglishStringResolver
 import com.retally.shared.core.strings.StringAssetIdentifiers
@@ -71,6 +73,8 @@ interface ReceiptsContract {
         data class MonthSelected(val month: String?) : Action()
         /** The list reached the end of what is rendered. Ignored when nothing is left. */
         data object LoadMore : Action()
+        /** The Receipts list became visible: re-check stores marked "no logo" (throttled). */
+        data object Appeared : Action()
         data class ReceiptClicked(val id: String) : Action()
         data class DeleteRequested(val id: String) : Action()
         data object DeleteConfirmed : Action()
@@ -85,6 +89,7 @@ interface ReceiptsContract {
     class Store(
         private val repository: ReceiptRepository,
         private val strings: StringResolver = EnglishStringResolver,
+        private val storeIcons: StoreIconRepository? = null,
     ) : com.retally.shared.core.Store<State, Action, SideEffect>() {
 
         override fun initState() = State()
@@ -99,6 +104,12 @@ interface ReceiptsContract {
 
         override fun dispatch(action: Action) {
             when (action) {
+                Action.Appeared -> storeIcons?.let { icons ->
+                    launch {
+                        val names = repository.observeReceipts().first().map { it.storeName }
+                        runCatching { icons.recheckStores(names) }
+                    }
+                }
                 is Action.MonthSelected -> currentState = currentState.copy(
                     // Toggle: tapping the active chip clears the filter.
                     selectedMonth = action.month.takeIf { it != currentState.selectedMonth },

@@ -1,5 +1,12 @@
 package com.retally.shared.ui.shopping
 
+import com.retally.shared.ui.components.AboveScanFab
+import androidx.compose.foundation.layout.offset
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
+import com.retally.shared.ui.components.CircleIconButton
 import androidx.compose.animation.Crossfade
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.LinearEasing
@@ -36,11 +43,12 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import com.retally.shared.ui.components.PlatformPullToRefreshBox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -109,7 +117,7 @@ fun ShoppingListScreen(
                 title = { Text(str(S.TAB_AI_LIST), style = ReTallyTheme.typography.display, color = c.ink) },
                 actions = {
                     if (state.selected != null && !state.isGuest) {
-                        IconButton(onClick = { dispatch(Action.ShareClicked) }) {
+                        CircleIconButton(onClick = { dispatch(Action.ShareClicked) }) {
                             Icon(Icons.Rounded.Share, contentDescription = str(S.SHOPPING_SHARE), tint = c.ink)
                         }
                     }
@@ -150,7 +158,7 @@ fun ShoppingListScreen(
                 }
                 state.selected == null -> Centered(content) {
                     EmptyState(
-                        icon = ShoppingBasketIcon,
+                        icon = Icons.Rounded.AutoAwesome,
                         title = str(S.SHOPPING_NO_HISTORY_TITLE),
                         body = str(S.SHOPPING_NO_HISTORY_BODY),
                         iconSize = ReTallyDimensions.emptyStateIconLarge,
@@ -158,22 +166,24 @@ fun ShoppingListScreen(
                     )
                 }
                 // Pull down to regenerate the list (replaces the old refresh icon).
-                else -> PullToRefreshBox(
+                else -> PlatformPullToRefreshBox(
                     isRefreshing = state.isRefreshing,
                     onRefresh = { dispatch(Action.Refresh) },
                     modifier = content,
+                    indicator = { progress, refreshing -> BasketRefreshIndicator(progress, refreshing) },
                 ) {
                     ListContent(state, dispatch, Modifier.fillMaxSize())
                 }
             }
-            AdBannerSlot(
-                adUnitId = bannerAdUnitId,
-                enabled = showBanner,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(horizontal = ReTallyTheme.dimensions.lg)
-                    .padding(bottom = padding.calculateBottomPadding() + bannerGap),
-            )
+            if (showBanner) {
+                AboveScanFab(fallbackBottom = padding.calculateBottomPadding() + bannerGap) {
+                    AdBannerSlot(
+                        adUnitId = bannerAdUnitId,
+                        enabled = true,
+                        modifier = Modifier.padding(horizontal = ReTallyTheme.dimensions.lg),
+                    )
+                }
+            }
         }
     }
 }
@@ -288,6 +298,138 @@ private fun BasketDropAnimation() {
     }
 }
 
+/**
+ * "You're all set": the Smart List basket with a green check badge and two sparkles, on the bare
+ * page (no background disc).
+ * Pops in once (basket, then the badge with a little overshoot), then the sparkles twinkle.
+ */
+@Composable
+private fun AllSetIllustration() {
+    val c = ReTallyTheme.colors
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { shown = true }
+    val basketScale by animateFloatAsState(
+        if (shown) 1f else 0.7f,
+        spring(dampingRatio = 0.6f, stiffness = 300f),
+        label = "all-set-basket",
+    )
+    val badgeScale by animateFloatAsState(
+        if (shown) 1f else 0f,
+        spring(dampingRatio = 0.45f, stiffness = 220f),
+        label = "all-set-badge",
+    )
+    val twinkle by rememberInfiniteTransition(label = "all-set-twinkle").animateFloat(
+        initialValue = 0.35f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(900, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "all-set-twinkle-alpha",
+    )
+    Box(Modifier.size(150.dp), contentAlignment = Alignment.Center) {
+        Icon(
+            ShoppingBasketIcon,
+            contentDescription = null,
+            tint = c.primary,
+            modifier = Modifier.size(84.dp).graphicsLayer { scaleX = basketScale; scaleY = basketScale },
+        )
+        // Check badge, bottom-right, ringed in the page colour so it reads as a sticker.
+        Box(
+            Modifier
+                .align(Alignment.BottomEnd)
+                .offset(x = (-14).dp, y = (-14).dp)
+                .graphicsLayer { scaleX = badgeScale; scaleY = badgeScale }
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(c.background)
+                .padding(4.dp)
+                .clip(CircleShape)
+                .background(c.primary),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Rounded.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+        }
+        Icon(
+            Icons.Rounded.AutoAwesome,
+            contentDescription = null,
+            tint = c.primary,
+            modifier = Modifier.align(Alignment.TopEnd).offset(x = (-12).dp, y = 14.dp).size(22.dp)
+                .graphicsLayer { alpha = twinkle },
+        )
+        Icon(
+            Icons.Rounded.AutoAwesome,
+            contentDescription = null,
+            tint = c.primary,
+            modifier = Modifier.align(Alignment.TopStart).offset(x = 18.dp, y = 30.dp).size(14.dp)
+                .graphicsLayer { alpha = 1.35f - twinkle },
+        )
+    }
+}
+
+/**
+ * Pull-to-refresh indicator: a small version of the "preparing" basket. While pulling, the
+ * basket grows in and one item lowers towards it; once refreshing, items keep dropping in
+ * and the basket dips as each lands.
+ */
+@Composable
+private fun BasketRefreshIndicator(progress: Float, refreshing: Boolean) {
+    val c = ReTallyTheme.colors
+    val t = if (refreshing) {
+        val transition = rememberInfiniteTransition(label = "basket-refresh")
+        val value by transition.animateFloat(
+            initialValue = 0f, targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(REFRESH_CYCLE_MS, easing = LinearEasing)),
+            label = "basket-refresh-cycle",
+        )
+        value
+    } else {
+        0f
+    }
+    val itemCount = 3
+    val phases = if (refreshing) {
+        List(itemCount) { i -> ((t - i.toFloat() / itemCount) % 1f + 1f) % 1f }
+    } else {
+        // While pulling, a single item lowers as the pull nears the trigger point.
+        listOf(progress * LAND)
+    }
+    val bob = if (refreshing) phases.maxOf { p -> (1f - kotlin.math.abs(p - LAND) / 0.1f).coerceIn(0f, 1f) } else 0f
+    val grow = if (refreshing) 1f else 0.6f + 0.4f * progress
+
+    Box(Modifier.size(44.dp), contentAlignment = Alignment.TopCenter) {
+        phases.forEachIndexed { i, p ->
+            val fall = (p / LAND).coerceIn(0f, 1f)
+            val alpha = when {
+                !refreshing -> progress
+                p > 0.85f -> ((1f - p) / 0.15f).coerceAtLeast(0f)
+                p < 0.1f -> p / 0.1f
+                else -> 1f
+            }
+            Box(
+                Modifier
+                    .graphicsLayer {
+                        translationX = (i - 1) * 4.dp.toPx()
+                        translationY = (fall * fall * 16).dp.toPx()
+                        this.alpha = alpha
+                    }
+                    .size(7.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(DropColors[i % DropColors.size]),
+            )
+        }
+        Icon(
+            ShoppingBasketIcon,
+            contentDescription = null,
+            tint = c.primary,
+            modifier = Modifier
+                .padding(top = 14.dp)
+                .graphicsLayer {
+                    translationY = (bob * 2).dp.toPx()
+                    scaleX = grow
+                    scaleY = grow
+                }
+                .size(30.dp),
+        )
+    }
+}
+
+private const val REFRESH_CYCLE_MS = 1_500
 private const val DROP_CYCLE_MS = 2_400
 /** Point in an item's drop where it reaches the basket. */
 private const val LAND = 0.7f
@@ -309,11 +451,29 @@ private fun ListContent(state: ShoppingListContract.State, dispatch: (Action) ->
 
         if (state.isEmptyList) {
             item {
-                EmptyState(
-                    icon = Icons.Rounded.Check,
-                    title = str(S.SHOPPING_ALL_SET_TITLE),
-                    body = str(S.SHOPPING_ALL_SET_BODY, list.storeName),
-                )
+                // Fills most of the remaining height so the message sits centred, not tucked
+                // under the cards above.
+                Box(
+                    Modifier.fillParentMaxWidth().fillParentMaxHeight(0.6f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (state.isLearning) {
+                        EmptyState(
+                            icon = Icons.Rounded.AutoAwesome,
+                            title = str(S.SHOPPING_LEARNING_TITLE),
+                            body = str(S.SHOPPING_LEARNING_BODY, list.storeName),
+                            iconSize = ReTallyDimensions.emptyStateIconLarge,
+                            showIconDisc = false,
+                        )
+                    } else {
+                        EmptyState(
+                            icon = Icons.Rounded.Check,
+                            title = str(S.SHOPPING_ALL_SET_TITLE),
+                            body = str(S.SHOPPING_ALL_SET_BODY, list.storeName),
+                            illustration = { AllSetIllustration() },
+                        )
+                    }
+                }
             }
         }
         if (state.dueItems.isNotEmpty()) {

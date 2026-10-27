@@ -24,6 +24,9 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Instant
 
 @Serializable
 private data class RecallsCallableRequest(val data: RecallsRequest)
@@ -77,8 +80,9 @@ class HttpRecallsRepository(
             val result = runCatching { json.parseToJsonElement(body).jsonObject["result"] as? JsonObject }.getOrNull()
                 ?.let { json.decodeFromJsonElement(GetRecallsResult.serializer(), it) }
                 ?: return RecallsLoadResult.Failure("bad-response")
-            settings.putString(KEY_RECALLS, json.encodeToString(LIST_SERIALIZER, result.recalls))
-            _recalls.value = result.recalls
+            val recalls = withinWindow(result.recalls)
+            settings.putString(KEY_RECALLS, json.encodeToString(LIST_SERIALIZER, recalls))
+            _recalls.value = recalls
             RecallsLoadResult.Success(result.recalls, result.signedIn)
         } catch (e: CancellationException) {
             throw e
@@ -88,14 +92,34 @@ class HttpRecallsRepository(
         }
     }
 
+    override fun clearCache() {
+        settings.remove(KEY_RECALLS)
+        _recalls.value = emptyList()
+    }
+
+    /** Last saved list, minus anything that has aged out of the 60-day window since it was saved. */
     private fun loadCached(): List<Recall> =
         settings.getStringOrNull(KEY_RECALLS)?.let { raw ->
             runCatching { json.decodeFromString(LIST_SERIALIZER, raw) }.getOrNull()
-        } ?: emptyList()
+        }?.let(::withinWindow) ?: emptyList()
+
+    /**
+     * Keeps recalls published in the last [WINDOW_DAYS] days — the same window the server
+     * uses — so a phone that stays offline stops showing old notices. Unparseable dates are
+     * kept rather than silently hidden.
+     */
+    private fun withinWindow(list: List<Recall>): List<Recall> {
+        val cutoff = Clock.System.now() - WINDOW_DAYS.days
+        return list.filter { recall ->
+            runCatching { Instant.parse(recall.publishedAt) >= cutoff }.getOrDefault(true)
+        }
+    }
 
     companion object {
         const val DEFAULT_URL = "https://us-east1-retally-c5212.cloudfunctions.net/getRecalls"
         private const val KEY_RECALLS = "recalls.cache.v1"
+        /** Matches the backend's window and the "Recalls from the last 60 days" note. */
+        private const val WINDOW_DAYS = 60
         private val LIST_SERIALIZER = ListSerializer(Recall.serializer())
     }
 }

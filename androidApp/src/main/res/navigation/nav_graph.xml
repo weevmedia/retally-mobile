@@ -42,8 +42,8 @@
         <action
             android:id="@+id/action_onboarding_to_auth"
             app:destination="@id/authFragment"
-            app:enterAnim="@android:anim/fade_in"
-            app:exitAnim="@android:anim/fade_out"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
             app:popUpTo="@id/onboardingFragment"
             app:popUpToInclusive="true" />
     </fragment>
@@ -53,6 +53,12 @@
         android:id="@+id/authFragment"
         android:name="com.retally.app.ui.auth.AuthFragment"
         android:label="@string/nav_auth">
+        <!-- True only on the first-launch path (onboarding → sign-in): shows "Continue as guest"
+             and Back returns to onboarding. Opened from inside the app it stays false. -->
+        <argument
+            android:name="firstLaunch"
+            app:argType="boolean"
+            android:defaultValue="false" />
         <action
             android:id="@+id/action_auth_to_otp"
             app:destination="@id/otpFragment"
@@ -68,8 +74,8 @@
         <action
             android:id="@+id/action_auth_to_onboarding"
             app:destination="@id/onboardingFragment"
-            app:enterAnim="@android:anim/fade_in"
-            app:exitAnim="@android:anim/fade_out"
+            app:enterAnim="@anim/slide_in_left"
+            app:exitAnim="@anim/slide_out_right"
             app:popUpTo="@id/authFragment"
             app:popUpToInclusive="true" />
     </fragment>
@@ -135,6 +141,11 @@
             app:popEnterAnim="@anim/nav_default_pop_enter_anim"
             app:popExitAnim="@anim/nav_default_pop_exit_anim" />
         <action
+            android:id="@+id/action_home_to_auth"
+            app:destination="@id/authFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out" />
+        <action
             android:id="@+id/action_home_to_budget"
             app:destination="@id/budgetFragment"
             app:enterAnim="@anim/nav_default_enter_anim"
@@ -142,15 +153,21 @@
             app:popEnterAnim="@anim/nav_default_pop_enter_anim"
             app:popExitAnim="@anim/nav_default_pop_exit_anim" />
         <action
-            android:id="@+id/action_home_to_alerts"
-            app:destination="@id/alertsFragment"
+            android:id="@+id/action_home_to_notifications"
+            app:destination="@id/notificationsFragment"
             app:enterAnim="@anim/nav_default_enter_anim"
             app:exitAnim="@anim/nav_default_exit_anim"
             app:popEnterAnim="@anim/nav_default_pop_enter_anim"
             app:popExitAnim="@anim/nav_default_pop_exit_anim" />
     </fragment>
 
-    <!-- Food recall alerts (FDA + USDA), opened from the Home bell. -->
+    <!-- Home bell: notifications the app raised in the last 48 hours (until dismissed). -->
+    <fragment
+        android:id="@+id/notificationsFragment"
+        android:name="com.retally.app.ui.notifications.NotificationsFragment"
+        android:label="@string/nav_notifications" />
+
+    <!-- Food recalls (FDA + USDA), opened from More › Food recalls. -->
     <fragment
         android:id="@+id/alertsFragment"
         android:name="com.retally.app.ui.alerts.AlertsFragment"
@@ -185,11 +202,13 @@
     <!-- ML Kit document scanner: auto edge detection, perspective correction, straight to review. -->
     <fragment
         android:id="@+id/customScannerFragment"
-        android:name="com.retally.app.ui.scan.MlKitScannerFragment"
+        android:name="com.retally.app.ui.scan.CameraScannerFragment"
         android:label="@string/nav_custom_scanner">
         <action
             android:id="@+id/action_customScanner_to_scanReview"
             app:destination="@id/scanReviewFragment"
+            app:popUpTo="@id/customScannerFragment"
+            app:popUpToInclusive="true"
             app:enterAnim="@anim/nav_default_enter_anim"
             app:exitAnim="@anim/nav_default_exit_anim"
             app:popEnterAnim="@anim/nav_default_pop_enter_anim"
@@ -249,6 +268,13 @@
         android:id="@+id/settingsFragment"
         android:name="com.retally.app.ui.settings.SettingsFragment"
         android:label="@string/nav_settings">
+        <action
+            android:id="@+id/action_settings_to_alerts"
+            app:destination="@id/alertsFragment"
+            app:enterAnim="@anim/nav_default_enter_anim"
+            app:exitAnim="@anim/nav_default_exit_anim"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
         <action
             android:id="@+id/action_settings_to_auth"
             app:destination="@id/authFragment"

@@ -1,5 +1,6 @@
 package com.retally.shared.data.cloud
 
+import com.retally.shared.core.crash.CrashReporting
 import com.retally.shared.core.Platform
 import com.retally.shared.domain.auth.AuthRepository
 import com.retally.shared.domain.category.ItemCategory
@@ -68,6 +69,7 @@ class FirebaseCloudSyncService(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
+            CrashReporting.record(e)
             CloudSyncResult.Failure(
                 message = e.message ?: "Cloud backup failed",
                 retryable = e.isRetryable(),
@@ -166,6 +168,7 @@ class FirebaseCloudSyncService(
             price = number("unitPrice") ?: number("lineTotal") ?: 0.0,
             isDuplicate = opt<Boolean>("isDuplicate") ?: false,
             categoryId = opt<String>("category")?.takeIf { it.isNotBlank() } ?: ItemCategory.DEFAULT_ID,
+            categoryLocked = opt<Boolean>("categoryCorrected") ?: false,
         )
     }
 

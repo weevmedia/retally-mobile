@@ -1,4 +1,7 @@
 import FirebaseCore
+#if canImport(FirebaseCrashlytics)
+import FirebaseCrashlytics
+#endif
 import SwiftUI
 import Shared
 import UIKit
@@ -14,6 +17,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     ) -> Bool {
         _ = NearbyStoreMonitor.shared
         NearbyStoreMonitor.shared.refresh()
+        // Load the OCR models in the background soon after launch, so the first scan
+        // doesn't pay a multi-second model load after the shutter.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            ReceiptTextRecognizer.prewarm()
+        }
         // Show local-notification banners even while the app is in the foreground
         // (iOS suppresses them by default) — needed for the TEST-LOCATION-PING.
         UNUserNotificationCenter.current().delegate = self
@@ -69,6 +77,12 @@ struct ReTallyApp: App {
             adsEnabled: true,
             debug: AppConfig.isDebug
         )
+        #if canImport(FirebaseCrashlytics)
+        // Off in debug builds, except right after More → "Send test crash" (key written by the
+        // shared CrashReporting.KEY_COLLECT_IN_DEBUG).
+        let collect = !AppConfig.isDebug || UserDefaults.standard.bool(forKey: "crash.collectInDebug")
+        Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(collect)
+        #endif
     }
 
     var body: some Scene {

@@ -73,6 +73,12 @@ interface ShoppingListRepository {
      * notification. The Shopping List screen consumes (and clears) it on appear.
      */
     var pendingStoreName: String?
+
+    /**
+     * Drops cached lists and on-device edits. They're built from the account's purchases, so
+     * they go on sign-out, account deletion and delete-all-receipts.
+     */
+    fun clearCache()
 }
 
 /** Same normalization the receipt upload uses for `merchantNameNormalized` (and the backend). */

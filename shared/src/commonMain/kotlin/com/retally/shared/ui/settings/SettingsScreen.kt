@@ -1,5 +1,14 @@
 package com.retally.shared.ui.settings
 
+import com.retally.shared.ui.components.InFeedSquareAd
+import com.retally.shared.ui.components.CircleIconButton
+import com.retally.shared.ui.components.circleLogo
+import androidx.compose.ui.platform.LocalUriHandler
+import com.retally.shared.ui.components.rememberStoreWeeklyAdUrl
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import com.retally.shared.core.strings.StringAssetIdentifiers as S
 import com.retally.shared.core.strings.str
 import androidx.compose.animation.AnimatedContent
@@ -45,6 +54,7 @@ import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.FlagCircle
+import androidx.compose.material.icons.rounded.HealthAndSafety
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Refresh
@@ -69,14 +79,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
-import com.retally.shared.data.store.StoreIconRepository
-import com.retally.shared.domain.store.iconKeyOf
-import org.koin.compose.koinInject
+import com.retally.shared.ui.components.rememberStoreIconUrl
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -123,8 +132,15 @@ fun SettingsScreen(
     dispatch: (SettingsContract.Action) -> Unit,
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
+    /** Ads allowed (consent + SDK ready); the block ad above the footer shows only then. */
+    adsEnabled: Boolean = false,
+    adUnitId: String = "",
 ) {
+    // Keeps the last draft so the page can slide out after the store clears it.
+    val lastNameEdit = remember { mutableStateOf<SettingsContract.NameEdit?>(null) }
+    state.nameEdit?.let { if (lastNameEdit.value != it) lastNameEdit.value = it }
     val page = when {
+        state.nameEdit != null -> MorePage.EDIT_NAME
         state.showStorePickerPage -> MorePage.STORE_PICKER
         state.showAccountPage -> MorePage.ACCOUNT
         else -> MorePage.MAIN
@@ -143,6 +159,9 @@ fun SettingsScreen(
         modifier = modifier,
     ) { current ->
         when (current) {
+            MorePage.EDIT_NAME -> (state.nameEdit ?: lastNameEdit.value)?.let { edit ->
+                EditNameScreen(edit = edit, dispatch = dispatch, snackbarHostState = snackbarHostState)
+            }
             MorePage.ACCOUNT -> AccountScreen(
                 state = state,
                 dispatch = dispatch,
@@ -164,7 +183,12 @@ fun SettingsScreen(
                 snackbarHost = { ReTallySnackbarHost(snackbarHostState) },
                 containerColor = MaterialTheme.colorScheme.background,
             ) { padding ->
-                MoreContent(state = state, contentPadding = padding, dispatch = dispatch)
+                MoreContent(
+                    state = state,
+                    contentPadding = padding,
+                    dispatch = dispatch,
+                    adUnitId = adUnitId.takeIf { adsEnabled && it.isNotBlank() },
+                )
             }
         }
     }
@@ -223,6 +247,8 @@ private fun MoreContent(
     state: SettingsContract.State,
     contentPadding: PaddingValues,
     dispatch: (SettingsContract.Action) -> Unit,
+    /** Medium-rectangle ad above the company logo; null = no ad (ads off / no unit id). */
+    adUnitId: String? = null,
 ) {
     val d = ReTallyTheme.dimensions
     val account = state.account
@@ -250,6 +276,18 @@ private fun MoreContent(
                     title = str(S.MORE_ACCOUNT_SETTINGS),
                     subtitle = account.email ?: str(S.MORE_ACCOUNT_GUEST_SUB),
                     onClick = { dispatch(SettingsContract.Action.AccountClicked) },
+                )
+            }
+        }
+
+        SectionHeader(str(S.MORE_SECTION_SAFETY), modifier = Modifier.padding(top = d.sm))
+        SurfaceCard {
+            Column {
+                MenuRow(
+                    icon = Icons.Rounded.HealthAndSafety,
+                    title = str(S.MORE_RECALLS),
+                    subtitle = str(S.MORE_RECALLS_SUB),
+                    onClick = { dispatch(SettingsContract.Action.RecallsClicked) },
                 )
             }
         }
@@ -288,6 +326,15 @@ private fun MoreContent(
                     showChevron = false,
                     onClick = { dispatch(SettingsContract.Action.ResetNearbyCooldownsClicked) },
                 )
+                // DEBUG-ONLY (remove before release): crash on purpose; reopen the app and the
+                // report shows in Firebase → Crashlytics within a few minutes.
+                HorizontalDivider(Modifier.padding(horizontal = d.lg))
+                MenuRow(
+                    icon = Icons.Rounded.Refresh,
+                    title = "Send test crash (debug)",
+                    showChevron = false,
+                    onClick = { dispatch(SettingsContract.Action.CrashTestClicked) },
+                )
                 HorizontalDivider(Modifier.padding(horizontal = d.lg))
                 MenuRow(
                     icon = Icons.AutoMirrored.Rounded.HelpOutline,
@@ -300,15 +347,22 @@ private fun MoreContent(
         SectionHeader(str(S.MORE_SECTION_DATA), modifier = Modifier.padding(top = d.sm))
         SurfaceCard {
             Column {
+                // Guests keep receipts on this phone only: backup shows off and can't be switched on
+                // until they sign in.
+                val isGuest = state.account.isGuest
                 ToggleRow(
                     icon = Icons.Rounded.CloudUpload,
                     title = str(S.SETTINGS_BACKUP),
-                    subtitle = if (state.cloudConfigured) str(S.SETTINGS_BACKUP_SUB_ON) else str(S.SETTINGS_BACKUP_SUB_OFF),
-                    checked = state.preferences.cloudBackupEnabled,
-                    enabled = state.cloudConfigured,
+                    subtitle = when {
+                        isGuest -> str(S.SETTINGS_BACKUP_SUB_GUEST)
+                        state.cloudConfigured -> str(S.SETTINGS_BACKUP_SUB_ON)
+                        else -> str(S.SETTINGS_BACKUP_SUB_OFF)
+                    },
+                    checked = !isGuest && state.preferences.cloudBackupEnabled,
+                    enabled = !isGuest && state.cloudConfigured,
                     onChange = { dispatch(SettingsContract.Action.SetCloudBackupEnabled(it)) },
                 )
-                if (state.cloudConfigured) {
+                if (state.cloudConfigured && !isGuest) {
                     HorizontalDivider(Modifier.padding(horizontal = d.lg))
                     BackupStatusRow(state = state, dispatch = dispatch)
                 }
@@ -338,6 +392,11 @@ private fun MoreContent(
                     onClick = { dispatch(SettingsContract.Action.TermsClicked) },
                 )
             }
+        }
+
+        // Block (300×250) ad just above the company logo, 12dp clear above and below.
+        if (adUnitId != null) {
+            InFeedSquareAd(adUnitId = adUnitId, modifier = Modifier.padding(vertical = 12.dp))
         }
 
         // Footer: weev Media mark, clean app version, copyright.
@@ -394,11 +453,12 @@ private fun AccountScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    CircleIconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBackIos,
                             contentDescription = str(S.ACTION_BACK),
                             tint = ReTallyTheme.colors.ink,
+                            modifier = Modifier.padding(start = 6.dp).size(20.dp),
                         )
                     }
                 },
@@ -472,7 +532,7 @@ private fun AccountScreen(
     }
 }
 
-/** Profile card: avatar initial, name, email (or guest), Edit opens the Account page. */
+/** Profile card: avatar initial, name, email (or guest); Edit (signed in only) opens the name editor. */
 @Composable
 private fun ProfileCard(
     account: Account,
@@ -501,8 +561,12 @@ private fun ProfileCard(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            TextButton(onClick = { dispatch(SettingsContract.Action.AccountClicked) }) {
-                Text(str(S.MORE_EDIT), color = Emerald, style = MaterialTheme.typography.labelLarge)
+            // Signed in only: edit first/last name. Guests have no name to edit (they sign in
+            // with the Log in button below instead).
+            if (!account.isGuest) {
+                TextButton(onClick = { dispatch(SettingsContract.Action.EditNameClicked) }) {
+                    Text(str(S.MORE_EDIT), color = Emerald, style = MaterialTheme.typography.labelLarge)
+                }
             }
         }
     }
@@ -573,31 +637,60 @@ private fun FavoritesSection(
     }
 }
 
+/** Favourite-store circles (and the "+" circle beside them). */
+private val FavoriteCircleSize = 72.dp
+private val FavoriteCellWidth = 84.dp
+
 @Composable
 private fun FavoriteCircle(
     store: FavoriteStore,
     editMode: Boolean,
     onRemove: () -> Unit,
 ) {
+    // Store logo when the server has one (cache first, then a one-store lookup); the
+    // coloured monogram shows until it loads, or for stores without a logo.
+    val iconUrl = rememberStoreIconUrl(store.name)
+    // Tapping a favourite opens the store's weekly ad; stores without one do nothing.
+    val weeklyAdUrl = rememberStoreWeeklyAdUrl(store.name)
+    val uriHandler = LocalUriHandler.current
+    var logoLoaded by remember(iconUrl) { mutableStateOf(false) }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(72.dp),
+        modifier = Modifier.width(FavoriteCellWidth),
     ) {
         Box(contentAlignment = Alignment.TopEnd) {
             Box(
                 modifier = Modifier
-                    .size(60.dp)
+                    .size(FavoriteCircleSize)
                     .clip(CircleShape)
-                    .background(favoriteTint(store.key))
+                    .background(if (logoLoaded) Color.White else favoriteTint(store.key))
                     .border(2.dp, Emerald, CircleShape)
-                    .clickable(enabled = editMode, onClick = onRemove),
+                    .clickable(enabled = editMode || weeklyAdUrl != null) {
+                        when {
+                            editMode -> onRemove()
+                            weeklyAdUrl != null -> runCatching { uriHandler.openUri(weeklyAdUrl) }
+                        }
+                    },
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    monogram(store.name),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Color.White,
-                )
+                if (!logoLoaded) {
+                    Text(
+                        monogram(store.name),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.White,
+                    )
+                }
+                if (iconUrl != null) {
+                    AsyncImage(
+                        model = iconUrl,
+                        contentDescription = store.name,
+                        contentScale = ContentScale.Crop,
+                        onSuccess = { logoLoaded = true },
+                        onError = { logoLoaded = false },
+                        // Fills the circle, 1dp inside its 2dp border.
+                        modifier = Modifier.circleLogo(inset = 3.dp),
+                    )
+                }
             }
             if (editMode) {
                 Box(
@@ -617,13 +710,6 @@ private fun FavoriteCircle(
                 }
             }
         }
-        Spacer(Modifier.height(4.dp))
-        Text(
-            store.name,
-            style = MaterialTheme.typography.labelSmall,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
     }
 }
 
@@ -631,11 +717,11 @@ private fun FavoriteCircle(
 private fun AddFavoriteCircle(onClick: () -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(72.dp),
+        modifier = Modifier.width(FavoriteCellWidth),
     ) {
         Box(
             modifier = Modifier
-                .size(60.dp)
+                .size(FavoriteCircleSize)
                 .clip(CircleShape)
                 .border(1.5.dp, MutedGray, CircleShape)
                 .clickable(onClick = onClick),
@@ -643,8 +729,6 @@ private fun AddFavoriteCircle(onClick: () -> Unit) {
         ) {
             Icon(Icons.Rounded.Add, contentDescription = null, tint = MutedGray)
         }
-        Spacer(Modifier.height(4.dp))
-        Text("", style = MaterialTheme.typography.labelSmall)
     }
 }
 
@@ -674,7 +758,79 @@ private fun titleCaseName(name: String): String =
     }
 
 /** Which full-screen page the More menu is showing. */
-private enum class MorePage { MAIN, ACCOUNT, STORE_PICKER }
+private enum class MorePage { MAIN, ACCOUNT, STORE_PICKER, EDIT_NAME }
+
+/**
+ * "Edit name": first and last name for the signed-in account, opened from Edit on the
+ * profile card. Back (top-left) discards the draft; Save updates the account's name.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditNameScreen(
+    edit: SettingsContract.NameEdit,
+    dispatch: (SettingsContract.Action) -> Unit,
+    snackbarHostState: SnackbarHostState,
+) {
+    val d = ReTallyTheme.dimensions
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(str(S.MORE_EDIT_NAME_TITLE), style = ReTallyTheme.typography.title, color = ReTallyTheme.colors.ink)
+                },
+                navigationIcon = {
+                    CircleIconButton(onClick = { dispatch(SettingsContract.Action.NameEditDismissed) }) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBackIos,
+                            contentDescription = str(S.ACTION_BACK),
+                            tint = ReTallyTheme.colors.ink,
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+            )
+        },
+        snackbarHost = { ReTallySnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background,
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = d.lg, vertical = d.md),
+            verticalArrangement = Arrangement.spacedBy(d.lg),
+        ) {
+            Text(str(S.MORE_EDIT_NAME_HINT), style = ReTallyTheme.typography.secondaryBody, color = ReTallyTheme.colors.muted)
+            OutlinedTextField(
+                value = edit.firstName,
+                onValueChange = { dispatch(SettingsContract.Action.FirstNameChanged(it)) },
+                label = { Text(str(S.MORE_FIRST_NAME)) },
+                singleLine = true,
+                enabled = !edit.isSaving,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = edit.lastName,
+                onValueChange = { dispatch(SettingsContract.Action.LastNameChanged(it)) },
+                label = { Text(str(S.MORE_LAST_NAME)) },
+                singleLine = true,
+                enabled = !edit.isSaving,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { dispatch(SettingsContract.Action.NameSaveClicked) }),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            PrimaryButton(
+                text = str(S.MORE_NAME_SAVE),
+                onClick = { dispatch(SettingsContract.Action.NameSaveClicked) },
+                enabled = edit.canSave,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
 
 /**
  * Full-screen store picker: a search box on top, a 3-column grid of store tiles each with a
@@ -705,11 +861,12 @@ private fun StorePickerScreen(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = onBack) {
+            CircleIconButton(onClick = onBack) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBackIos,
                     contentDescription = str(S.ACTION_BACK),
                     tint = ReTallyTheme.colors.ink,
+                    modifier = Modifier.padding(start = 6.dp).size(20.dp),
                 )
             }
             Text(
@@ -787,10 +944,9 @@ private fun StoreGridTile(
     name: String,
     selected: Boolean,
     onToggle: () -> Unit,
-    storeIcons: StoreIconRepository = koinInject(),
 ) {
-    val icons by storeIcons.icons.collectAsState()
-    val iconUrl = icons[iconKeyOf(name)]?.iconUrl
+    // Cache first; a miss asks the server for just this store and caches the answer.
+    val iconUrl = rememberStoreIconUrl(name)
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
@@ -815,8 +971,9 @@ private fun StoreGridTile(
                     AsyncImage(
                         model = iconUrl,
                         contentDescription = null,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.size(52.dp),
+                        contentScale = ContentScale.Crop,
+                        // Fills the circle with a 1dp inner margin.
+                        modifier = Modifier.circleLogo(inset = 1.dp),
                     )
                 }
             } else {

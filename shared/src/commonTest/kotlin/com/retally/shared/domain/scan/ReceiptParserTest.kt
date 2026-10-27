@@ -447,6 +447,27 @@ class ReceiptParserTest {
     }
 
     @Test
+    fun negative_amounts_in_any_form_are_never_items() {
+        val parsed = parser.parse(
+            listOf(
+                "SHOP",
+                "BANANAS 1.29",
+                "INSTANT SAV - 2.00",      // dash with a space before the price
+                "STORE CPN -$1.50",        // dash before "$"
+                "MFR OFFER −0.75",         // Unicode minus
+                "PROMO ADJ 3.00 -",        // trailing dash after a space
+                "PRICE ADJ 1.00-F",        // trailing dash then tax code
+                "BOTTLE RTN 0.60 F-",      // tax code then dash
+                "MARKDOWN (4.00)",         // accounting parentheses
+                "PEPSI 2-LITER 2.49",      // dash inside the name is fine
+                "TOTAL 3.78",
+            ),
+        )
+        assertEquals(listOf("BANANAS", "PEPSI 2-LITER"), parsed.items.map { it.name })
+        assertEquals(listOf(1.29, 2.49), parsed.items.map { it.price })
+    }
+
+    @Test
     fun `store name skips greetings and merges multi-line logos`() {
         val parsed = parser.parse(
             listOf(

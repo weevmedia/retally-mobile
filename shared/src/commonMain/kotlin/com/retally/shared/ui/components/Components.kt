@@ -233,12 +233,16 @@ fun EmptyState(
     showIconDisc: Boolean = true,
     /** Bold supporting copy. */
     bodyBold: Boolean = false,
+    /** Custom art drawn instead of [icon] (e.g. the Smart List "all set" basket). */
+    illustration: (@Composable () -> Unit)? = null,
 ) {
     Column(
         modifier = modifier.fillMaxWidth().padding(ReTallyTheme.dimensions.xl),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        if (showIconDisc) {
+        if (illustration != null) {
+            illustration()
+        } else if (showIconDisc) {
             Box(
                 modifier = Modifier
                     .size(ReTallyDimensions.emptyStateDisc)
@@ -262,7 +266,7 @@ fun EmptyState(
             )
         }
         Spacer(Modifier.height(ReTallyTheme.dimensions.lg))
-        Text(title, style = ReTallyTheme.typography.title, color = ReTallyTheme.colors.ink)
+        Text(title, style = ReTallyTheme.typography.title, color = ReTallyTheme.colors.ink, textAlign = TextAlign.Center)
         Spacer(Modifier.height(ReTallyTheme.dimensions.sm))
         Text(
             body,

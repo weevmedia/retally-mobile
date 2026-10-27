@@ -24,6 +24,11 @@ actual fun writeFileBytes(path: String, bytes: ByteArray): Boolean {
 
 actual fun resolveImagePath(stored: String): String? {
     if (stored.isEmpty()) return null
+    // Older Android scans stored the scanner's file:// URI; use its path if the file is still there.
+    if (stored.startsWith("file://")) {
+        val path = stored.removePrefix("file://")
+        return path.takeIf { File(it).exists() }
+    }
     // Legacy absolute path that still exists.
     val absFile = File(stored)
     if (stored.startsWith("/") && absFile.exists()) return stored

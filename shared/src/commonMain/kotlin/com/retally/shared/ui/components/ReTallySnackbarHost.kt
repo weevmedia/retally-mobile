@@ -1,5 +1,9 @@
 package com.retally.shared.ui.components
 
+import com.retally.shared.core.strings.MessageTone
+import com.retally.shared.core.strings.LocalStringResolver
+import androidx.compose.runtime.remember
+import androidx.compose.material.icons.rounded.Cancel
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
@@ -19,7 +23,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 /**
- * The app-wide confirmation bar: a white checkmark before every message.
+ * The app-wide message bar: a green check before confirmations and a red cross before errors
+ * (see [MessageTone]).
  * Used in every screen's Scaffold `snackbarHost` slot so confirmations
  * ("Deleted Walmart", "Favorites updated", ...) look the same everywhere.
  */
@@ -29,12 +34,15 @@ fun ReTallySnackbarHost(
     modifier: Modifier = Modifier,
 ) {
     SnackbarHost(hostState, modifier) { data ->
+        val resolver = LocalStringResolver.current
+        val isError = remember(data.visuals.message) { MessageTone.isError(data.visuals.message, resolver) }
         Snackbar {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // Red cross for errors, green check for confirmations.
                 Icon(
-                    imageVector = Icons.Rounded.CheckCircle,
+                    imageVector = if (isError) Icons.Rounded.Cancel else Icons.Rounded.CheckCircle,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = if (isError) ErrorRed else SuccessGreen,
                     modifier = Modifier.size(20.dp),
                 )
                 Spacer(Modifier.width(12.dp))
@@ -46,3 +54,7 @@ fun ReTallySnackbarHost(
         }
     }
 }
+
+/** Bright enough to read on the dark snackbar in both themes. */
+private val SuccessGreen = Color(0xFF34D399)
+private val ErrorRed = Color(0xFFF87171)

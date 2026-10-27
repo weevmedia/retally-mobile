@@ -23,7 +23,7 @@ class OnboardingFragment : BaseComposeFragment<State, Action, SideEffect, Onboar
             is NavigateToMain -> {
                 // Safe Args; the graph pops onboarding so Back from Home exits the app.
                 // First launch continues into sign-in; the auth screen enters Home.
-                navigate(OnboardingFragmentDirections.actionOnboardingToAuth())
+                navigate(OnboardingFragmentDirections.actionOnboardingToAuth(firstLaunch = true))
             }
         }
     }

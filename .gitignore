@@ -30,7 +30,7 @@ google-services.json
 GoogleService-Info.plist
 
 # Xcode
-*.xcuserdata/
+xcuserdata/
 *.xcworkspace/xcuserdata/
 DerivedData/
 *.moved-aside

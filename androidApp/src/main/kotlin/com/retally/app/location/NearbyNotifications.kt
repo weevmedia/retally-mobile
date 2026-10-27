@@ -9,6 +9,8 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.retally.app.R
+import com.retally.shared.domain.notifications.NotificationInboxRepository
+import org.koin.core.context.GlobalContext
 
 /** Local notification shown when the user enters a store geofence. */
 object NearbyNotifications {
@@ -49,16 +51,23 @@ object NearbyNotifications {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
         }
+        val title = context.getString(R.string.nearby_notify_title, storeName)
+        val body = listSummary ?: context.getString(R.string.nearby_notify_body)
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_pin)
-            .setContentTitle(context.getString(R.string.nearby_notify_title, storeName))
-            .setContentText(listSummary ?: context.getString(R.string.nearby_notify_body))
+            .setContentTitle(title)
+            .setContentText(body)
             .setStyle(listSummary?.let { NotificationCompat.BigTextStyle().bigText(it) })
             .setContentIntent(contentIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
         NotificationManagerCompat.from(context).notify(storeName.hashCode(), notification)
+        // Keep it in the Home bell for 48 hours (or until dismissed), even if the system
+        // notification is swiped away or notifications are blocked.
+        runCatching {
+            GlobalContext.get().get<NotificationInboxRepository>().recordNearbyStore(storeName, title, body)
+        }
     }
 
     /** TEST-LOCATION-PING: debug only — remove before release. */

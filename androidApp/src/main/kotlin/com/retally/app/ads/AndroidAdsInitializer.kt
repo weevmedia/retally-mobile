@@ -42,7 +42,7 @@ class AndroidAdsInitializer(private val application: Application) : AdsInitializ
          * `Use RequestConfiguration.Builder().setTestDeviceIds(Arrays.asList("<hash>"))` —
          * paste that hash here. Emulators are test devices automatically.
          */
-        val DEBUG_TEST_DEVICE_IDS: List<String> = emptyList()
+        val DEBUG_TEST_DEVICE_IDS: List<String> = listOf("BA740E38050BFBCC215BC3650F72BCA3")
 
         /**
          * Test ads need no consent. Until a UMP privacy message is published in the AdMob

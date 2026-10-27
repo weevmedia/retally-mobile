@@ -1,5 +1,6 @@
 package com.retally.app.scan
 
+import android.graphics.Rect
 import android.content.Context
 import android.net.Uri
 import com.google.mlkit.vision.common.InputImage
@@ -27,6 +28,64 @@ class ReceiptTextRecognizer(private val context: Context) {
             val image = InputImage.fromFilePath(context, uri)
             mergeRows(recognizer.process(image).await())
         }
+    }
+
+    /** One page's lines plus the box around all its text (image pixels), for cropping to the receipt. */
+    data class Page(val lines: List<String>, val textBounds: Rect?)
+
+    suspend fun recognizePage(uri: Uri): Page = withContext(Dispatchers.Default) {
+        val text = recognizer.process(InputImage.fromFilePath(context, uri)).await()
+        Page(mergeRows(text), receiptTextBounds(text))
+    }
+
+    /**
+     * The box around the receipt's printed text, robust to strays: only real lines (2+ letters or
+     * digits) count, and only lines that overlap the receipt's main column — so text from
+     * another paper lying next to the receipt, or a misread speck on the tablecloth, can't
+     * stretch the crop sideways. The column is the band between the typical line's left and
+     * right edges (medians); it then grows to take in lines within a short gap (the price
+     * column), but not text from a separate paper further away.
+     */
+    private fun receiptTextBounds(text: Text): Rect? {
+        val boxes = text.textBlocks.flatMap { it.lines }
+            .filter { line -> line.text.count { it.isLetterOrDigit() } >= 2 }
+            .mapNotNull { it.boundingBox }
+        if (boxes.size < 3) return null
+        fun median(values: List<Int>): Int = values.sorted()[values.size / 2]
+        val bandLeft = median(boxes.map { it.left })
+        val bandRight = median(boxes.map { it.right })
+        if (bandRight <= bandLeft) return null
+        // Grow from the column: the price column sits a little to the right of the item names, so
+        // take in lines within a short gap of what's kept; a separate paper further away stays out.
+        val maxGap = (bandRight - bandLeft) / 4
+        val receipt = boxes.filter { it.right > bandLeft && it.left < bandRight }.toMutableList()
+        if (receipt.size < 3) return null
+        var left = receipt.minOf { it.left }
+        var right = receipt.maxOf { it.right }
+        var grew = true
+        while (grew) {
+            grew = false
+            for (box in boxes) {
+                if (box in receipt) continue
+                val gap = when {
+                    box.left > right -> box.left - right
+                    box.right < left -> left - box.right
+                    else -> 0
+                }
+                if (gap <= maxGap) {
+                    receipt += box
+                    left = minOf(left, box.left)
+                    right = maxOf(right, box.right)
+                    grew = true
+                }
+            }
+        }
+        return Rect(
+            receipt.minOf { it.left },
+            receipt.minOf { it.top },
+            receipt.maxOf { it.right },
+            receipt.maxOf { it.bottom },
+        )
     }
 
     private fun mergeRows(text: Text): List<String> {

@@ -37,6 +37,14 @@ fun formatDateTime(instant: Instant, timeZone: TimeZone = TimeZone.currentSystem
     return "${formatShortDate(instant, timeZone)} · $hour12:${dt.minute.toString().padStart(2, '0')} $ampm"
 }
 
+/** "3:04 PM" in the device time zone. */
+fun formatTime(instant: Instant, timeZone: TimeZone = TimeZone.currentSystemDefault()): String {
+    val dt = instant.toLocalDateTime(timeZone)
+    val hour12 = when (val h = dt.hour % 12) { 0 -> 12; else -> h }
+    val ampm = if (dt.hour < 12) "AM" else "PM"
+    return "$hour12:${dt.minute.toString().padStart(2, '0')} $ampm"
+}
+
 private fun Month.shortName(): String = name.lowercase().replaceFirstChar { it.uppercase() }.take(3)
 
 /** "Sep" — the current month, for the "Spent in Sep" tile. */

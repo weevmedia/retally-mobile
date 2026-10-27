@@ -8,6 +8,12 @@ interface Platform {
     /** Marketing version, e.g. "1.0.0". */
     val appVersion: String
 
+    /** Hardware model for the admin device list, e.g. "Google Pixel 8" or "iPhone15,2". */
+    val deviceModel: String get() = "unknown"
+
+    /** OS version, e.g. "15" (Android) or "18.1" (iOS). */
+    val osVersion: String get() = "unknown"
+
     /** Opens [url] in the system browser. Returns false if nothing could handle it. */
     fun openUrl(url: String): Boolean
 }

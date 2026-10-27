@@ -12,5 +12,8 @@ struct BudgetView: View {
         ComposeHostView(controller: viewModel.screen.viewController)
             .ignoresSafeArea()
             .toolbar(.hidden, for: .navigationBar) // Compose draws the top bar with its own Back.
+            // No scan button on the budget page (same mechanism as the receipt page).
+            .onAppear { NotificationCenter.default.post(name: .retallyHideScanButton, object: nil) }
+            .onDisappear { NotificationCenter.default.post(name: .retallyShowScanButton, object: nil) }
     }
 }

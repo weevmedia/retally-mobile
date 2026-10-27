@@ -1,5 +1,13 @@
 package com.retally.shared.ui.image
 
+import androidx.compose.material.icons.rounded.Close
+import com.retally.shared.ui.components.CircleIconButton
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.ui.draw.shadow
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import com.retally.shared.core.strings.StringAssetIdentifiers as S
 import com.retally.shared.core.strings.str
 import androidx.compose.foundation.Image
@@ -7,45 +15,37 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -137,8 +137,9 @@ fun ReceiptThumbnail(imagePath: String?, onClick: () -> Unit, modifier: Modifier
  * Full-screen photo viewer: app background, receipt-narrow image centered like a paper
  * receipt, vertical scroll for long receipts, pinch to zoom with pan when zoomed,
  * double-tap to reset. Scroll is disabled while zoomed so gestures never fight.
- * Share, Save, X grouped top-right — no top bar, no title. No heart icon here
- * (heart is only on the receipt page).
+ * The app's white circle buttons float over the photo: X on the left, Share and Save on the right. The
+ * photo sits below it as a paper card (rounded, soft shadow), with a short pinch-to-zoom hint.
+ * No heart icon here (heart is only on the receipt page).
  * Slides up from the bottom (wrap in AnimatedVisibility at the call site).
  */
 @Composable
@@ -159,6 +160,7 @@ fun ReceiptImageViewer(
             .fillMaxSize()
             .background(colors.background),
     ) {
+    Box(Modifier.fillMaxSize()) {
         when (imageState) {
             is CloudImageState.Loading, is CloudImageState.Downloading -> {
                 // Show downloading indicator in the center.
@@ -191,21 +193,17 @@ fun ReceiptImageViewer(
             is CloudImageState.Loaded -> {
                 val bitmap = imageState.bitmap
                 val scrollState = rememberScrollState()
-                // Zoom state: transformable handles pinch + pan. The vertical scroll is
-                // only enabled at 1x — once zoomed, all gestures go to pan/zoom. This
-                // avoids the gesture fight where detectTransformGestures consumed
-                // single-finger drags and scroll worked intermittently.
-                val transformState = rememberTransformableState { zoomChange, panChange, _ ->
-                    val newScale = (scale * zoomChange).coerceIn(1f, 6f)
-                    scale = newScale
-                    offset = if (newScale > 1f) offset + panChange else Offset.Zero
-                }
+                // At 1x a one-finger drag is left alone, so the Column's native scroll (with
+                // fling) handles it — smooth like any list. Pinch (two fingers) zooms; once
+                // zoomed, drags pan the image instead and scrolling pauses.
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(scrollState, enabled = scale <= 1f),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
+                    // The photo starts right under the status bar; the buttons float on top of it.
+                    Spacer(Modifier.statusBarsPadding())
                     Image(
                         bitmap = bitmap,
                         contentDescription = str(S.PHOTO_RECEIPT_A11Y),
@@ -213,55 +211,99 @@ fun ReceiptImageViewer(
                         modifier = Modifier
                             .widthIn(max = 420.dp)
                             .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 76.dp)
-                            .graphicsLayer {
-                                scaleX = scale
-                                scaleY = scale
-                                translationX = offset.x
-                                translationY = offset.y
-                            }
-                            .transformable(transformState)
+                            .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 24.dp)
+                            // Paper card: soft shadow, rounded corners, hairline edge. Zoom stays
+                            // inside the card (the clip comes before the zoom layer).
+                            .shadow(10.dp, RoundedCornerShape(16.dp), clip = false)
+                            .clip(RoundedCornerShape(16.dp))
+                            .border(1.dp, colors.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
+                            // Gestures sit before graphicsLayer so pans are in screen pixels.
                             .pointerInput(Unit) {
                                 detectTapGestures(
                                     onDoubleTap = { scale = 1f; offset = Offset.Zero },
                                     // Tap no longer dismisses — use the X button to close.
                                 )
+                            }
+                            .pointerInput(Unit) {
+                                awaitEachGesture {
+                                    awaitFirstDown(requireUnconsumed = false)
+                                    do {
+                                        val event = awaitPointerEvent()
+                                        val fingers = event.changes.count { it.pressed }
+                                        if (fingers >= 2 || scale > 1f) {
+                                            val newScale = (scale * event.calculateZoom()).coerceIn(1f, 6f)
+                                            scale = newScale
+                                            offset = if (newScale > 1f) {
+                                                // Keep the zoomed image covering its slot.
+                                                val maxX = size.width * (newScale - 1f) / 2f
+                                                val maxY = size.height * (newScale - 1f) / 2f
+                                                val moved = offset + event.calculatePan()
+                                                Offset(moved.x.coerceIn(-maxX, maxX), moved.y.coerceIn(-maxY, maxY))
+                                            } else {
+                                                Offset.Zero
+                                            }
+                                            event.changes.forEach { if (it.positionChanged()) it.consume() }
+                                        }
+                                    } while (event.changes.any { it.pressed })
+                                }
+                            }
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                                translationX = offset.x
+                                translationY = offset.y
                             },
                     )
                 }
             } // Close CloudImageState.Loaded
         } // Close when
-        // Share, Save, X grouped top-right. Floating over the image, no top bar.
-        // Tap on the image no longer dismisses — X is the only way to close.
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .statusBarsPadding()
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically,
+        // One-time gesture hint, fades out after a few seconds.
+        var showHint by remember { mutableStateOf(true) }
+        val loaded = imageState is CloudImageState.Loaded
+        androidx.compose.runtime.LaunchedEffect(loaded) {
+            if (!loaded) return@LaunchedEffect
+            kotlinx.coroutines.delay(3_000) // count from when the photo is actually on screen
+            showHint = false
+        }
+        androidx.compose.animation.AnimatedVisibility(
+            visible = showHint && loaded,
+            enter = androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 20.dp),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                IconButton(
-                    onClick = onShare,
-                    modifier = Modifier.background(colors.surfaceVariant.copy(alpha = 0.85f), CircleShape),
-                ) {
-                    Icon(Icons.Rounded.Share, contentDescription = "Share", tint = colors.onSurface)
-                }
-                IconButton(
-                    onClick = onSave,
-                    modifier = Modifier.background(colors.surfaceVariant.copy(alpha = 0.85f), CircleShape),
-                ) {
-                    Icon(Icons.Rounded.Download, contentDescription = "Save to Photos", tint = colors.onSurface)
-                }
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.background(colors.surfaceVariant.copy(alpha = 0.85f), CircleShape),
-                ) {
-                    Icon(Icons.Rounded.Close, contentDescription = "Close", tint = colors.onSurface)
-                }
-            }
+            Text(
+                str(S.PHOTO_VIEWER_HINT),
+                style = MaterialTheme.typography.labelMedium,
+                color = Color.White,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(Color.Black.copy(alpha = 0.6f))
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+            )
+        }
+    } // Close content Box
+    // Floating buttons over the photo (like a photo viewer): X on the left, Share and Save on
+    // the right.
+    Row(
+        Modifier
+            .align(Alignment.TopCenter)
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // The app's own white circle buttons, same icons as before, floating over the photo.
+        CircleIconButton(onClick = onDismiss) {
+            Icon(Icons.Rounded.Close, contentDescription = "Close", tint = colors.onSurface)
+        }
+        Spacer(Modifier.weight(1f))
+        CircleIconButton(onClick = onShare) {
+            Icon(Icons.Rounded.Share, contentDescription = "Share", tint = colors.onSurface)
+        }
+        CircleIconButton(onClick = onSave) {
+            Icon(Icons.Rounded.Download, contentDescription = "Save to Photos", tint = colors.onSurface)
         }
     }
+    }
 }
+

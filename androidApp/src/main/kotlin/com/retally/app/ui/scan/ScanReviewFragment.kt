@@ -1,7 +1,11 @@
 package com.retally.app.ui.scan
 
+import com.retally.app.R
+import androidx.navigation.NavOptions
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
+import androidx.activity.OnBackPressedCallback
 import androidx.compose.runtime.Composable
 import androidx.core.content.FileProvider
 import androidx.navigation.fragment.findNavController
@@ -36,6 +40,25 @@ class ScanReviewFragment : BaseComposeFragment<State, Action, SideEffect, ScanRe
         }
     }
 
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        // System Back on the "Edit store" page closes just that page, like its top-left Back.
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (viewModel.store.observeState().value.storeEdit != null) {
+                        dispatchViewAction(Action.StoreEditDismissed)
+                    } else {
+                        isEnabled = false
+                        requireActivity().onBackPressedDispatcher.onBackPressed()
+                        isEnabled = true
+                    }
+                }
+            },
+        )
+    }
+
     @Composable
     override fun ScreenContent(state: State) {
         ScanReviewScreen(state = state, dispatch = ::dispatchViewAction, snackbarHostState = snackbarHostState)
@@ -43,15 +66,37 @@ class ScanReviewFragment : BaseComposeFragment<State, Action, SideEffect, ScanRe
 
     override suspend fun onViewEffect(effect: SideEffect) {
         when (effect) {
-            Closed -> findNavController().popBackStack()
-            is Saved -> {
-                // A new store may have arrived — rebuild the geofence list (no-op if toggle is off).
+            // A fresh scan lands on the Receipts list (with the new receipt on top); opening an
+            // existing receipt just goes back to where it was opened from.
+            Closed -> if (args.recognizedText != null) openReceiptsTab() else findNavController().popBackStack()
+            is Saved, SideEffect.StoreLocationChanged -> {
+                // A new or edited store — rebuild the geofence list (no-op if toggle is off).
                 NearbyStoreScheduler.refresh(requireContext())
             }
             is ShareReceipt -> shareReceipt(effect.imagePath)
             is SaveToPhotos -> saveToPhotos(effect.imagePath)
             is ShowMessage -> snackbarHostState.showSnackbar(effect.message)
         }
+    }
+
+    private fun openReceiptsTab() {
+        val nav = findNavController()
+        // Leave the receipt screen first (plain pop, no saved state). Navigating with
+        // popUpTo(saveState = true) from here saved this screen into the Receipts tab's stack and
+        // restoreState brought it straight back — so Close / Delete looked dead when the scan was
+        // started from the Receipts tab.
+        nav.popBackStack()
+        if (nav.currentDestination?.id == R.id.receiptsFragment) return
+        nav.navigate(
+            R.id.receiptsFragment,
+            null,
+            NavOptions.Builder()
+                .setLaunchSingleTop(true)
+                .setRestoreState(true)
+                // Home is the root of the signed-in back stack (splash/onboarding are gone).
+                .setPopUpTo(R.id.homeFragment, inclusive = false, saveState = true)
+                .build(),
+        )
     }
 
     private fun shareReceipt(imagePath: String?) {

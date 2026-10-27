@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Food recall alerts — pushed from Home's bell.
+/// Food recalls — pushed from More › Food recalls.
 struct AlertsView: View {
     @StateObject private var viewModel: AlertsViewModel
 

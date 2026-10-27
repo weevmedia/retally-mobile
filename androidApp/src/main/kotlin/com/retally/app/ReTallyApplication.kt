@@ -1,5 +1,7 @@
 package com.retally.app
 
+import com.retally.shared.core.crash.CrashReporting
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import android.app.Application
 import com.retally.app.ads.AndroidAdsInitializer
 import com.retally.app.ads.CurrentActivityTracker
@@ -47,6 +49,12 @@ class ReTallyApplication : Application() {
         ) {
             androidContext(this@ReTallyApplication)
         }
+
+        // Crashlytics: off in debug builds (unless More → "Send test crash" was just used).
+        val settings = SharedPreferencesSettings(getSharedPreferences("retally", MODE_PRIVATE))
+        FirebaseCrashlytics.getInstance().isCrashlyticsCollectionEnabled =
+            CrashReporting.shouldCollect(settings, BuildConfig.DEBUG)
+        CrashReporting.start()
 
         // Re-register store geofences (no-op when the nearby toggle is off).
         NearbyStoreScheduler.refresh(this)

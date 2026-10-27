@@ -23,6 +23,17 @@ kotlin {
     targets.withType<KotlinNativeTarget>().configureEach {
         binaries.all {
             linkerOpts("-lsqlite3")
+            // CrashKiOS references the Crashlytics Obj-C classes, which only the app links (SPM).
+            // The static framework doesn't care, but test executables link on their own: mark
+            // those symbols as resolved at runtime (CrashKiOS stays a no-op in tests).
+            if (this is org.jetbrains.kotlin.gradle.plugin.mpp.TestExecutable) {
+                linkerOpts(
+                    "-U", "_FIRCLSExceptionRecordNSException",
+                    "-U", "_OBJC_CLASS_\$_FIRStackFrame",
+                    "-U", "_OBJC_CLASS_\$_FIRExceptionModel",
+                    "-U", "_OBJC_CLASS_\$_FIRCrashlytics",
+                )
+            }
         }
     }
 
@@ -81,6 +92,8 @@ kotlin {
                 implementation(auth)
                 implementation(firestore)
                 implementation(storage)
+                // Crash reporting from shared code (no-op until CrashReporting.start()).
+                implementation(crashKiOS)
             }
 
             // Local persistence
@@ -94,6 +107,7 @@ kotlin {
             with(Deps.Coil) {
                 implementation(compose)
                 implementation(networkKtor3)
+                implementation(svg)
             }
         }
         androidMain.dependencies {

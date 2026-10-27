@@ -64,7 +64,8 @@ interface SplashContract {
                 // shell flips adsEnabled on when it finishes.
                 val readiness = adsSession.awaitReadiness(MAX_SPLASH_MS - MIN_SPLASH_MS)
                 currentState = currentState.copy(adsReadiness = readiness, progress = 1f)
-                preferences.hasLaunchedBefore = true
+                // hasLaunchedBefore is set only once onboarding/auth finishes (Auth/Otp stores),
+                // so killing the app mid-onboarding shows onboarding again on next launch.
                 sideEffect(
                     SideEffect.NavigateToMain(
                         adsReady = readiness == AdsReadiness.READY,

@@ -35,6 +35,11 @@ final class ReceiptsViewModel: ObservableObject {
         store.clear()
     }
 
+    /// The tab became visible: lets Kotlin re-check stores marked "no logo" (throttled there).
+    func appeared() {
+        store.dispatch(action: ReceiptsContractAction.Appeared())
+    }
+
     private func handle(_ effect: ReceiptsContractSideEffect) {
         switch effect {
         case let open as ReceiptsContractSideEffect.OpenReceipt:

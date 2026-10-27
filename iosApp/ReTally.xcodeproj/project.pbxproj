@@ -7,22 +7,24 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		5B0A11C00000000000000A03 /* ShoppingListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0A11C00000000000000A01 /* ShoppingListView.swift */; };
-		5B0A11C00000000000000A04 /* ShoppingListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0A11C00000000000000A02 /* ShoppingListViewModel.swift */; };
-		5B0A11C00000000000000B03 /* AlertsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0A11C00000000000000B01 /* AlertsView.swift */; };
-		5B0A11C00000000000000B04 /* AlertsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0A11C00000000000000B02 /* AlertsViewModel.swift */; };
+		03AF82B1308B069600CF7541 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 03AF82B0308B069600CF7541 /* GoogleService-Info.plist */; };
 		03D623E930785C5C002CEF58 /* BudgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03D623E630785C5C002CEF58 /* BudgetView.swift */; };
 		03D623EA30785C5C002CEF58 /* BudgetViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03D623E730785C5C002CEF58 /* BudgetViewModel.swift */; };
 		03D623ED3079AFB3002CEF58 /* ReceiptScannerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03D623EC3079AFB3002CEF58 /* ReceiptScannerViewController.swift */; };
 		03D623EE3079AFB3002CEF58 /* ReceiptScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03D623EB3079AFB3002CEF58 /* ReceiptScannerView.swift */; };
 		03D623F13079F481002CEF58 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 03D623F03079F481002CEF58 /* FirebaseStorage */; };
+		5B0A11C00000000000000A03 /* ShoppingListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0A11C00000000000000A01 /* ShoppingListView.swift */; };
+		5B0A11C00000000000000A04 /* ShoppingListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0A11C00000000000000A02 /* ShoppingListViewModel.swift */; };
+		5B0A11C00000000000000B03 /* AlertsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0A11C00000000000000B01 /* AlertsView.swift */; };
+		5B0A11C00000000000000B04 /* AlertsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0A11C00000000000000B02 /* AlertsViewModel.swift */; };
+		5B0A11C00000000000000C03 /* NotificationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0A11C00000000000000C01 /* NotificationsView.swift */; };
+		5B0A11C00000000000000C04 /* NotificationsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0A11C00000000000000C02 /* NotificationsViewModel.swift */; };
 		A1000001000000000000A003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1000001000000000000F003 /* Assets.xcassets */; };
 		A1000001000000000000A004 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = A1000001000000000000D001 /* GoogleMobileAds */; };
 		A1000001000000000000A005 /* GoogleUserMessagingPlatform in Frameworks */ = {isa = PBXBuildFile; productRef = A1000001000000000000D002 /* GoogleUserMessagingPlatform */; };
 		A1000001000000000000A006 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = A1000001000000000000D003 /* FirebaseCore */; };
 		A1000001000000000000A007 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = A1000001000000000000D004 /* FirebaseAuth */; };
 		A1000001000000000000A008 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = A1000001000000000000D005 /* FirebaseFirestore */; };
-		A1000001000000000000A009 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = A1000001000000000000F006 /* GoogleService-Info.plist */; };
 		A1000001000000000000A010 /* AdsBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000001000000000000F010 /* AdsBridge.swift */; };
 		A1000001000000000000A011 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000001000000000000F011 /* AppConfig.swift */; };
 		A1000001000000000000A012 /* ReTallyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000001000000000000F012 /* ReTallyApp.swift */; };
@@ -59,18 +61,20 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		5B0A11C00000000000000A01 /* ShoppingListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoppingListView.swift; sourceTree = "<group>"; };
-		5B0A11C00000000000000A02 /* ShoppingListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoppingListViewModel.swift; sourceTree = "<group>"; };
-		5B0A11C00000000000000B01 /* AlertsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsView.swift; sourceTree = "<group>"; };
-		5B0A11C00000000000000B02 /* AlertsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsViewModel.swift; sourceTree = "<group>"; };
+		03AF82B0308B069600CF7541 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		03D623E630785C5C002CEF58 /* BudgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetView.swift; sourceTree = "<group>"; };
 		03D623E730785C5C002CEF58 /* BudgetViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetViewModel.swift; sourceTree = "<group>"; };
 		03D623EB3079AFB3002CEF58 /* ReceiptScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiptScannerView.swift; sourceTree = "<group>"; };
 		03D623EC3079AFB3002CEF58 /* ReceiptScannerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiptScannerViewController.swift; sourceTree = "<group>"; };
+		5B0A11C00000000000000A01 /* ShoppingListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoppingListView.swift; sourceTree = "<group>"; };
+		5B0A11C00000000000000A02 /* ShoppingListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoppingListViewModel.swift; sourceTree = "<group>"; };
+		5B0A11C00000000000000B01 /* AlertsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsView.swift; sourceTree = "<group>"; };
+		5B0A11C00000000000000B02 /* AlertsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsViewModel.swift; sourceTree = "<group>"; };
+		5B0A11C00000000000000C01 /* NotificationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsView.swift; sourceTree = "<group>"; };
+		5B0A11C00000000000000C02 /* NotificationsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsViewModel.swift; sourceTree = "<group>"; };
 		A1000001000000000000F003 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A1000001000000000000F004 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A1000001000000000000F005 /* ReTally.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ReTally.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		A1000001000000000000F006 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		A1000001000000000000F010 /* AdsBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdsBridge.swift; sourceTree = "<group>"; };
 		A1000001000000000000F011 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
 		A1000001000000000000F012 /* ReTallyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReTallyApp.swift; sourceTree = "<group>"; };
@@ -123,24 +127,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		5B0A11C00000000000000B05 /* Alerts */ = {
-			isa = PBXGroup;
-			children = (
-				5B0A11C00000000000000B01 /* AlertsView.swift */,
-				5B0A11C00000000000000B02 /* AlertsViewModel.swift */,
-			);
-			path = Alerts;
-			sourceTree = "<group>";
-		};
-		5B0A11C00000000000000A05 /* ShoppingList */ = {
-			isa = PBXGroup;
-			children = (
-				5B0A11C00000000000000A01 /* ShoppingListView.swift */,
-				5B0A11C00000000000000A02 /* ShoppingListViewModel.swift */,
-			);
-			path = ShoppingList;
-			sourceTree = "<group>";
-		};
 		03D623E830785C5C002CEF58 /* Budget */ = {
 			isa = PBXGroup;
 			children = (
@@ -157,6 +143,33 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		5B0A11C00000000000000A05 /* ShoppingList */ = {
+			isa = PBXGroup;
+			children = (
+				5B0A11C00000000000000A01 /* ShoppingListView.swift */,
+				5B0A11C00000000000000A02 /* ShoppingListViewModel.swift */,
+			);
+			path = ShoppingList;
+			sourceTree = "<group>";
+		};
+		5B0A11C00000000000000B05 /* Alerts */ = {
+			isa = PBXGroup;
+			children = (
+				5B0A11C00000000000000B01 /* AlertsView.swift */,
+				5B0A11C00000000000000B02 /* AlertsViewModel.swift */,
+			);
+			path = Alerts;
+			sourceTree = "<group>";
+		};
+		5B0A11C00000000000000C05 /* Notifications */ = {
+			isa = PBXGroup;
+			children = (
+				5B0A11C00000000000000C01 /* NotificationsView.swift */,
+				5B0A11C00000000000000C02 /* NotificationsViewModel.swift */,
+			);
+			path = Notifications;
+			sourceTree = "<group>";
+		};
 		A10000010000000000006001 = {
 			isa = PBXGroup;
 			children = (
@@ -169,12 +182,12 @@
 		A10000010000000000006002 /* ReTally */ = {
 			isa = PBXGroup;
 			children = (
+				03AF82B0308B069600CF7541 /* GoogleService-Info.plist */,
 				A10000010000000000006101 /* Application */,
 				A10000010000000000006102 /* Common */,
 				A10000010000000000006104 /* UI */,
 				A1000001000000000000F003 /* Assets.xcassets */,
 				A10000010000000000006140 /* Resources */,
-				A1000001000000000000F006 /* GoogleService-Info.plist */,
 				A1000001000000000000F004 /* Info.plist */,
 			);
 			path = ReTally;
@@ -224,6 +237,7 @@
 			isa = PBXGroup;
 			children = (
 				5B0A11C00000000000000B05 /* Alerts */,
+				5B0A11C00000000000000C05 /* Notifications */,
 				03D623E830785C5C002CEF58 /* Budget */,
 				A1000001000000000000610C /* Auth */,
 				5B0A11C00000000000000A05 /* ShoppingList */,
@@ -431,8 +445,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1000001000000000000A003 /* Assets.xcassets in Resources */,
-				A1000001000000000000A009 /* GoogleService-Info.plist in Resources */,
 				A1000001000000000000A040 /* Localizable.strings in Resources */,
+				03AF82B1308B069600CF7541 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -499,6 +513,8 @@
 				5B0A11C00000000000000A04 /* ShoppingListViewModel.swift in Sources */,
 				5B0A11C00000000000000B03 /* AlertsView.swift in Sources */,
 				5B0A11C00000000000000B04 /* AlertsViewModel.swift in Sources */,
+				5B0A11C00000000000000C03 /* NotificationsView.swift in Sources */,
+				5B0A11C00000000000000C04 /* NotificationsViewModel.swift in Sources */,
 				03D623ED3079AFB3002CEF58 /* ReceiptScannerViewController.swift in Sources */,
 				03D623EE3079AFB3002CEF58 /* ReceiptScannerView.swift in Sources */,
 				03D623EA30785C5C002CEF58 /* BudgetViewModel.swift in Sources */,

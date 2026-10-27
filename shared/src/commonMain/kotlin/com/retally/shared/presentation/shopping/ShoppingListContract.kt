@@ -65,6 +65,13 @@ interface ShoppingListContract {
 
         val isEmptyList: Boolean
             get() = selected != null && dueItems.isEmpty() && alsoHereItems.isEmpty() && added.isEmpty()
+
+        /**
+         * Empty list *and* no known staples for this store: the engine hasn't seen enough
+         * receipts here to predict anything, so say it's still learning rather than "all set".
+         */
+        val isLearning: Boolean
+            get() = isEmptyList && selected?.frequent.isNullOrEmpty()
     }
 
     sealed class Action : com.retally.shared.core.Action {

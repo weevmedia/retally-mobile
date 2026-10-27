@@ -39,6 +39,12 @@ interface AuthRepository {
     suspend fun signOut()
 
     /**
+     * Changes the signed-in user's display name ("First Last"). [observeAccount] re-emits
+     * with the new name. Throws when there's no signed-in user or the update fails.
+     */
+    suspend fun updateDisplayName(displayName: String)
+
+    /**
      * Deletes the Firebase user. Returns false when the backend refuses (e.g. the login
      * is too old and Firebase demands a re-authentication first). Callers still wipe
      * local data themselves.

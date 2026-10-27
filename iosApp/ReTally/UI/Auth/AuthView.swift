@@ -4,8 +4,10 @@ import SwiftUI
 struct AuthView: View {
     @StateObject private var viewModel: AuthViewModel
 
-    init(onFinished: @escaping () -> Void, onEmailContinue: @escaping (String, String, Bool, String?, Bool) -> Void, onBack: @escaping () -> Void) {
-        _viewModel = StateObject(wrappedValue: AuthViewModel(onFinished: onFinished, onEmailContinue: onEmailContinue, onBack: onBack))
+    /// `showGuestOption`: true on the first-launch sign-in only; opened from inside the app the
+    /// user is already a guest, so "Continue as guest" is hidden.
+    init(showGuestOption: Bool, onFinished: @escaping () -> Void, onEmailContinue: @escaping (String, String, Bool, String?, Bool) -> Void, onBack: @escaping () -> Void) {
+        _viewModel = StateObject(wrappedValue: AuthViewModel(showGuestOption: showGuestOption, onFinished: onFinished, onEmailContinue: onEmailContinue, onBack: onBack))
     }
 
     var body: some View {

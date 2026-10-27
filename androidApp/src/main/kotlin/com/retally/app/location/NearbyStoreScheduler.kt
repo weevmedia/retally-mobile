@@ -42,7 +42,11 @@ object NearbyStoreScheduler {
             NearbyGeofenceManager(appContext).stop()
             return
         }
-        if (!hasLocationPermission(appContext)) return
+        // Permission revoked since the fences were registered: drop them too.
+        if (!hasLocationPermission(appContext)) {
+            NearbyGeofenceManager(appContext).stop()
+            return
+        }
         scope.launch {
             repo.refreshLocations()
             NearbyGeofenceManager(appContext).start(repo.locations.value)

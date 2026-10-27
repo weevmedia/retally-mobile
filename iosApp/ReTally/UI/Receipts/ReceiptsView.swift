@@ -10,6 +10,9 @@ struct ReceiptsView: View {
                 // translucent effect, matching AI List and More.
                 .ignoresSafeArea()
                 .toolbar(.hidden, for: .navigationBar) // Compose draws the top bar.
+                // The tab stays alive between visits, so Compose's first-show hook runs once;
+                // this re-checks stores marked "no logo" on every visit (throttled in Kotlin).
+                .onAppear { viewModel.appeared() }
                 .navigationDestination(isPresented: $viewModel.isReviewPresented) {
                     ScanReviewView(source: viewModel.reviewSource, onFinished: { _, _ in viewModel.reviewFinished() })
                 }

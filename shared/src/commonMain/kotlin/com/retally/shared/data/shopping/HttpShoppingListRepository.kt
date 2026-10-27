@@ -125,7 +125,10 @@ class HttpShoppingListRepository(
             when (result.status) {
                 "guest" -> CallOutcome.AuthRejected("server-says-guest")
                 else -> {
-                    saveLists(result.lists)
+                    // No store asked for = the server's full answer for this account: it replaces
+                    // the cache, so a store with no list anymore (or "no history") clears out.
+                    // A single-store refresh only updates that store.
+                    saveLists(result.lists, replaceAll = storeName.isNullOrBlank())
                     CallOutcome.Done(ShoppingListLoadResult.Success(result.lists, noHistory = result.status == "no-history"))
                 }
             }
@@ -140,6 +143,13 @@ class HttpShoppingListRepository(
     private fun log(message: String) = println("[ReTallyShopping] $message")
 
     override var pendingStoreName: String? = null
+
+    override fun clearCache() {
+        settings.remove(KEY_LISTS)
+        settings.remove(KEY_EDITS)
+        _lists.value = emptyList()
+        pendingStoreName = null
+    }
 
     override fun cachedListFor(storeName: String): ShoppingList? {
         val key = normalizeStoreName(storeName)
@@ -183,10 +193,10 @@ class HttpShoppingListRepository(
             runCatching { json.decodeFromString(LISTS_SERIALIZER, raw) }.getOrNull()
         } ?: emptyList()
 
-    private fun saveLists(lists: List<ShoppingList>) {
-        // Keep lists for stores the server did not return this time (e.g. a single-store refresh).
-        val merged = (lists + _lists.value.filterNot { old -> lists.any { it.storeKey == old.storeKey } })
-            .sortedByDescending { it.generatedAt }
+    private fun saveLists(lists: List<ShoppingList>, replaceAll: Boolean) {
+        // A single-store refresh keeps the other stores' lists; a full load replaces them all.
+        val kept = if (replaceAll) emptyList() else _lists.value.filterNot { old -> lists.any { it.storeKey == old.storeKey } }
+        val merged = (lists + kept).sortedByDescending { it.generatedAt }
         settings.putString(KEY_LISTS, json.encodeToString(LISTS_SERIALIZER, merged))
         _lists.value = merged
         // A rebuilt list starts with no dismissals; checks and added items survive mid-trip refreshes.

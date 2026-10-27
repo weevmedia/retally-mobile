@@ -13,6 +13,9 @@ struct DuplicatesView: View {
             .ignoresSafeArea()
             .toolbar(.hidden, for: .navigationBar) // Compose draws the top bar with its own Back.
             .toolbar(.hidden, for: .tabBar)
+            // Scan button shows only on the Home and Receipts screens themselves.
+            .onAppear { NotificationCenter.default.post(name: .retallyHideScanButton, object: nil) }
+            .onDisappear { NotificationCenter.default.post(name: .retallyShowScanButton, object: nil) }
             .navigationDestination(isPresented: $viewModel.isReceiptPresented) {
                 ScanReviewView(source: .existing(receiptId: viewModel.receiptId), onFinished: { _, _ in viewModel.receiptFinished() })
             }

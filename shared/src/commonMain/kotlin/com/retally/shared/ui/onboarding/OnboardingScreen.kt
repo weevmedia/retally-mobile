@@ -255,7 +255,9 @@ private fun OnboardingFooter(onGetStarted: () -> Unit, onSignIn: () -> Unit) {
         val signInLabel = str(S.ONBOARDING_SIGN_IN)
         Text(
             text = buildAnnotatedString {
-                append(haveAccountPrefix)
+                // Android's strings.xml drops trailing spaces, so add the gap here.
+                append(haveAccountPrefix.trimEnd())
+                append(" ")
                 withStyle(
                     SpanStyle(
                         color = Color(0xFF2563EB),

@@ -323,6 +323,9 @@ class ReceiptParser(
     private fun detectItems(lines: List<String>): List<ParsedItem> = lines.mapNotNull { line ->
         if (NON_ITEM.containsMatchIn(line)) return@mapNotNull null
         if (MASKED_CARD_FRAGMENT.containsMatchIn(line)) return@mapNotNull null
+        // A minus touching the price, before or after ("- 2.00", "-$2.00", "2.00-", "2.00 -F",
+        // "(2.00)", any dash OCR produces), is a discount or refund, never an item.
+        if (NEGATIVE_AMOUNT.containsMatchIn(line)) return@mapNotNull null
         val m = ITEM.find(line) ?: return@mapNotNull null
         val flag = m.groups[1]?.value
         val leading = m.groups[2]?.value
@@ -437,6 +440,15 @@ class ReceiptParser(
          * [detectItems] decides what counts as one.
          */
         private val ITEM = Regex("""^(?:([A-Z])\s+)?(?:(\d[\d-]*)\s+)?(.+?)\s+\$?(\d{1,4}[.,]\d{2})(?:\s?[A-Za-z*])?$""")
+
+        /**
+         * A line ending in a negative amount: a dash (hyphen, minus sign, en/em dash) right
+         * before the price (spaces and "$" allowed between), right after it (an optional tax
+         * code may follow), or the price in parentheses.
+         */
+        private val NEGATIVE_AMOUNT = Regex(
+            """(?:[-−–—]\s*\$?\s*\d{1,5}[.,]\d{2}\s?[A-Za-z*]?|\d{1,5}[.,]\d{2}\s*[-−–—]\s?[A-Za-z*]?|\d{1,5}[.,]\d{2}\s?[A-Za-z*]?\s*[-−–—]|\(\s*\$?\s*\d{1,5}[.,]\d{2}\s*\)\s?[A-Za-z*]?)\s*$""",
+        )
 
         /** UPC printed after the name (8+ digits, optional tax code letter) — Walmart style. */
         private val TRAILING_ITEM_NUMBER = Regex("""\s(\d{8,})(?:\s[A-Z])?$""")

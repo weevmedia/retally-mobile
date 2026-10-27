@@ -13,6 +13,8 @@ import com.retally.shared.presentation.receipts.ReceiptsContract
 import com.retally.shared.presentation.scan.ScanReviewContract
 import com.retally.shared.presentation.settings.SettingsContract
 import com.retally.shared.presentation.recalls.RecallsContract
+import com.retally.shared.presentation.notifications.NotificationsContract
+import com.retally.shared.domain.notifications.NotificationInboxRepository
 import com.retally.shared.presentation.shopping.ShoppingListContract
 import com.retally.shared.presentation.splash.SplashContract
 import com.retally.shared.presentation.onboarding.OnboardingContract
@@ -44,6 +46,9 @@ object IosDependencies {
     fun getReceiptsStore(): ReceiptsContract.Store = KoinPlatform.getKoin().get()
     fun getShoppingListStore(): ShoppingListContract.Store = KoinPlatform.getKoin().get()
     fun getRecallsStore(): RecallsContract.Store = KoinPlatform.getKoin().get()
+    fun getNotificationsStore(): NotificationsContract.Store = KoinPlatform.getKoin().get()
+    /** Hosts record every notification they post here so the Home bell can list it for 48h. */
+    fun getNotificationInbox(): NotificationInboxRepository = KoinPlatform.getKoin().get()
     fun getShoppingListRepository(): ShoppingListRepository = KoinPlatform.getKoin().get()
 
     /** Body for the "you're near {store}" notification from the cached AI list; null keeps the generic copy. */

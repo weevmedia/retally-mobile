@@ -1,6 +1,7 @@
 package com.retally.app.ui.scan
 
 import android.app.Activity
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -15,7 +16,10 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import com.retally.app.R
 import com.retally.app.scan.ReceiptTextRecognizer
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import org.koin.android.ext.android.inject
 
 /**
@@ -82,9 +86,13 @@ class MlKitScannerFragment : Fragment() {
             val lines = runCatching { textRecognizer.recognizeLines(listOf(imageUri)) }
                 .getOrDefault(emptyList())
             if (lines.isNotEmpty()) {
+                // The scanner's file lives in its cache and is a file:// URI. Copy it into our
+                // own storage and pass a plain path: the AI fallback, cloud upload and the
+                // receipt image all read it as a file, and the cache copy can vanish later.
+                val imagePath = withContext(Dispatchers.IO) { runCatching { keepScanImage(imageUri) }.getOrNull() }
                 val bundle = Bundle().apply {
                     putString("recognizedText", lines.joinToString("\n"))
-                    putString("imagePath", imageUri.toString())
+                    putString("imagePath", imagePath)
                 }
                 findNavController().navigate(R.id.action_customScanner_to_scanReview, bundle)
             } else {
@@ -92,5 +100,15 @@ class MlKitScannerFragment : Fragment() {
                 findNavController().popBackStack()
             }
         }
+    }
+
+    private fun keepScanImage(uri: Uri): String {
+        val context = requireContext().applicationContext
+        val dir = File(context.filesDir, "receipts").apply { mkdirs() }
+        val target = File(dir, "${System.currentTimeMillis()}.jpg")
+        context.contentResolver.openInputStream(uri)!!.use { input ->
+            target.outputStream().use { output -> input.copyTo(output) }
+        }
+        return target.absolutePath
     }
 }

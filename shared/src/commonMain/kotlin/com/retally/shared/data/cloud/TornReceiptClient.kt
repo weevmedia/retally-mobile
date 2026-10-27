@@ -19,6 +19,8 @@ import kotlinx.serialization.Serializable
 data class TornReceiptItemDto(
     val name: String,
     val price: Double,
+    /** Product code printed on the line (UPC / item number); null when none or an older server. */
+    val itemNumber: String? = null,
     val confidence: Double = 1.0,
 )
 

@@ -1,5 +1,18 @@
 package com.retally.shared.ui.home
 
+import com.retally.shared.domain.budget.BudgetPace
+import com.retally.shared.ui.components.AboveScanFab
+import com.retally.shared.ui.components.BannerGapAboveScanFab
+import com.retally.shared.ui.components.CircleIconButton
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.ShoppingCart
+import androidx.compose.material.icons.automirrored.rounded.TrendingDown
+import androidx.compose.material.icons.automirrored.rounded.TrendingUp
+import com.retally.shared.ui.format.formatMonthYear
 import com.retally.shared.core.strings.StringAssetIdentifiers as S
 import com.retally.shared.core.strings.str
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -21,7 +34,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -64,10 +76,8 @@ import androidx.compose.runtime.collectAsState
 import com.retally.shared.ui.barcode.BarcodeModal
 import com.retally.shared.ui.barcode.BarcodeGlyph
 import com.retally.shared.ui.components.StoreIcon
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Alignment
@@ -78,11 +88,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -94,13 +101,10 @@ import com.retally.shared.ui.components.AdBannerSlot
 import com.retally.shared.ui.components.AdFormat
 import com.retally.shared.ui.components.Pill
 import com.retally.shared.ui.components.SurfaceCard
-import com.retally.shared.ui.components.IconBadge
 import com.retally.shared.ui.components.ReTallySnackbarHost
 import com.retally.shared.ui.format.formatCurrency
-import com.retally.shared.ui.format.formatMonthShort
 import com.retally.shared.ui.format.formatShortDate
 import com.retally.shared.ui.theme.CappedTextScale
-import com.retally.shared.ui.theme.ReTallyDimensions
 import com.retally.shared.ui.theme.ReTallyTheme
 import kotlin.time.Clock
 import kotlinx.coroutines.delay
@@ -112,9 +116,10 @@ fun HomeContract.SideEffect.userMessage(): String? = when (this) {
     HomeContract.SideEffect.LaunchScanner,
     HomeContract.SideEffect.OpenDuplicates,
     HomeContract.SideEffect.OpenBudget,
-    HomeContract.SideEffect.OpenAlerts,
+    HomeContract.SideEffect.OpenNotifications,
     HomeContract.SideEffect.OpenReceipts,
     HomeContract.SideEffect.OpenSignIn,
+    HomeContract.SideEffect.OpenShoppingList,
     is HomeContract.SideEffect.OpenScanReview,
     is HomeContract.SideEffect.OpenReceipt,
     -> null
@@ -141,6 +146,8 @@ fun HomeScreen(
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
     bottomContentInset: Dp = 0.dp,
+    /** Space between the bottom of the content area and the floating banner slot. */
+    floatingBannerBottomOffset: Dp = 10.dp,
 ) {
     val d = ReTallyTheme.dimensions
     // UI-only: which receipt's barcode is being shown full-screen for a store scanner.
@@ -152,9 +159,10 @@ fun HomeScreen(
                 title = { Text(str(S.APP_NAME), style = ReTallyTheme.typography.appTitle, color = ReTallyTheme.colors.ink) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = ReTallyTheme.colors.background),
                 actions = {
-                    // Scanning moved to the tab bar's centre FAB; the bell is the notifications
-                    // entry point (placeholder). Debug builds: long-press adds a sample receipt.
+                    // Scanning moved to the tab bar's centre FAB; the bell opens the 48-hour
+                    // notification inbox. Debug builds: long-press adds a sample receipt.
                     NotificationsAction(
+                        hasNotifications = state.hasNotifications,
                         onClick = { dispatch(HomeContract.Action.NotificationsClicked) },
                         onLongClick = if (showDebugActions) ({ dispatch(HomeContract.Action.AddSampleReceipt) }) else null,
                     )
@@ -188,19 +196,23 @@ fun HomeScreen(
                 onDelete = { dispatch(HomeContract.Action.DeleteRequested(it)) },
                 onDuplicatesClick = { dispatch(HomeContract.Action.DuplicatesClicked) },
                 onSpentClick = { dispatch(HomeContract.Action.BudgetClicked) },
+                onNudgeClick = { dispatch(HomeContract.Action.NudgeClicked(it)) },
                 onHowItWorks = { dispatch(HomeContract.Action.HowItWorksClicked) },
                 onSignIn = { dispatch(HomeContract.Action.SignInClicked) },
                 onSeeAll = { dispatch(HomeContract.Action.SeeAllReceiptsClicked) },
                 adsEnabled = adsEnabled,
                 bannerAdUnitId = bannerAdUnitId,
             )
-            FloatingAdBanner(
-                adUnitId = bannerAdUnitId,
-                enabled = showFloatingStrip,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = padding.calculateBottomPadding() + bottomContentInset + 10.dp),
-            )
+            if (showFloatingStrip) {
+                // Same gap as every other screen; FloatingAdBanner has d.xs of its own vertical
+                // padding, so take it off.
+                AboveScanFab(
+                    fallbackBottom = padding.calculateBottomPadding() + bottomContentInset + floatingBannerBottomOffset,
+                    gap = BannerGapAboveScanFab - d.xs,
+                ) {
+                    FloatingAdBanner(adUnitId = bannerAdUnitId, enabled = true)
+                }
+            }
         }
     }
 
@@ -274,33 +286,28 @@ internal fun InlineRectangleAd(adUnitId: String) {
     }
 }
 
-/** Filled circular scan button in the top bar — the screen's single primary action. */
+/** Bell in the top bar; the dot shows while the inbox holds anything from the last 48 hours. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun NotificationsAction(onClick: () -> Unit, onLongClick: (() -> Unit)?) {
+private fun NotificationsAction(hasNotifications: Boolean, onClick: () -> Unit, onLongClick: (() -> Unit)?) {
     val c = ReTallyTheme.colors
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
-        contentAlignment = Alignment.Center,
-    ) {
+    CircleIconButton(onClick = onClick, onLongClick = onLongClick) {
         Icon(
             Icons.Outlined.Notifications,
             contentDescription = str(S.HOME_NOTIFICATIONS_A11Y),
             tint = c.ink,
-            modifier = Modifier.size(24.dp),
+            modifier = Modifier.size(22.dp),
         )
-        // Unread dot (placeholder until notifications exist).
-        Box(
-            Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 8.dp, end = 8.dp)
-                .size(8.dp)
-                .clip(CircleShape)
-                .background(c.primary),
-        )
+        if (hasNotifications) {
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 8.dp, end = 9.dp)
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(c.primary),
+            )
+        }
     }
 }
 
@@ -314,6 +321,7 @@ internal fun HomeContent(
     onBarcodeClick: (Receipt) -> Unit = {},
     onDuplicatesClick: () -> Unit = {},
     onSpentClick: () -> Unit = {},
+    onNudgeClick: (String) -> Unit = {},
     onHowItWorks: () -> Unit = {},
     onSignIn: () -> Unit = {},
     onSeeAll: () -> Unit = {},
@@ -355,16 +363,23 @@ internal fun HomeContent(
                 item { GuestBanner(onSignIn = onSignIn) }
             }
             item {
+                // The month lives in the header, so the three tiles below can just say what they count.
                 Text(
-                    "Expense Overview",
+                    str(S.HOME_EXPENSE_OVERVIEW, formatMonthYear(Clock.System.now()).substringBefore(' ')),
                     style = ReTallyTheme.typography.sectionHeader,
                     color = ReTallyTheme.colors.ink,
                     modifier = Modifier.padding(top = ReTallyTheme.dimensions.sm),
                 )
             }
-            item { StatTiles(state, onSpentClick = onSpentClick) }
-            item { NudgeCarousel(state.allNudges) }
-            item { SpendingBreakdown(state.spendingByCategory) }
+            item { StatTiles(state, onSpentClick = onSpentClick, onReceiptsClick = onSeeAll) }
+            // Server-built nudges (signed-in only); guests see the sign-in banner instead.
+            if (!state.account.isGuest) {
+                item { NudgeCarousel(state.nudges, onNudgeClick = onNudgeClick) }
+            }
+            // Only when this month has a budget: spent vs budget, coloured by pace (no title line).
+            if (state.budgetFraction != null) {
+                item { BudgetProgressCard(state, onClick = onSpentClick) }
+            }
             item {
                 RecentReceiptsHeader(
                     onSeeAll = onSeeAll,
@@ -404,14 +419,18 @@ internal fun HomeContent(
  * level when one figure wraps.
  */
 @Composable
-private fun StatTiles(state: HomeContract.State, onSpentClick: () -> Unit = {}) {
+private fun StatTiles(
+    state: HomeContract.State,
+    onSpentClick: () -> Unit = {},
+    onReceiptsClick: () -> Unit = {},
+) {
     val d = ReTallyTheme.dimensions
     Row(
         modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
         horizontalArrangement = Arrangement.spacedBy(d.md),
     ) {
         StatTile(
-            label = str(S.HOME_STAT_SPENT, formatMonthShort(Clock.System.now())),
+            label = str(S.HOME_STAT_SPENT),
             value = formatCurrency(state.monthToDateTotal),
             icon = Icons.Rounded.AttachMoney,
             palette = StatPalette(
@@ -425,18 +444,19 @@ private fun StatTiles(state: HomeContract.State, onSpentClick: () -> Unit = {}) 
         )
         StatTile(
             label = str(S.HOME_STAT_RECEIPTS),
-            value = state.receipts.size.toString(),
+            value = state.monthReceiptCount.toString(),
             icon = Icons.Rounded.Receipt,
             palette = StatPalette(
                 top = Color(0xFFC9D6EA),
                 bottom = Color(0xFF9DB6D3),
                 badge = Color(0xFF5B7BA6),
             ),
+            onClick = onReceiptsClick,
             modifier = Modifier.weight(1f),
         )
         StatTile(
             label = str(S.HOME_STAT_DUPLICATES),
-            value = state.duplicatesFoundCount.toString(),
+            value = state.monthDuplicatesCount.toString(),
             icon = Icons.Rounded.Layers,
             palette = StatPalette(
                 top = Color(0xFFF3DCB0),
@@ -450,6 +470,78 @@ private fun StatTiles(state: HomeContract.State, onSpentClick: () -> Unit = {}) 
 
 /** Tinted gradient + badge colors for one stat tile. */
 private data class StatPalette(val top: Color, val bottom: Color, val badge: Color)
+
+/**
+ * This month's budget on Home: what it tracks ("Grocery only" / "All spending", no "Budget ·"
+ * prefix) and "$412.50 of $600.00", then a bar coloured by
+ * pace (green on track, amber heading over, red over) and what's left. Shown only when a budget
+ * is set for the current month; tapping opens the Budget screen.
+ */
+@Composable
+private fun BudgetProgressCard(state: HomeContract.State, onClick: () -> Unit) {
+    val budget = state.budgetAmount ?: return
+    val fraction = state.budgetFraction ?: return
+    val d = ReTallyTheme.dimensions
+    val c = ReTallyTheme.colors
+    val barColor = when (state.budgetStatus) {
+        BudgetPace.OVER -> c.danger
+        BudgetPace.WARNING -> c.warning
+        else -> c.primary
+    }
+    val spent = state.budgetSpent
+    SurfaceCard(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(d.lg)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // What the budget tracks ("Grocery" / "All spending") — no "Budget ·" prefix.
+                Text(
+                    str(if (state.budgetScope.allSpending) S.BUDGET_TRACK_ALL else S.HOME_BUDGET_SCOPE_GROCERY),
+                    style = ReTallyTheme.typography.body.copy(fontWeight = FontWeight.SemiBold),
+                    color = c.ink,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(Modifier.width(d.sm))
+                // Shrinks to fit so large amounts never wrap or clip.
+                BasicText(
+                    str(S.HOME_BUDGET_SPENT_OF, formatCurrency(spent), formatCurrency(budget)),
+                    style = ReTallyTheme.typography.body.copy(color = c.ink, fontWeight = FontWeight.Bold, textAlign = TextAlign.End),
+                    maxLines = 1,
+                    autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 17.sp, stepSize = 0.5.sp),
+                    modifier = Modifier.weight(1.3f),
+                )
+                Icon(
+                    Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = c.muted,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Spacer(Modifier.height(d.sm))
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(barColor.copy(alpha = 0.18f)),
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxWidth(fraction)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(50))
+                        .background(barColor),
+                )
+            }
+            Spacer(Modifier.height(d.sm))
+            Text(
+                if (spent <= budget) str(S.HOME_BUDGET_LEFT, formatCurrency(budget - spent))
+                else str(S.HOME_BUDGET_OVER, formatCurrency(spent - budget)),
+                style = ReTallyTheme.typography.caption,
+                color = if (spent > budget) c.danger else c.muted,
+            )
+        }
+    }
+}
 
 @Composable
 private fun StatTile(
@@ -490,7 +582,13 @@ private fun StatTile(
         )
         Spacer(Modifier.height(d.xs))
         CappedTextScale {
-            Text(value, style = ReTallyTheme.typography.price, color = c.ink, maxLines = 1, fontWeight = FontWeight.Bold)
+            // Shrinks as the number grows ($84.10 → $12,480.55) so the full value always fits.
+            BasicText(
+                value,
+                style = ReTallyTheme.typography.price.copy(color = c.ink, fontWeight = FontWeight.Bold, fontSize = 22.sp),
+                maxLines = 1,
+                autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 22.sp, stepSize = 0.5.sp),
+            )
         }
         // Tap hint (e.g. Spent tile → budget screen).
         if (hint != null) {
@@ -500,14 +598,14 @@ private fun StatTile(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                // Full hint text (wraps to a second line if needed); the arrow sits at the far right.
                 Text(
                     hint,
-                    style = ReTallyTheme.typography.caption.copy(fontSize = 10.sp),
+                    style = ReTallyTheme.typography.caption.copy(fontSize = 10.sp, lineHeight = 12.sp),
                     color = c.ink.copy(alpha = 0.7f),
-                    maxLines = 1,
+                    maxLines = 2,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f),
-                    overflow = TextOverflow.Ellipsis,
                 )
                 Icon(
                     Icons.AutoMirrored.Rounded.KeyboardArrowRight,
@@ -515,59 +613,6 @@ private fun StatTile(
                     tint = c.ink.copy(alpha = 0.7f),
                     modifier = Modifier.size(14.dp),
                 )
-            }
-        }
-    }
-}
-
-/**
- * This month's item spend grouped by the server-pushed categories: one labeled
- * row per category with a proportional bar. Hidden when nothing is categorized
- * yet (or there are no receipts).
- */
-@Composable
-private fun SpendingBreakdown(spending: List<HomeContract.CategorySpend>) {
-    if (spending.isEmpty()) return
-    val d = ReTallyTheme.dimensions
-    val c = ReTallyTheme.colors
-    val max = spending.maxOf { it.total }.coerceAtLeast(1.0)
-    SurfaceCard(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(d.cardPadding),
-            verticalArrangement = Arrangement.spacedBy(d.sm),
-        ) {
-            Text(str(S.HOME_SPENDING_TITLE), style = ReTallyTheme.typography.title, color = c.ink)
-            spending.forEach { row ->
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            row.category.name,
-                            style = ReTallyTheme.typography.body,
-                            color = c.ink,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text(
-                            formatCurrency(row.total),
-                            style = ReTallyTheme.typography.amount,
-                            color = c.ink,
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(c.muted.copy(alpha = 0.18f)),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth((row.total / max).toFloat().coerceIn(0f, 1f))
-                                .height(6.dp)
-                                .clip(RoundedCornerShape(3.dp))
-                                .background(c.primary),
-                        )
-                    }
-                }
             }
         }
     }
@@ -656,32 +701,35 @@ private fun SummaryCard(state: HomeContract.State) {
 }
 
 /**
- * AI nudge card: one nudge from the on-device engine, each type with its own icon.
- * Until history is thick enough for any nudge, a "still learning" placeholder holds the slot.
+ * One nudge card: kind icon, bold title with — when the server sent one — the key figure
+ * in a pill right after it ("$1.80 less", "+22%"), then the detail at full width. Tappable (with a chevron)
+ * when the nudge points somewhere. With no nudges yet, a "still learning" placeholder holds
+ * the slot.
  */
 @Composable
-private fun NudgeCard(nudge: Nudge?, readStore: NudgeReadStore, modifier: Modifier = Modifier) {
+private fun NudgeCard(
+    nudge: Nudge?,
+    readStore: NudgeReadStore,
+    onClick: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val d = ReTallyTheme.dimensions
     val c = ReTallyTheme.colors
     val readIds by readStore.readIds.collectAsState()
     val isUnread = nudge != null && nudge.id !in readIds
+    val tappable = nudge?.action != null
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(d.cardRadius))
             .background(c.primaryTint)
+            .then(if (tappable && nudge != null) Modifier.clickable { onClick(nudge.id) } else Modifier)
             .padding(d.lg),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
-                when (nudge) {
-                    is Nudge.PriceSpike -> Icons.Rounded.AttachMoney
-                    is Nudge.GroceryRunOverdue -> Icons.Rounded.Receipt
-                    is Nudge.DoubleBought -> Icons.Rounded.Layers
-                    is Nudge.SavingsRecap -> Icons.Rounded.CheckCircle
-                    is Nudge.RunningLow, null -> Icons.Rounded.AutoAwesome
-                },
+                nudgeIcon(nudge?.kind),
                 contentDescription = null,
                 tint = c.primaryDark,
                 modifier = Modifier.size(32.dp),
@@ -692,22 +740,63 @@ private fun NudgeCard(nudge: Nudge?, readStore: NudgeReadStore, modifier: Modifi
             }
         }
         Spacer(Modifier.width(d.md))
-        Text(
-            if (nudge != null) {
-                buildAnnotatedString {
-                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                        append(nudgeTitle(nudge))
-                    }
-                    append("\n")
-                    append(nudgeBody(nudge))
-                }
+        Column(Modifier.weight(1f)) {
+            if (nudge == null) {
+                Text(str(S.HOME_AI_INSIGHT_LEARNING), style = ReTallyTheme.typography.body, color = c.ink)
             } else {
-                AnnotatedString(str(S.HOME_AI_INSIGHT_LEARNING))
-            },
-            style = ReTallyTheme.typography.body,
-            color = c.ink,
-        )
+                // Title with the key figure pill at its end, so the body below gets the card's
+                // full width.
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        nudge.title,
+                        style = ReTallyTheme.typography.body.copy(fontWeight = FontWeight.Bold),
+                        color = c.ink,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    nudge.highlight?.takeIf { it.isNotBlank() }?.let { figure ->
+                        Spacer(Modifier.width(d.sm))
+                        Text(
+                            figure,
+                            style = ReTallyTheme.typography.caption.copy(fontWeight = FontWeight.Bold),
+                            color = c.onPrimary,
+                            maxLines = 1,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(c.primaryDark)
+                                .padding(horizontal = 10.dp, vertical = 4.dp),
+                        )
+                    }
+                }
+                Spacer(Modifier.height(2.dp))
+                // No line limits: title and body always show in full.
+                Text(
+                    nudge.body,
+                    style = ReTallyTheme.typography.secondaryBody,
+                    color = c.ink.copy(alpha = 0.8f),
+                )
+            }
+        }
+        if (tappable) {
+            Spacer(Modifier.width(d.xs))
+            Icon(
+                Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+                tint = c.primaryDark,
+                modifier = Modifier.size(20.dp),
+            )
+        }
     }
+}
+
+/** Icon per nudge kind; unknown kinds from a newer server get the sparkle. */
+private fun nudgeIcon(kind: String?): ImageVector = when (kind) {
+    "cheaper_elsewhere" -> Icons.Rounded.AttachMoney
+    "price_creep" -> Icons.AutoMirrored.Rounded.TrendingUp
+    "running_low" -> Icons.Rounded.ShoppingCart
+    "double_charge" -> Icons.Rounded.Layers
+    "spending_pace" -> Icons.Rounded.Speed
+    "price_drop" -> Icons.AutoMirrored.Rounded.TrendingDown
+    else -> Icons.Rounded.AutoAwesome
 }
 
 /**
@@ -722,6 +811,7 @@ private fun NudgeCard(nudge: Nudge?, readStore: NudgeReadStore, modifier: Modifi
 @Composable
 private fun NudgeCarousel(
     nudges: List<Nudge>,
+    onNudgeClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     readStore: NudgeReadStore = koinInject(),
 ) {
@@ -733,7 +823,7 @@ private fun NudgeCarousel(
         }
     }
     if (nudges.size <= 1) {
-        NudgeCard(nudges.firstOrNull(), readStore, modifier)
+        NudgeCard(nudges.firstOrNull(), readStore, onNudgeClick, modifier)
         return
     }
     val count = nudges.size
@@ -747,7 +837,7 @@ private fun NudgeCarousel(
             state = pagerState,
             modifier = Modifier.fillMaxWidth(),
         ) { page ->
-            NudgeCard(nudges[page % count], readStore)
+            NudgeCard(nudges[page % count], readStore, onNudgeClick)
         }
         Spacer(Modifier.height(d.sm))
         BreadcrumbDots(count = count, current = pagerState.currentPage % count)
@@ -812,29 +902,6 @@ private fun BreadcrumbDots(count: Int, current: Int, modifier: Modifier = Modifi
     }
 }
 
-@Composable
-private fun nudgeTitle(nudge: Nudge): String = when (nudge) {
-    is Nudge.RunningLow -> str(S.HOME_NUDGE_RUNNING_LOW_TITLE)
-    is Nudge.PriceSpike -> str(S.HOME_NUDGE_PRICE_SPIKE_TITLE)
-    is Nudge.GroceryRunOverdue -> str(S.HOME_NUDGE_GROCERY_OVERDUE_TITLE)
-    is Nudge.DoubleBought -> str(S.HOME_NUDGE_DOUBLE_BOUGHT_TITLE)
-    is Nudge.SavingsRecap -> str(S.HOME_NUDGE_SAVINGS_TITLE)
-}
-
-@Composable
-private fun nudgeBody(nudge: Nudge): String = when (nudge) {
-    is Nudge.RunningLow ->
-        str(S.HOME_NUDGE_RUNNING_LOW_BODY, nudge.itemName, nudge.intervalDays)
-    is Nudge.PriceSpike ->
-        str(S.HOME_NUDGE_PRICE_SPIKE_BODY, nudge.itemName, formatCurrency(nudge.lastPrice), formatCurrency(nudge.usualPrice))
-    is Nudge.GroceryRunOverdue ->
-        str(S.HOME_NUDGE_GROCERY_OVERDUE_BODY, nudge.daysSinceLastTrip, nudge.usualIntervalDays)
-    is Nudge.DoubleBought ->
-        str(S.HOME_NUDGE_DOUBLE_BOUGHT_BODY, nudge.itemName, nudge.receiptCount)
-    is Nudge.SavingsRecap ->
-        str(S.HOME_NUDGE_SAVINGS_BODY, formatCurrency(nudge.monthToDate), formatCurrency(nudge.usualMonthly))
-}
-
 /** Swipe left to reveal a red delete surface; the host confirms before removing. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -881,7 +948,6 @@ internal fun ReceiptRow(receipt: Receipt, onClick: () -> Unit, onBarcodeClick: (
                     val meta = buildString {
                         append(formatShortDate(receipt.purchaseDate))
                         receipt.total?.let { append(" · ${formatCurrency(it)}") }
-                        append(" · ${receipt.items.size} item${if (receipt.items.size == 1) "" else "s"}")
                     }
                     Text(
                         meta,

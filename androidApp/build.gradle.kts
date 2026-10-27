@@ -11,6 +11,8 @@ plugins {
     id("androidx.navigation.safeargs.kotlin")
     // Reads androidApp/google-services.json (Firebase console → Project settings → Your apps).
     id("com.google.gms.google-services")
+    // Uploads the R8 mapping file on release builds so Crashlytics stack traces are readable.
+    id("com.google.firebase.crashlytics")
 }
 
 /**
@@ -54,6 +56,10 @@ android {
         // The real id is fine in every build type: which *ad units* a build requests decides
         // whether real or test creatives are served (see HOME_BANNER_UNIT_ID below).
         manifestPlaceholders["admobAppId"] = AdMob.androidAppId
+
+        // OpenCV ships native code for every CPU type; keep phones (64/32-bit ARM) and the
+        // x86_64 emulator only. Play still splits the download per phone.
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
 
         // Backend for cloud backup. Empty = feature stays in placeholder mode.
         buildConfigField("String", "CLOUD_BASE_URL", "\"\"")
@@ -141,13 +147,20 @@ dependencies {
     implementation(Deps.Compose.Multiplatform.lifecycleRuntimeCompose)
 
     implementation(Deps.Koin.android)
+    implementation(Deps.Firebase.crashlytics)
     implementation(Deps.Android.playServicesAds)
+    // Unity Ads mediation adapter (AdMob bidding for banners) — pulls in the Unity Ads SDK.
+    implementation("com.google.ads.mediation:unity:4.21.0.0")
     implementation(Deps.Android.playServicesLocation)
     implementation(Deps.Android.userMessagingPlatform)
 
     // Receipt scanning (ML Kit document scanner UI + on-device text recognition).
     implementation(Deps.Android.mlkitDocumentScanner)
     implementation(Deps.Android.mlkitTextRecognition)
+    // Sign in with Google.
+    implementation(Deps.Android.credentials)
+    implementation(Deps.Android.credentialsPlayServices)
+    implementation(Deps.Android.googleId)
     implementation(Deps.Kotlinx.coroutinesPlayServices)
     // Custom scanner UI: CameraX live preview (replaces the ML Kit scanner UI).
     implementation(Deps.Android.cameraXCore)
@@ -155,6 +168,8 @@ dependencies {
     implementation(Deps.Android.cameraXLifecycle)
     implementation(Deps.Android.cameraXView)
     implementation(Deps.Android.guava)
+    // Finds the receipt in the photo and straightens it (ReceiptDocumentDetector).
+    implementation(Deps.Android.openCv)
     // Material icons for the scanner UI (close, flash, gallery buttons).
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
 }

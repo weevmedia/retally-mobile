@@ -14,15 +14,21 @@ struct RootView: View {
             }
             if viewModel.showOnboarding {
                 OnboardingView(onFinished: viewModel.onboardingFinished)
-                    .transition(.opacity)
+                    // Fades in after the splash; "Get Started" pushes it off to the left.
+                    .transition(.asymmetric(insertion: .opacity, removal: .move(edge: .leading)))
             }
             if viewModel.showAuth {
-                AuthView(onFinished: viewModel.authFinished, onEmailContinue: viewModel.authEmailContinue, onBack: viewModel.authBack)
-                    .transition(.opacity)
+                AuthView(showGuestOption: !viewModel.authFromSettings, onFinished: viewModel.authFinished, onEmailContinue: viewModel.authEmailContinue, onBack: viewModel.authBack)
+                    // Slides in from the right (after "Get Started", or Log in from the app);
+                    // fades away once signed in.
+                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .opacity))
+                    .zIndex(1)
             }
             if viewModel.showOtp {
                 OtpView(email: viewModel.otpEmail, displayName: viewModel.otpDisplayName, isNewUser: viewModel.otpIsNewUser, accountFirstName: viewModel.otpAccountFirstName, codeAlreadySent: viewModel.otpCodeAlreadySent, onFinished: viewModel.otpFinished, onBack: viewModel.otpBack)
                     .transition(.opacity)
+                    // Above the sign-in screen (which has zIndex 1 for its slide-in).
+                    .zIndex(2)
             }
         }
         .animation(.easeInOut(duration: 0.25), value: viewModel.adsReady == nil)

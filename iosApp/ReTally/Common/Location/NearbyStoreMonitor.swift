@@ -35,7 +35,11 @@ final class NearbyStoreMonitor: NSObject, CLLocationManagerDelegate {
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        guard let completion = permissionCompletion else { return }
+        // Changed in Settings (not from our prompt): re-sync, which stops monitoring if it was turned off.
+        guard let completion = permissionCompletion else {
+            refresh()
+            return
+        }
         switch manager.authorizationStatus {
         case .authorizedAlways:
             permissionCompletion = nil
@@ -62,7 +66,10 @@ final class NearbyStoreMonitor: NSObject, CLLocationManagerDelegate {
             return
         }
         let status = manager.authorizationStatus
-        guard status == .authorizedAlways || status == .authorizedWhenInUse else { return }
+        guard status == .authorizedAlways || status == .authorizedWhenInUse else {
+            stopAll() // permission turned off in Settings: drop the regions too
+            return
+        }
         repo.refreshLocations { [weak self] _ in
             guard let self else { return }
             let locations = (repo.locations.value as? [StoreLocation]) ?? []
@@ -98,6 +105,12 @@ final class NearbyStoreMonitor: NSObject, CLLocationManagerDelegate {
 
     func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
         let repo = IosDependencies.shared.getStoreLocationRepository()
+        // Toggle off or location permission gone: never notify, and stop monitoring.
+        let status = manager.authorizationStatus
+        guard repo.isEnabled, status == .authorizedAlways || status == .authorizedWhenInUse else {
+            stopAll()
+            return
+        }
         let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
         // 24h per-store cooldown lives in the shared repository.
         if repo.shouldNotifyAndMark(locationId: region.identifier, nowEpochMillis: nowMs) {
@@ -139,5 +152,11 @@ final class NearbyStoreMonitor: NSObject, CLLocationManagerDelegate {
             trigger: nil, // deliver immediately
         )
         center.add(request)
+        // Keep it in the Home bell for 48 hours (or until dismissed).
+        IosDependencies.shared.getNotificationInbox().recordNearbyStore(
+            storeName: storeName,
+            title: content.title,
+            body: content.body
+        )
     }
 }

@@ -16,6 +16,37 @@ enum ReceiptTextRecognizer {
         }
     }
 
+    private static let warmUpLock = NSLock()
+    private static var warmedUp = false
+
+    /// Loads Vision's text-recognition models ahead of the first real scan. The very first
+    /// `.accurate` request after install or reboot spends several seconds loading models,
+    /// which otherwise lands on the user's first scan. Runs once, in the background.
+    static func prewarm() {
+        warmUpLock.lock()
+        defer { warmUpLock.unlock() }
+        guard !warmedUp else { return }
+        warmedUp = true
+        DispatchQueue.global(qos: .utility).async {
+            let size = CGSize(width: 360, height: 80)
+            let image = UIGraphicsImageRenderer(size: size).image { ctx in
+                UIColor.white.setFill()
+                ctx.fill(CGRect(origin: .zero, size: size))
+                ("MILK 2% GAL   3.49" as NSString).draw(
+                    at: CGPoint(x: 12, y: 24),
+                    withAttributes: [.font: UIFont.monospacedSystemFont(ofSize: 22, weight: .regular),
+                                     .foregroundColor: UIColor.black],
+                )
+            }
+            guard let cgImage = image.cgImage else { return }
+            let request = VNRecognizeTextRequest()
+            request.recognitionLevel = .accurate
+            request.usesLanguageCorrection = true
+            request.recognitionLanguages = ["en-US"]
+            try? VNImageRequestHandler(cgImage: cgImage, options: [:]).perform([request])
+        }
+    }
+
     static func recognizeLines(in image: UIImage) async throws -> [String] {
         // Downscale for OCR: Vision's text accuracy plateaus around 200-300 DPI for
         // printed text — a 12MP image just takes 4x longer with no accuracy gain.

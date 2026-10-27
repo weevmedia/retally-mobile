@@ -13,7 +13,7 @@ final class HomeViewModel: ObservableObject {
     @Published var isReviewPresented = false
     @Published var isDuplicatesPresented = false
     @Published var isBudgetPresented = false
-    @Published var isAlertsPresented = false
+    @Published var isNotificationsPresented = false
     private(set) var reviewSource: ScanReviewViewModel.Source = .scan(lines: [], imagePath: nil)
     /// Finished-scan payload waiting for the camera cover to finish dismissing.
     /// Dispatching `TextRecognized` (which pushes the review) while the dismissal
@@ -61,13 +61,17 @@ final class HomeViewModel: ObservableObject {
             isDuplicatesPresented = true
         case is HomeContractSideEffect.OpenBudget:
             isBudgetPresented = true
-        case is HomeContractSideEffect.OpenAlerts:
-            isAlertsPresented = true
+        case is HomeContractSideEffect.OpenNotifications:
+            isNotificationsPresented = true
         case is HomeContractSideEffect.OpenReceipts:
             // Home lists only the newest few; "See all" hands over to the Receipts tab.
             IosDependencies.shared.getMainStore().dispatch(action: MainContractAction.SelectTab(tab: .receipts))
+        case is HomeContractSideEffect.OpenShoppingList:
+            // A nudge pointing at a store's Smart List (the store is already queued).
+            IosDependencies.shared.getMainStore().dispatch(action: MainContractAction.SelectTab(tab: .aiList))
         case is HomeContractSideEffect.OpenSignIn:
-            break // TODO(sign-in): present the account-linking flow
+            // Guest banner: reopen the sign-in overlay, as More › Log in and the Smart List do.
+            NotificationCenter.default.post(name: .retallyShowAuth, object: nil)
         case let message as HomeContractSideEffect.ShowMessage:
             screen.showMessage(message: message.message)
         default:
@@ -119,7 +123,7 @@ final class HomeViewModel: ObservableObject {
         isBudgetPresented = false
     }
 
-    func alertsFinished() {
-        isAlertsPresented = false
+    func notificationsFinished() {
+        isNotificationsPresented = false
     }
 }

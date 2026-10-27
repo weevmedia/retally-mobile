@@ -38,4 +38,10 @@ interface RecallsRepository {
     val recalls: StateFlow<List<Recall>>
     /** [refresh] asks the server to re-check FDA/USDA now instead of serving stored recalls. */
     suspend fun load(refresh: Boolean = false): RecallsLoadResult
+
+    /**
+     * Drops the cached list. It carries "you bought X" matches built from the shopper's
+     * purchases, so it goes on sign-out, account deletion and delete-all-receipts.
+     */
+    fun clearCache()
 }

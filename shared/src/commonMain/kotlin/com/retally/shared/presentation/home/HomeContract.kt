@@ -1,5 +1,13 @@
 package com.retally.shared.presentation.home
 
+import com.retally.shared.domain.budget.BudgetScope
+import com.retally.shared.domain.shopping.ShoppingListRepository
+import com.retally.shared.domain.ai.NudgeRepository
+import com.retally.shared.domain.budget.daysInMonth
+import com.retally.shared.domain.budget.budgetMonthKey
+import com.retally.shared.domain.budget.budgetPace
+import com.retally.shared.domain.budget.BudgetPace
+import com.retally.shared.domain.budget.BudgetRepository
 import com.retally.shared.core.strings.EnglishStringResolver
 import com.retally.shared.core.strings.StringAssetIdentifiers
 import com.retally.shared.core.strings.StringResolver
@@ -9,12 +17,12 @@ import com.retally.shared.data.category.CategoryRepository
 import com.retally.shared.domain.auth.Account
 import com.retally.shared.domain.auth.AuthRepository
 import com.retally.shared.domain.cloud.ReceiptRestore
+import com.retally.shared.domain.notifications.NotificationInboxRepository
 import com.retally.shared.domain.category.ItemCategory
 import com.retally.shared.domain.receipt.CrossReceiptDuplicate
 import com.retally.shared.domain.receipt.CrossReceiptDuplicateFinder
 import com.retally.shared.domain.receipt.ReceiptRepository
 import com.retally.shared.domain.ai.Nudge
-import com.retally.shared.domain.ai.NudgeEngine
 import com.retally.shared.presentation.main.ScanRequests
 import com.retally.shared.domain.receipt.SampleReceipts
 import com.retally.shared.domain.receipt.model.Receipt
@@ -50,7 +58,55 @@ interface HomeContract {
         val categories: List<ItemCategory> = emptyList(),
         /** Downloading the account's receipts after sign-in / reinstall. */
         val isRestoring: Boolean = false,
+        /** Notifications raised in the last 48h and not dismissed — drives the bell's dot. */
+        val notificationCount: Int = 0,
+        /** This month's budget; null when none is set (the Home budget bar stays hidden). */
+        val budgetAmount: Double? = null,
+        /** What this month's budget tracks (all spending or chosen categories). */
+        val budgetScope: BudgetScope = BudgetScope.Default,
+        /**
+         * Server-built nudges for signed-in shoppers, highest priority first — the Home
+         * carousel. Empty means still learning (or a guest, who sees the sign-in banner).
+         */
+        val nudges: List<Nudge> = emptyList(),
     ) : com.retally.shared.core.State {
+        // ── This calendar month only (device zone): the tiles reset on the 1st. ──
+
+        private fun isThisMonth(instant: kotlin.time.Instant): Boolean {
+            val zone = TimeZone.currentSystemDefault()
+            val now = Clock.System.now().toLocalDateTime(zone).date
+            val d = instant.toLocalDateTime(zone).date
+            return d.year == now.year && d.month == now.month
+        }
+
+        /** Receipts purchased this month — the "Receipts" tile. */
+        val monthReceiptCount: Int get() = receipts.count { isThisMonth(it.purchaseDate) }
+
+        /**
+         * Duplicates this month — the "Duplicates" tile: double charges on this month's
+         * receipts, plus repeat purchases with a purchase this month.
+         */
+        val monthDuplicatesCount: Int
+            get() = receipts.filter { isThisMonth(it.purchaseDate) }.sumOf { it.duplicates.size } +
+                crossReceiptDuplicates.count { dup -> dup.occurrences.any { isThisMonth(it.purchaseDate) } }
+
+        /** 0..1 of this month's budget spent; null without a budget. */
+        val budgetFraction: Float?
+            get() {
+                val budget = budgetAmount?.takeIf { it > 0 } ?: return null
+                return (budgetSpent / budget).toFloat().coerceIn(0f, 1f)
+            }
+
+        /** On track / warning / over for the Home budget bar; null without a budget. */
+        val budgetStatus: BudgetPace?
+            get() {
+                val budget = budgetAmount?.takeIf { it > 0 } ?: return null
+                val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+                return budgetPace(budgetSpent, budget, today.day, daysInMonth(today))
+            }
+
+        val hasNotifications: Boolean get() = notificationCount > 0
+
         val totalOvercharge: Double get() = receipts.sumOf { it.overchargeAmount }
 
         /**
@@ -71,21 +127,16 @@ interface HomeContract {
                     .sumOf { it.total ?: 0.0 }
             }
 
+        /** This month's spending counted the budget's way ([budgetScope]) — the Home budget bar. */
+        val budgetSpent: Double
+            get() = budgetScope.spentIn(receipts.filter { isThisMonth(it.purchaseDate) })
+
         /** Newest first; the Home card shows the first [RECENT_RECEIPT_COUNT]. */
         val recentReceipts: List<Receipt> get() = receipts.sortedByDescending { it.purchaseDate }
         /** In-receipt double charges, not yet resolved. */
         val duplicateCount: Int get() = receipts.sumOf { it.duplicates.size }
         /** "Duplicates" tile counter on Home: in-receipt flags plus cross-receipt repeats. */
         val duplicatesFoundCount: Int get() = duplicateCount + crossReceiptDuplicates.size
-        /** Top AI nudge for the Home card, ranked by the on-device nudge engine; null while history is too thin. */
-        val topNudge: Nudge?
-            get() = NudgeEngine.topNudge(receipts)
-        /**
-         * Every nudge firing right now, highest priority first.
-         * The Home carousel pages through these; empty means still learning.
-         */
-        val allNudges: List<Nudge>
-            get() = NudgeEngine.allNudges(receipts)
         val isEmpty: Boolean get() = !isLoading && receipts.isEmpty()
 
         /**
@@ -141,10 +192,12 @@ interface HomeContract {
         data object SeeAllReceiptsClicked : Action()
         /** "See how it works" link on the empty state. */
         data object HowItWorksClicked : Action()
-        /** Bell in the top bar (notifications are not built yet). */
+        /** Bell in the top bar → the 48-hour notification inbox. */
         data object NotificationsClicked : Action()
         /** "Sign in to enable cloud sync" on the guest banner. */
         data object SignInClicked : Action()
+        /** A nudge card was tapped: open what it points at (Smart List, receipt or budget). */
+        data class NudgeClicked(val id: String) : Action()
     }
 
     sealed class SideEffect : Effect {
@@ -157,12 +210,14 @@ interface HomeContract {
         data object OpenDuplicates : SideEffect()
         /** Host: navigate to the monthly budget screen. */
         data object OpenBudget : SideEffect()
-        /** Bell: food recall alerts. */
-        data object OpenAlerts : SideEffect()
+        /** Bell: notifications the app raised in the last 48 hours. (Food recalls live under More.) */
+        data object OpenNotifications : SideEffect()
         /** Host: select the Receipts tab (Home only lists the newest few). */
         data object OpenReceipts : SideEffect()
         /** Host: present the sign-in / account-linking flow. */
         data object OpenSignIn : SideEffect()
+        /** Host: switch to the Smart List tab (the store is already queued on the repository). */
+        data object OpenShoppingList : SideEffect()
     }
 
     class Store(
@@ -172,13 +227,24 @@ interface HomeContract {
         authRepository: AuthRepository? = null,
         private val strings: StringResolver = EnglishStringResolver,
         restore: ReceiptRestore? = null,
+        private val inbox: NotificationInboxRepository? = null,
+        private val budgets: BudgetRepository? = null,
+        private val nudgeRepository: NudgeRepository? = null,
+        private val shoppingLists: ShoppingListRepository? = null,
     ) : com.retally.shared.core.Store<State, Action, SideEffect>() {
 
         override fun initState() = State()
 
         init {
             authRepository?.observeAccount()
-                ?.onEach { account -> updateStateSafely { it.copy(account = account) } }
+                ?.onEach { account ->
+                    updateStateSafely { it.copy(account = account) }
+                    // Signed-in: fetch nudges (throttled in the repository); guests get none.
+                    nudgeRepository?.let { repo -> launch { repo.refresh() } }
+                }
+                ?.launchIn(this)
+            nudgeRepository?.nudges
+                ?.onEach { list -> updateStateSafely { it.copy(nudges = list) } }
                 ?.launchIn(this)
             repository.observeReceipts()
                 .onEach { receipts ->
@@ -199,6 +265,21 @@ interface HomeContract {
                             sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.HOME_MSG_RESTORED, n)))
                         }
                     }
+                    .launchIn(this)
+            }
+            budgets?.let { repo ->
+                val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+                repo.observeBudget(budgetMonthKey(today))
+                    .onEach { amount -> updateStateSafely { it.copy(budgetAmount = amount) } }
+                    .launchIn(this)
+                repo.observeScope(budgetMonthKey(today))
+                    .onEach { scope -> updateStateSafely { it.copy(budgetScope = scope) } }
+                    .launchIn(this)
+            }
+            inbox?.let { box ->
+                box.prune() // drop anything that expired while the app was closed
+                box.notifications
+                    .onEach { list -> updateStateSafely { it.copy(notificationCount = list.size) } }
                     .launchIn(this)
             }
             // The shell's scan FAB routes here so the scanner flow stays owned by Home.
@@ -231,13 +312,31 @@ interface HomeContract {
                 Action.HowItWorksClicked -> sideEffect(
                     SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.HOME_MSG_HOW_IT_WORKS)),
                 )
-                Action.NotificationsClicked -> sideEffect(SideEffect.OpenAlerts)
+                Action.NotificationsClicked -> sideEffect(SideEffect.OpenNotifications)
                 // Sign-in / account linking is not built yet: say so instead of routing to the host.
-                Action.SignInClicked -> sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.HOME_MSG_SIGN_IN_SOON)))
+                // Guest banner "Sign in to enable cloud sync": open the same sign-in flow as More › Log in.
+                Action.SignInClicked -> sideEffect(SideEffect.OpenSignIn)
+                is Action.NudgeClicked -> openNudge(action.id)
                 Action.AddSampleReceipt -> launch {
                     repository.upsert(SampleReceipts.make(idFactory = { newId() }))
                     sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.HOME_MSG_SAMPLE_ADDED)))
                 }
+            }
+        }
+
+        private fun openNudge(id: String) {
+            val action = currentState.nudges.firstOrNull { it.id == id }?.action ?: return
+            when (action.type) {
+                "shopping_list" -> {
+                    shoppingLists?.pendingStoreName = action.storeName
+                    sideEffect(SideEffect.OpenShoppingList)
+                }
+                "receipt" -> action.receiptId?.let { rid ->
+                    // Only if the receipt is on this device (it may be one deleted locally).
+                    if (currentState.receipts.any { it.id == rid }) sideEffect(SideEffect.OpenReceipt(rid))
+                }
+                "budget" -> sideEffect(SideEffect.OpenBudget)
+                else -> Unit // a kind of action this app version doesn't know yet
             }
         }
 

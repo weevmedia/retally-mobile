@@ -1,5 +1,11 @@
 package com.retally.shared.di
 
+import com.retally.shared.core.crash.CrashContext
+import com.retally.shared.data.category.HttpItemCategoryClassifier
+import com.retally.shared.data.device.DeviceRegistrar
+import com.retally.shared.domain.category.ItemCategoryClassifier
+import com.retally.shared.data.ai.HttpNudgeRepository
+import com.retally.shared.domain.ai.NudgeRepository
 import com.retally.shared.core.Platform
 import com.retally.shared.core.strings.StringResolver
 import com.retally.shared.data.cloud.KtorCloudSyncService
@@ -36,6 +42,7 @@ import com.retally.shared.domain.location.StoreLocationRepository
 import com.retally.shared.domain.preferences.AppPreferences
 import com.retally.shared.domain.receipt.ReceiptRepository
 import com.retally.shared.domain.recalls.RecallsRepository
+import com.retally.shared.domain.notifications.NotificationInboxRepository
 import com.retally.shared.domain.shopping.ShoppingListRepository
 import com.retally.shared.presentation.auth.AuthContract
 import com.retally.shared.presentation.auth.OtpContract
@@ -47,6 +54,7 @@ import com.retally.shared.presentation.receipts.ReceiptsContract
 import com.retally.shared.presentation.scan.ScanReviewContract
 import com.retally.shared.presentation.settings.SettingsContract
 import com.retally.shared.presentation.recalls.RecallsContract
+import com.retally.shared.presentation.notifications.NotificationsContract
 import com.retally.shared.presentation.shopping.ShoppingListContract
 import com.retally.shared.presentation.splash.SplashContract
 import com.retally.shared.presentation.onboarding.OnboardingContract
@@ -60,6 +68,7 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import org.koin.core.KoinApplication
 import org.koin.core.context.startKoin
+import com.retally.shared.ui.image.installImageLoader
 import org.koin.core.module.Module
 import org.koin.dsl.KoinAppDeclaration
 import org.koin.dsl.bind
@@ -86,6 +95,8 @@ fun initKoin(
     extraModules: List<Module> = emptyList(),
     appDeclaration: KoinAppDeclaration = {},
 ): KoinApplication = startKoin {
+    // Coil's disk cache for store logos (looked up per store, cached on first display).
+    installImageLoader()
     appDeclaration()
     modules(
         platformModule(dependencies),
@@ -131,6 +142,10 @@ val dataModule = module {
     }
     single<AppPreferences> { SettingsAppPreferences(settings = get(), json = get()) }
     single { NudgeReadStore(settings = get()) }
+    single { CrashContext(auth = get(), preferences = get(), platform = get()) }
+    single { DeviceRegistrar(http = get(), auth = get(), platform = get(), preferences = get(), settings = get()) }
+    single<ItemCategoryClassifier> { HttpItemCategoryClassifier(http = get(), auth = get(), json = get()) }
+    single<NudgeRepository> { HttpNudgeRepository(http = get(), auth = get(), settings = get(), json = get()) }
     single { FavoriteStoresRepository(settings = get(), json = get()) }
     // Shared SQLite. The SqlDriver single comes from the platform database module
     // (androidDatabaseModule / iosDatabaseModule, passed as extraModules by each host).
@@ -149,8 +164,9 @@ val dataModule = module {
     single(createdAtStart = true) {
         ReceiptRestore(cloudSync = get(), repository = get(), auth = get(), deleted = get(), settings = get())
     }
-    single { BudgetRepository(database = get()) }
+    single { BudgetRepository(database = get(), settings = get(), json = get()) }
     single<ShoppingListRepository> { HttpShoppingListRepository(http = get(), auth = get(), settings = get(), json = get()) }
+    single { NotificationInboxRepository(settings = get(), json = get()) }
     single<RecallsRepository> { HttpRecallsRepository(http = get(), auth = get(), settings = get(), json = get()) }
     single<AuthRepository> { FirebaseAuthRepository() }
     single<OtpService> { HttpOtpService(client = get()) }
@@ -203,18 +219,19 @@ val dataModule = module {
 val storesModule = module {
     factory { SplashContract.Store(adsSession = get(), preferences = get()) }
     factory { OnboardingContract.Store() }
-    factory { AuthContract.Store(authRepository = get(), otpService = get(), strings = get()) }
-    factory { OtpContract.Store(otpService = get(), authRepository = get(), strings = get()) }
+    factory { AuthContract.Store(authRepository = get(), otpService = get(), strings = get(), preferences = get()) }
+    factory { OtpContract.Store(otpService = get(), authRepository = get(), strings = get(), preferences = get()) }
     single { CategoryRepository(client = get(), settings = get(), json = get()) } bind CategorySource::class
     single { StoreIconRepository(client = get(), settings = get(), json = get()) }
-    single { MainContract.Store(adsSession = get(), categories = get(), storeIcons = get(), receipts = get(), settings = get()) }
-    factory { HomeContract.Store(repository = get(), categories = get(), authRepository = get(), strings = get(), restore = get()) }
-    factory { ScanReviewContract.Store(repository = get(), backup = get(), favorites = get(), strings = get(), categories = get(), tornReceiptClient = get()) }
+    single { MainContract.Store(adsSession = get(), categories = get(), storeIcons = get(), receipts = get(), settings = get(), itemClassifier = get(), devices = get(), crashContext = get()) }
+    factory { HomeContract.Store(repository = get(), categories = get(), authRepository = get(), strings = get(), restore = get(), inbox = get(), budgets = get(), nudgeRepository = get(), shoppingLists = get()) }
+    factory { ScanReviewContract.Store(repository = get(), backup = get(), favorites = get(), strings = get(), categories = get(), tornReceiptClient = get(), storeIcons = get(), itemClassifier = get()) }
     factory { DuplicatesContract.Store(repository = get(), strings = get()) }
-    factory { ReceiptsContract.Store(repository = get(), strings = get()) }
-    factory { BudgetContract.Store(budgets = get(), receipts = get()) }
+    factory { ReceiptsContract.Store(repository = get(), strings = get(), storeIcons = get()) }
+    factory { BudgetContract.Store(budgets = get(), receipts = get(), categories = get(), strings = get()) }
     factory { ShoppingListContract.Store(repository = get(), authRepository = get(), strings = get()) }
     factory { RecallsContract.Store(repository = get(), authRepository = get(), strings = get()) }
+    factory { NotificationsContract.Store(inbox = get(), shoppingLists = get()) }
     factory {
         SettingsContract.Store(
             preferences = get(),
@@ -224,7 +241,11 @@ val storesModule = module {
             nearbyStores = get(),
             auth = get(),
             favorites = get(),
+            recalls = get(),
+            shoppingLists = get(),
+            nudges = get(),
             strings = get(),
+            settings = get(),
         )
     }
 }

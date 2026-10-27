@@ -5,13 +5,15 @@ import kotlinx.serialization.Serializable
 /**
  * A store's logo, pushed from the server (`getStoreIcons`). The [key] is the
  * normalized store identity (see [iconKeyOf]) and doubles as the Firestore
- * document id; [iconUrl] is a Firebase Storage download URL.
+ * document id; [iconUrl] is a Firebase Storage download URL (blank = no logo) and
+ * [weeklyAdUrl] the store's weekly-ad page, when the admin console has one.
  */
 @Serializable
 data class StoreIcon(
     val key: String,
     val name: String,
-    val iconUrl: String,
+    val iconUrl: String = "",
+    val weeklyAdUrl: String? = null,
 )
 
 /**

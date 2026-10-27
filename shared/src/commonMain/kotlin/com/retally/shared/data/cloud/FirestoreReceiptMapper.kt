@@ -107,6 +107,8 @@ class FirestoreReceiptMapper(
             "isDuplicate" to item.isDuplicate,
             "duplicateOfLineId" to duplicateOf,
             "userCorrected" to false,
+            // The shopper set the category by hand (see ReceiptItem.categoryLocked).
+            "categoryCorrected" to item.categoryLocked,
             "currency" to currency,
             "createdAt" to receipt.createdAt.toTimestamp(),
             "updatedAt" to FieldValue.serverTimestamp,

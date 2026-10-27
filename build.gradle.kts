@@ -16,6 +16,7 @@ buildscript {
         classpath("org.jetbrains.compose:compose-gradle-plugin:${Versions.composeMultiplatform}")
         classpath(Deps.AndroidX.navigationSafeArgsPlugin)
         classpath(Deps.Firebase.googleServicesPlugin)
+        classpath(Deps.Firebase.crashlyticsGradlePlugin)
     }
 }
 

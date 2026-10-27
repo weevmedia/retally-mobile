@@ -17,6 +17,8 @@ import com.retally.shared.presentation.home.HomeContract
 import com.retally.shared.presentation.main.MainContract
 import com.retally.shared.ui.recalls.RecallsScreen
 import com.retally.shared.presentation.recalls.RecallsContract
+import com.retally.shared.presentation.notifications.NotificationsContract
+import com.retally.shared.ui.notifications.NotificationsScreen
 import com.retally.shared.presentation.scan.ScanReviewContract
 import com.retally.shared.presentation.settings.SettingsContract
 import com.retally.shared.presentation.shopping.ShoppingListContract
@@ -112,9 +114,16 @@ object IosScreens {
         )
     }
 
-    fun settings(store: SettingsContract.Store): ComposeScreen = screen { snackbar ->
+    fun settings(store: SettingsContract.Store, mainStore: MainContract.Store): ComposeScreen = screen { snackbar ->
         val state by store.observeState().collectAsStateWithLifecycle()
-        SettingsScreen(state = state, dispatch = store::dispatch, snackbarHostState = snackbar)
+        val shell by mainStore.observeState().collectAsStateWithLifecycle()
+        SettingsScreen(
+            state = state,
+            dispatch = store::dispatch,
+            snackbarHostState = snackbar,
+            adsEnabled = shell.adsEnabled,
+            adUnitId = IosDependencies.getAdsConfig().homeBannerUnitId,
+        )
     }
 
     /** Receipts tab: every receipt, month-filtered and paged. */
@@ -193,10 +202,23 @@ object IosScreens {
         )
     }
 
-    /** Food recall alerts, opened from Home's bell. */
-    fun alerts(store: RecallsContract.Store): ComposeScreen = screen { snackbar ->
+    /** Food recalls, opened from More › Food recalls. In-feed ad after every 2 recalls. */
+    fun alerts(store: RecallsContract.Store, mainStore: MainContract.Store): ComposeScreen = screen { snackbar ->
         val state by store.observeState().collectAsStateWithLifecycle()
-        RecallsScreen(state = state, dispatch = store::dispatch, snackbarHostState = snackbar)
+        val shell by mainStore.observeState().collectAsStateWithLifecycle()
+        RecallsScreen(
+            state = state,
+            dispatch = store::dispatch,
+            snackbarHostState = snackbar,
+            adsEnabled = shell.adsEnabled,
+            bannerAdUnitId = IosDependencies.getAdsConfig().homeBannerUnitId,
+        )
+    }
+
+    /** Home bell: notifications raised in the last 48 hours. */
+    fun notifications(store: NotificationsContract.Store): ComposeScreen = screen { snackbar ->
+        val state by store.observeState().collectAsStateWithLifecycle()
+        NotificationsScreen(state = state, dispatch = store::dispatch, snackbarHostState = snackbar)
     }
 
     /** Monthly grocery budget, opened from Home's Spent tile. */

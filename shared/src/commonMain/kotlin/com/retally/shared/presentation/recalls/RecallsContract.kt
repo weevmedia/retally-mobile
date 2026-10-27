@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
 /**
- * Food recall alerts, opened from the Home bell. Shows FDA + USDA recalls from the last
+ * Food recalls, opened from More › Food recalls. Shows FDA + USDA recalls from the last
  * couple of months; for signed-in shoppers, recalls that mention something they bought
  * recently are pulled to the top under "May affect you".
  */

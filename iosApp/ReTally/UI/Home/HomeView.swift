@@ -19,8 +19,8 @@ struct HomeView: View {
                 .navigationDestination(isPresented: $viewModel.isBudgetPresented) {
                     BudgetView(onFinished: viewModel.budgetFinished)
                 }
-                .navigationDestination(isPresented: $viewModel.isAlertsPresented) {
-                    AlertsView(onFinished: viewModel.alertsFinished)
+                .navigationDestination(isPresented: $viewModel.isNotificationsPresented) {
+                    NotificationsView(onFinished: viewModel.notificationsFinished)
                 }
                 .fullScreenCover(isPresented: $viewModel.isScannerPresented) {
                     ReceiptScannerView(onResult: viewModel.scannerFinished)

@@ -1,5 +1,7 @@
 package com.retally.shared.platform
 
+import com.retally.shared.core.crash.CrashReporting
+import co.touchlab.crashkios.crashlytics.setCrashlyticsUnhandledExceptionHook
 import com.retally.shared.core.Platform
 import com.retally.shared.core.strings.IosStringResolver
 import com.retally.shared.di.PlatformDependencies
@@ -15,6 +17,14 @@ import platform.Foundation.NSBundle
 import platform.Foundation.NSURL
 import platform.Foundation.NSUserDefaults
 import platform.UIKit.UIApplication
+import platform.UIKit.UIDevice
+import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.alloc
+import kotlinx.cinterop.memScoped
+import kotlinx.cinterop.ptr
+import kotlinx.cinterop.toKString
+import platform.posix.uname
+import platform.posix.utsname
 import platform.UIKit.UIView
 
 /**
@@ -47,6 +57,10 @@ object IosApp {
         debug: Boolean = false,
     ) {
         IosAdBannerFactory.create = bannerFactory
+        // Crashlytics (FirebaseApp.configure() already ran in Swift). The hook turns an uncaught
+        // Kotlin exception into a Crashlytics crash with the Kotlin stack trace.
+        CrashReporting.start()
+        setCrashlyticsUnhandledExceptionHook()
         initKoin(
             PlatformDependencies(
                 platform = IosPlatform(),
@@ -69,6 +83,16 @@ object IosApp {
 
 internal class IosPlatform : Platform {
     override val name: String = "ios"
+
+    /** Hardware identifier ("iPhone15,2"); the simulator reports its host arch instead. */
+    @OptIn(ExperimentalForeignApi::class)
+    override val deviceModel: String = memScoped {
+        val info = alloc<utsname>()
+        uname(info.ptr)
+        info.machine.toKString().ifBlank { UIDevice.currentDevice.model }
+    }
+
+    override val osVersion: String = UIDevice.currentDevice.systemVersion
 
     override val appVersion: String
         get() {

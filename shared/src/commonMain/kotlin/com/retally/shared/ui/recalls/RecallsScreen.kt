@@ -1,5 +1,6 @@
 package com.retally.shared.ui.recalls
 
+import com.retally.shared.ui.components.CircleIconButton
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,12 +15,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ChevronLeft
-import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,6 +30,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import com.retally.shared.ui.components.PlatformPullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -45,6 +46,7 @@ import com.retally.shared.domain.recalls.Recall
 import com.retally.shared.presentation.recalls.RecallsContract
 import com.retally.shared.presentation.recalls.RecallsContract.Action
 import com.retally.shared.ui.components.EmptyState
+import com.retally.shared.ui.components.InFeedSquareAd
 import com.retally.shared.ui.components.PrimaryButton
 import com.retally.shared.ui.components.ReTallySnackbarHost
 import com.retally.shared.ui.components.SectionHeader
@@ -58,9 +60,10 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 
 /**
- * Food recall alerts (Home bell). Cards show source, date, title and a short excerpt; a tap
- * opens the official FDA / USDA notice in the browser. Recalls that mention something the
- * shopper bought recently sit on top under "May affect you".
+ * Food recalls (More › Food recalls). Cards show source, date, title and a short excerpt; a
+ * tap opens the official FDA / USDA notice in the browser. Recalls that mention something the
+ * shopper bought recently sit on top under "May affect you". When ads are on, an in-feed
+ * square ad follows every [RECALLS_PER_AD] recalls.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,6 +72,8 @@ fun RecallsScreen(
     dispatch: (Action) -> Unit,
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
+    adsEnabled: Boolean = false,
+    bannerAdUnitId: String = "",
 ) {
     val c = ReTallyTheme.colors
     LaunchedEffect(Unit) { dispatch(Action.Appeared) }
@@ -78,17 +83,14 @@ fun RecallsScreen(
             TopAppBar(
                 title = { Text(str(S.ALERTS_TITLE), style = ReTallyTheme.typography.display, color = c.ink) },
                 navigationIcon = {
-                    IconButton(onClick = { dispatch(Action.CloseClicked) }) {
-                        Icon(Icons.Rounded.ChevronLeft, contentDescription = str(S.ACTION_BACK), tint = c.ink)
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { dispatch(Action.Refresh) }, enabled = !state.isRefreshing && !state.isLoading) {
-                        if (state.isRefreshing) {
-                            CircularProgressIndicator(Modifier.size(20.dp), color = c.primary, strokeWidth = 2.dp)
-                        } else {
-                            Icon(Icons.Rounded.Refresh, contentDescription = str(S.SHOPPING_REFRESH), tint = c.ink)
-                        }
+                    CircleIconButton(onClick = { dispatch(Action.CloseClicked) }) {
+                        Icon(
+                            Icons.Rounded.ChevronLeft,
+                            contentDescription = str(S.ACTION_BACK),
+                            tint = c.ink,
+                            // The chevron glyph has wide built-in padding; 32dp reads like a normal back arrow.
+                            modifier = Modifier.size(28.dp),
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = c.background),
@@ -110,13 +112,31 @@ fun RecallsScreen(
                     action = { PrimaryButton(str(S.SHOPPING_RETRY), onClick = { dispatch(Action.Refresh) }) },
                 )
             }
-            else -> RecallList(state, dispatch, content)
+            // Pull down to re-check FDA / USDA (replaces the old refresh icon).
+            else -> PlatformPullToRefreshBox(
+                isRefreshing = state.isRefreshing,
+                onRefresh = { dispatch(Action.Refresh) },
+                modifier = content,
+            ) {
+                RecallList(
+                    state,
+                    dispatch,
+                    Modifier.fillMaxSize(),
+                    adUnitId = bannerAdUnitId.takeIf { adsEnabled && it.isNotBlank() },
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun RecallList(state: RecallsContract.State, dispatch: (Action) -> Unit, modifier: Modifier) {
+private fun RecallList(
+    state: RecallsContract.State,
+    dispatch: (Action) -> Unit,
+    modifier: Modifier,
+    /** Null when ads are off. */
+    adUnitId: String?,
+) {
     val d = ReTallyTheme.dimensions
     val uri = LocalUriHandler.current
     val open: (Recall) -> Unit = { recall -> runCatching { uri.openUri(recall.url) } }
@@ -125,12 +145,25 @@ private fun RecallList(state: RecallsContract.State, dispatch: (Action) -> Unit,
         contentPadding = PaddingValues(horizontal = d.screen, vertical = d.sm),
         verticalArrangement = Arrangement.spacedBy(d.md),
     ) {
+        // Source / disclaimer note first, so it's read before any recall.
+        if (state.recalls.isNotEmpty()) {
+            item(key = "sources-note") {
+                Text(
+                    str(S.ALERTS_SOURCES_NOTE),
+                    style = ReTallyTheme.typography.caption,
+                    color = ReTallyTheme.colors.muted,
+                    modifier = Modifier.padding(horizontal = d.xs),
+                )
+            }
+        }
         if (state.isGuest) {
             item { SignInHint(onSignIn = { dispatch(Action.SignInClicked) }) }
         }
         if (state.matched.isNotEmpty()) {
             item { SectionHeader(str(S.ALERTS_SECTION_MATCHED), Modifier.padding(top = d.xs)) }
-            items(state.matched, key = { "m-${it.id}" }) { RecallCard(it, onClick = { open(it) }) }
+            itemsIndexed(state.matched, key = { _, it -> "m-${it.id}" }) { index, recall ->
+                RecallCardWithAd(recall, position = index, adUnitId = adUnitId, onClick = { open(recall) })
+            }
             item {
                 Text(
                     str(S.ALERTS_MATCH_DISCLAIMER),
@@ -142,7 +175,10 @@ private fun RecallList(state: RecallsContract.State, dispatch: (Action) -> Unit,
         }
         if (state.others.isNotEmpty()) {
             item { SectionHeader(str(S.ALERTS_SECTION_LATEST), Modifier.padding(top = d.xs)) }
-            items(state.others, key = { it.id }) { RecallCard(it, onClick = { open(it) }) }
+            val offset = state.matched.size
+            itemsIndexed(state.others, key = { _, it -> it.id }) { index, recall ->
+                RecallCardWithAd(recall, position = offset + index, adUnitId = adUnitId, onClick = { open(recall) })
+            }
         }
         if (state.recalls.isEmpty()) {
             item {
@@ -153,17 +189,27 @@ private fun RecallList(state: RecallsContract.State, dispatch: (Action) -> Unit,
                     modifier = Modifier.padding(top = d.xl),
                 )
             }
-        } else {
-            item {
-                Text(
-                    str(S.ALERTS_SOURCES_NOTE),
-                    style = ReTallyTheme.typography.caption,
-                    color = ReTallyTheme.colors.muted,
-                    modifier = Modifier.padding(horizontal = d.xs),
-                )
-            }
         }
         item { Spacer(Modifier.height(24.dp)) }
+    }
+}
+
+/** Recalls between in-feed ads. */
+private const val RECALLS_PER_AD = 2
+
+/**
+ * A recall card, followed by an in-feed ad when it is the [RECALLS_PER_AD]th, 4th, … recall
+ * in the whole list ([position] counts across both sections, starting at 0).
+ */
+@Composable
+private fun RecallCardWithAd(recall: Recall, position: Int, adUnitId: String?, onClick: () -> Unit) {
+    if (adUnitId == null || (position + 1) % RECALLS_PER_AD != 0) {
+        RecallCard(recall, onClick)
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(ReTallyTheme.dimensions.md)) {
+        RecallCard(recall, onClick)
+        InFeedSquareAd(adUnitId = adUnitId)
     }
 }
 

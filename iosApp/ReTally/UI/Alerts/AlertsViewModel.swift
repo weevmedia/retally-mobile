@@ -2,7 +2,7 @@ import Combine
 import Foundation
 import Shared
 
-/// Owns `RecallsContract.Store` for the food recall alerts screen. Links open from Compose
+/// Owns `RecallsContract.Store` for the food recalls screen (More › Food recalls). Links open from Compose
 /// (LocalUriHandler); this class handles Back and the sign-in overlay.
 @MainActor
 final class AlertsViewModel: ObservableObject {
@@ -14,7 +14,8 @@ final class AlertsViewModel: ObservableObject {
     init(onFinished: @escaping () -> Void) {
         let store = IosDependencies.shared.getRecallsStore()
         self.store = store
-        screen = IosScreens.shared.alerts(store: store)
+        // Ad eligibility is read live from the app-wide MainContract.Store (in-feed ad every 2 recalls).
+        screen = IosScreens.shared.alerts(store: store, mainStore: IosDependencies.shared.getMainStore())
 
         sideEffects = store.collectSideEffect { [weak self] effect in
             guard let self else { return }

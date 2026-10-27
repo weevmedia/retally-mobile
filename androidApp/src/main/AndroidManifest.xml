@@ -26,6 +26,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ReTally.Splash"
         tools:targetApi="34">
+        <!-- Download the ML Kit OCR model at install time, not on the first scan
+             (otherwise the first scan waits several seconds for the download). -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="ocr" />
 
         <!-- AdMob App ID, injected from androidApp/build.gradle.kts (manifestPlaceholders). -->
         <meta-data

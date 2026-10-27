@@ -1,5 +1,6 @@
 package com.retally.shared.ui.duplicates
 
+import com.retally.shared.ui.components.CircleIconButton
 import com.retally.shared.core.strings.StringAssetIdentifiers as S
 import com.retally.shared.core.strings.str
 import androidx.compose.foundation.layout.Arrangement
@@ -75,7 +76,7 @@ fun DuplicatesScreen(
             TopAppBar(
                 title = { Text(str(S.DUPLICATES_TITLE), style = ReTallyTheme.typography.display, color = c.ink) },
                 navigationIcon = {
-                    IconButton(onClick = { dispatch(DuplicatesContract.Action.CloseClicked) }) {
+                    CircleIconButton(onClick = { dispatch(DuplicatesContract.Action.CloseClicked) }) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = str(S.ACTION_BACK), tint = c.ink)
                     }
                 },

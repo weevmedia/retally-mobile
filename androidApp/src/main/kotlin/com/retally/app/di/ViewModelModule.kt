@@ -10,6 +10,7 @@ import com.retally.app.ui.receipts.ReceiptsViewModel
 import com.retally.app.ui.settings.SettingsViewModel
 import com.retally.app.ui.shopping.ShoppingListViewModel
 import com.retally.app.ui.alerts.AlertsViewModel
+import com.retally.app.ui.notifications.NotificationsViewModel
 import com.retally.app.ui.splash.SplashViewModel
 import com.retally.app.ui.onboarding.OnboardingViewModel
 import com.retally.app.ui.auth.AuthViewModel
@@ -37,6 +38,7 @@ val viewModelModule = module {
     viewModel { BudgetViewModel(store = get()) }
     viewModel { ShoppingListViewModel(store = get()) }
     viewModel { AlertsViewModel(store = get()) }
+    viewModel { NotificationsViewModel(store = get()) }
 
     single { ReceiptTextRecognizer(androidContext()) }
 }

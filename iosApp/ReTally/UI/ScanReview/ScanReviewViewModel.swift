@@ -32,6 +32,9 @@ final class ScanReviewViewModel: ObservableObject {
                 // A newly saved receipt may add a new store — rebuild geofences now
                 // instead of waiting for the next app launch.
                 NearbyStoreMonitor.shared.refresh()
+            case is ScanReviewContractSideEffect.StoreLocationChanged:
+                // Store name/address edited — give the new address its fence now.
+                NearbyStoreMonitor.shared.refresh()
             case is ScanReviewContractSideEffect.Closed:
                 let fromScan: Bool
                 if case .scan = source { fromScan = true } else { fromScan = false }

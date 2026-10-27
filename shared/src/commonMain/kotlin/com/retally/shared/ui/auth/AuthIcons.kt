@@ -18,7 +18,8 @@ internal object AuthIcons {
     fun apple(): ImageVector = remember {
         ImageVector.Builder(
             name = "apple",
-            defaultWidth = 24.dp,
+            // Same 3:4 shape as the 384×512 viewport, so it never draws stretched.
+            defaultWidth = 18.dp,
             defaultHeight = 24.dp,
             viewportWidth = 384f,
             viewportHeight = 512f,
