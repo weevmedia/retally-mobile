@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.app
 
 import com.retally.shared.core.crash.CrashReporting
@@ -12,6 +16,7 @@ import com.retally.shared.di.androidDatabaseModule
 import com.retally.shared.di.initKoin
 import com.retally.shared.domain.ads.AdsConfig
 import com.retally.shared.domain.cloud.CloudBackend
+import com.retally.shared.domain.location.NearbyTestZone
 import com.retally.shared.domain.cloud.CloudConfig
 import com.retally.shared.platform.AndroidPlatform
 import com.russhwolf.settings.SharedPreferencesSettings
@@ -26,7 +31,9 @@ class ReTallyApplication : Application() {
 
         initKoin(
             PlatformDependencies(
-                platform = AndroidPlatform(context = this, appVersion = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"),
+                // Marketing version only ("1.0.0"): shown in More and registered with the backend; the
+                // build number is a release-pipeline detail the shopper never needs.
+                platform = AndroidPlatform(context = this, appVersion = BuildConfig.VERSION_NAME),
                 settings = SharedPreferencesSettings(getSharedPreferences("retally", MODE_PRIVATE)),
                 adsInitializer = AndroidAdsInitializer(this),
                 adsConfig = AdsConfig(
@@ -57,6 +64,9 @@ class ReTallyApplication : Application() {
         CrashReporting.start()
 
         // Re-register store geofences (no-op when the nearby toggle is off).
+        // TEMP-DEBUG (remove before release): fixed "Home Store" geofence for testing.
+        if (BuildConfig.DEBUG) NearbyTestZone.address = "15 Hazelwood Drive, Hingham, MA 02043"
         NearbyStoreScheduler.refresh(this)
+
     }
 }

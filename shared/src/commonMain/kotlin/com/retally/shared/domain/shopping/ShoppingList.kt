@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.domain.shopping
 
 import kotlinx.coroutines.flow.StateFlow
@@ -27,9 +31,18 @@ data class ShoppingList(
     val usualShoppingDay: String? = null,
     /** "gemini" or "fallback". */
     val decidedBy: String = "gemini",
+    /**
+     * Position by visit frequency (0 = most visited), set by the server. Lists cached before
+     * ranking existed carry the default and sort after the ranked ones.
+     */
+    val rank: Int = UNRANKED,
     /** ISO-8601 instant the server built this list. */
     val generatedAt: String = "",
-)
+) {
+    companion object {
+        const val UNRANKED = Int.MAX_VALUE
+    }
+}
 
 /** Outcome of asking the backend for lists. Never thrown — failures are values. */
 sealed interface ShoppingListLoadResult {
@@ -45,7 +58,7 @@ sealed interface ShoppingListLoadResult {
  * notification can show real items while the app is closed or offline.
  */
 interface ShoppingListRepository {
-    /** Last lists from the server (cached), newest first. */
+    /** Last lists from the server (cached), most-visited store first, then newest. */
     val lists: StateFlow<List<ShoppingList>>
 
     /**

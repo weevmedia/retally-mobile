@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.ui.splash
 
 import com.retally.shared.core.strings.StringAssetIdentifiers as S
@@ -30,6 +34,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import com.retally.shared.ui.theme.CappedTextScale
 import androidx.compose.runtime.LaunchedEffect
+import com.retally.shared.domain.update.UpdateStatus
+import com.retally.shared.ui.update.UpdateAvailableDialog
+import com.retally.shared.ui.update.UpdateRequiredScreen
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -79,7 +86,18 @@ fun SplashScreen(
     progress: Float,
     adsEnabled: Boolean = false,
     bannerAdUnitId: String = "",
+    /** Store version check: an optional update prompts over the splash; a required one replaces it. */
+    update: UpdateStatus = UpdateStatus.None,
+    onUpdate: () -> Unit = {},
+    onUpdateLater: () -> Unit = {},
 ) {
+    (update as? UpdateStatus.Required)?.let { required ->
+        UpdateRequiredScreen(status = required, onUpdate = onUpdate)
+        return
+    }
+    (update as? UpdateStatus.Available)?.let { available ->
+        UpdateAvailableDialog(status = available, onUpdate = onUpdate, onLater = onUpdateLater)
+    }
     val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val palette = if (dark) SplashPalette.Dark else SplashPalette.Light
 

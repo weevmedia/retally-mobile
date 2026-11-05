@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.di
 
 import com.retally.shared.core.crash.CrashContext
@@ -5,7 +9,9 @@ import com.retally.shared.data.category.HttpItemCategoryClassifier
 import com.retally.shared.data.device.DeviceRegistrar
 import com.retally.shared.domain.category.ItemCategoryClassifier
 import com.retally.shared.data.ai.HttpNudgeRepository
+import com.retally.shared.data.update.FirestoreAppUpdateRepository
 import com.retally.shared.domain.ai.NudgeRepository
+import com.retally.shared.domain.update.AppUpdateRepository
 import com.retally.shared.core.Platform
 import com.retally.shared.core.strings.StringResolver
 import com.retally.shared.data.cloud.KtorCloudSyncService
@@ -38,11 +44,15 @@ import com.retally.shared.domain.cloud.ReceiptBackup
 import com.retally.shared.domain.cloud.ReceiptRestore
 import com.retally.shared.domain.cloud.CloudSyncService
 import com.retally.shared.domain.favorites.FavoriteStoresRepository
+import com.retally.shared.core.locale.LocaleInfo
+import com.retally.shared.core.locale.deviceLocaleInfo
+import com.retally.shared.core.locale.effective
 import com.retally.shared.domain.location.StoreLocationRepository
 import com.retally.shared.domain.preferences.AppPreferences
 import com.retally.shared.domain.receipt.ReceiptRepository
 import com.retally.shared.domain.recalls.RecallsRepository
 import com.retally.shared.domain.notifications.NotificationInboxRepository
+import com.retally.shared.domain.budget.BudgetReminderLog
 import com.retally.shared.domain.shopping.ShoppingListRepository
 import com.retally.shared.presentation.auth.AuthContract
 import com.retally.shared.presentation.auth.OtpContract
@@ -55,6 +65,7 @@ import com.retally.shared.presentation.scan.ScanReviewContract
 import com.retally.shared.presentation.settings.SettingsContract
 import com.retally.shared.presentation.recalls.RecallsContract
 import com.retally.shared.presentation.notifications.NotificationsContract
+import com.retally.shared.presentation.howitworks.HowItWorksContract
 import com.retally.shared.presentation.shopping.ShoppingListContract
 import com.retally.shared.presentation.splash.SplashContract
 import com.retally.shared.presentation.onboarding.OnboardingContract
@@ -107,6 +118,8 @@ fun initKoin(
 }
 
 private fun platformModule(deps: PlatformDependencies) = module {
+    // Device language + region, collapsed onto a supported launch market (US for now).
+    single<LocaleInfo> { deviceLocaleInfo().effective() }
     single { deps.platform }
     single { deps.settings }
     single { deps.adsInitializer }
@@ -146,6 +159,7 @@ val dataModule = module {
     single { DeviceRegistrar(http = get(), auth = get(), platform = get(), preferences = get(), settings = get()) }
     single<ItemCategoryClassifier> { HttpItemCategoryClassifier(http = get(), auth = get(), json = get()) }
     single<NudgeRepository> { HttpNudgeRepository(http = get(), auth = get(), settings = get(), json = get()) }
+    single<AppUpdateRepository> { FirestoreAppUpdateRepository(platform = get(), settings = get(), json = get()) }
     single { FavoriteStoresRepository(settings = get(), json = get()) }
     // Shared SQLite. The SqlDriver single comes from the platform database module
     // (androidDatabaseModule / iosDatabaseModule, passed as extraModules by each host).
@@ -167,6 +181,7 @@ val dataModule = module {
     single { BudgetRepository(database = get(), settings = get(), json = get()) }
     single<ShoppingListRepository> { HttpShoppingListRepository(http = get(), auth = get(), settings = get(), json = get()) }
     single { NotificationInboxRepository(settings = get(), json = get()) }
+    single { BudgetReminderLog(settings = get(), json = get(), inbox = get()) }
     single<RecallsRepository> { HttpRecallsRepository(http = get(), auth = get(), settings = get(), json = get()) }
     single<AuthRepository> { FirebaseAuthRepository() }
     single<OtpService> { HttpOtpService(client = get()) }
@@ -200,6 +215,8 @@ val dataModule = module {
                 auth = get(),
                 platform = get(),
                 deviceIdProvider = { get<AppPreferences>().installationId },
+                currencyProvider = { get<LocaleInfo>().currencyCode },
+                localeProvider = { get<LocaleInfo>().tag },
                 storageService = get(),
             )
             else -> KtorCloudSyncService(
@@ -217,21 +234,22 @@ val dataModule = module {
  * cancel its work on exit. Only [MainContract.Store] is a `single` — it outlives its tabs.
  */
 val storesModule = module {
-    factory { SplashContract.Store(adsSession = get(), preferences = get()) }
+    factory { SplashContract.Store(adsSession = get(), preferences = get(), appUpdates = get(), platform = get(), strings = get()) }
     factory { OnboardingContract.Store() }
     factory { AuthContract.Store(authRepository = get(), otpService = get(), strings = get(), preferences = get()) }
     factory { OtpContract.Store(otpService = get(), authRepository = get(), strings = get(), preferences = get()) }
     single { CategoryRepository(client = get(), settings = get(), json = get()) } bind CategorySource::class
     single { StoreIconRepository(client = get(), settings = get(), json = get()) }
     single { MainContract.Store(adsSession = get(), categories = get(), storeIcons = get(), receipts = get(), settings = get(), itemClassifier = get(), devices = get(), crashContext = get()) }
-    factory { HomeContract.Store(repository = get(), categories = get(), authRepository = get(), strings = get(), restore = get(), inbox = get(), budgets = get(), nudgeRepository = get(), shoppingLists = get()) }
-    factory { ScanReviewContract.Store(repository = get(), backup = get(), favorites = get(), strings = get(), categories = get(), tornReceiptClient = get(), storeIcons = get(), itemClassifier = get()) }
+    factory { HomeContract.Store(repository = get(), categories = get(), authRepository = get(), strings = get(), restore = get(), inbox = get(), budgets = get(), nudgeRepository = get(), shoppingLists = get(), budgetReminders = getOrNull(), budgetReminderLog = get()) }
+    factory { ScanReviewContract.Store(repository = get(), backup = get(), favorites = get(), strings = get(), categories = get(), tornReceiptClient = get(), storeIcons = get(), itemClassifier = get(), locale = get()) }
     factory { DuplicatesContract.Store(repository = get(), strings = get()) }
     factory { ReceiptsContract.Store(repository = get(), strings = get(), storeIcons = get()) }
     factory { BudgetContract.Store(budgets = get(), receipts = get(), categories = get(), strings = get()) }
     factory { ShoppingListContract.Store(repository = get(), authRepository = get(), strings = get()) }
     factory { RecallsContract.Store(repository = get(), authRepository = get(), strings = get()) }
-    factory { NotificationsContract.Store(inbox = get(), shoppingLists = get()) }
+    factory { NotificationsContract.Store(inbox = get(), shoppingLists = get(), budgetReminderLog = get()) }
+    factory { HowItWorksContract.Store() }
     factory {
         SettingsContract.Store(
             preferences = get(),

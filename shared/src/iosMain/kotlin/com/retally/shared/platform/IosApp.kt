@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.platform
 
 import com.retally.shared.core.crash.CrashReporting
@@ -6,10 +10,13 @@ import com.retally.shared.core.Platform
 import com.retally.shared.core.strings.IosStringResolver
 import com.retally.shared.di.PlatformDependencies
 import com.retally.shared.di.initKoin
+import com.retally.shared.domain.budget.BudgetReminderScheduler
+import com.retally.shared.domain.budget.IosBudgetReminderScheduler
 import com.retally.shared.di.iosDatabaseModule
 import com.retally.shared.domain.ads.AdsConfig
 import com.retally.shared.domain.ads.CallbackAdsInitializer
 import com.retally.shared.domain.cloud.CloudConfig
+import com.retally.shared.domain.location.NearbyTestZone
 import com.retally.shared.ui.components.AdFormat
 import com.retally.shared.ui.components.IosAdBannerFactory
 import com.russhwolf.settings.NSUserDefaultsSettings
@@ -26,6 +33,7 @@ import kotlinx.cinterop.toKString
 import platform.posix.uname
 import platform.posix.utsname
 import platform.UIKit.UIView
+import org.koin.dsl.module
 
 /**
  * Swift-facing bootstrap. `@main App` calls [start] once; Swift ViewModels then pull stores
@@ -75,9 +83,14 @@ object IosApp {
                 verboseNetworkLogging = debug,
                 stringResolver = IosStringResolver,
             ),
-            extraModules = listOf(iosDatabaseModule),
+            extraModules = listOf(
+                iosDatabaseModule,
+                module { single<BudgetReminderScheduler> { IosBudgetReminderScheduler() } },
+            ),
         )
         IosDependencies.showDebugActions = debug
+        // TEMP-DEBUG (remove before release): fixed "Home Store" geofence for testing.
+        if (debug) NearbyTestZone.address = "15 Hazelwood Drive, Hingham, MA 02043"
     }
 }
 
@@ -94,13 +107,9 @@ internal class IosPlatform : Platform {
 
     override val osVersion: String = UIDevice.currentDevice.systemVersion
 
+    /** Marketing version only ("1.0.0"); the build number stays out of the UI and the backend. */
     override val appVersion: String
-        get() {
-            val info = NSBundle.mainBundle.infoDictionary
-            val short = info?.get("CFBundleShortVersionString") as? String ?: "1.0"
-            val build = info?.get("CFBundleVersion") as? String
-            return if (build != null) "$short ($build)" else short
-        }
+        get() = NSBundle.mainBundle.infoDictionary?.get("CFBundleShortVersionString") as? String ?: "1.0.0"
 
     override fun openUrl(url: String): Boolean {
         val nsUrl = NSURL.URLWithString(url) ?: return false

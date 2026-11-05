@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.data.shopping
 
 import com.retally.shared.domain.auth.AuthRepository
@@ -196,7 +200,8 @@ class HttpShoppingListRepository(
     private fun saveLists(lists: List<ShoppingList>, replaceAll: Boolean) {
         // A single-store refresh keeps the other stores' lists; a full load replaces them all.
         val kept = if (replaceAll) emptyList() else _lists.value.filterNot { old -> lists.any { it.storeKey == old.storeKey } }
-        val merged = (lists + kept).sortedByDescending { it.generatedAt }
+        val merged = (lists + kept)
+            .sortedWith(compareBy<ShoppingList> { it.rank }.thenByDescending { it.generatedAt })
         settings.putString(KEY_LISTS, json.encodeToString(LISTS_SERIALIZER, merged))
         _lists.value = merged
         // A rebuilt list starts with no dismissals; checks and added items survive mid-trip refreshes.

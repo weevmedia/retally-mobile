@@ -69,6 +69,15 @@
 
 "home_guest_sign_in" = "Sign in to enable cloud sync";
 
+/* App update prompt (splash) */
+"update_title" = "Version %1$s is available";
+"update_body" = "Update from the store to get the latest improvements.";
+"update_action" = "Update";
+"update_later" = "Not now";
+"update_required_title" = "Update required";
+"update_required_body" = "This version of ReTally is no longer supported. Update to version %1$s to keep scanning.";
+"update_store_failed" = "Couldn't open the store. Please update ReTally from the app store.";
+
 "home_empty_title" = "No receipts yet";
 
 "home_empty_body" = "Scan a receipt and ReTally flags anything the cashier rang up twice.";
@@ -205,6 +214,17 @@
 "receipt_store_zip_label" = "ZIP";
 "receipt_store_save" = "Save";
 "receipt_store_updated" = "Receipt details updated";
+"receipt_edit_item_a11y" = "Edit item";
+"receipt_edit_item_title" = "Edit item";
+"receipt_item_name_label" = "Item name";
+"receipt_item_number_label" = "Item number (optional)";
+"receipt_item_price_label" = "Price";
+"receipt_item_price_error" = "Enter a price, e.g. 4.99";
+"receipt_item_category_label" = "Category";
+"receipt_item_updated" = "Item updated";
+"receipt_item_duplicate_toggle" = "Mark as duplicate";
+"receipt_item_duplicate_toggle_sub" = "Flag this line as the same item charged twice";
+"action_edit" = "Edit";
 "receipt_date_label" = "Date";
 "receipt_time_label" = "Time";
 "action_ok" = "OK";
@@ -398,7 +418,7 @@
 "more_no_stores_match" = "No stores match your search.";
 
 "more_favorites_saved" = "Favorites updated";
-"more_copyright" = "© 2026 Weev Media. All rights reserved.";
+"more_copyright" = "© 2026-2027 Weev Media. All rights reserved.";
 
 /********** Platform hosts **********/
 
@@ -559,6 +579,38 @@
 "budget_spent_suffix" = "spent";
 
 "budget_projected" = "Projected month-end";
+"how_it_works_title" = "How it works";
+"how_it_works_intro" = "Scan a receipt and ReTally reads every line, flags anything the cashier rang up twice, and keeps your budget on track.";
+"how_it_works_demo_reading" = "Reading every line…";
+"how_it_works_demo_checking" = "Checking for double charges…";
+"how_it_works_demo_done" = "Double charge found";
+"how_it_works_demo_sample" = "Sample";
+"how_it_works_step_scan_title" = "Scan your receipt";
+"how_it_works_step_scan_body" = "Tap the scan button and hold your phone over the receipt. ReTally finds the edges for you.";
+"how_it_works_step_read_title" = "Every line is read";
+"how_it_works_step_read_body" = "Store, date, each item and its price are pulled out. You can fix anything before saving.";
+"how_it_works_step_flag_title" = "Double charges are flagged";
+"how_it_works_step_flag_body" = "The same item at the same price showing up twice is marked, so you can ask the store for it back.";
+"how_it_works_step_budget_title" = "Your budget stays on track";
+"how_it_works_step_budget_body" = "Each receipt adds to this month's spending. Home shows where you'll land by month-end.";
+"how_it_works_tips_title" = "Tips for a good scan";
+"how_it_works_tip_flat" = "Lay the receipt flat on a dark surface.";
+"how_it_works_tip_light" = "Use good light and avoid shadows across the text.";
+"how_it_works_tip_frame" = "Fit the whole receipt in the frame.";
+"how_it_works_scan_cta" = "Scan a receipt";
+"home_budget_projected" = "Projected %1$s";
+"budget_reminder_warning_title" = "Budget heads-up";
+"budget_reminder_over_pace_title" = "Spending is well over pace";
+"budget_reminder_pace_body" = "At this pace you'll spend %1$s this month — your budget is %2$s.";
+"budget_reminder_over_title" = "You're over budget";
+"budget_reminder_over_body" = "You're %1$s over your %2$s budget this month.";
+"budget_reminder_channel" = "Budget reminders";
+"budget_summary_under_title" = "Congratulations, you stayed under budget!";
+"budget_summary_under_body" = "You spent %1$s of your %2$s budget this month, with %3$s to spare.";
+"budget_summary_on_title" = "Congratulations, right on budget!";
+"budget_summary_on_body" = "You spent %1$s this month, right at your %2$s budget.";
+"budget_summary_over_title" = "Your month in review";
+"budget_summary_over_body" = "You spent %1$s this month, %2$s more than your %3$s budget. A fresh month starts tomorrow.";
 
 "budget_on_track" = "On track — under budget";
 
@@ -665,3 +717,26 @@
 "home_restoring_title" = "Restoring your receipts…";
 "home_restoring_body" = "Bringing back the receipts saved to your account.";
 "home_msg_restored" = "Restored %1$d receipts from your account";
+"receipts_filter_all" = "All";
+"receipts_empty_title" = "No receipts yet";
+"receipts_empty_body" = "Receipts you scan will be listed here, newest first.";
+"receipts_window_note" = "Showing receipts from the last %1$d months.";
+"receipts_filter_empty_title" = "Nothing that month";
+"receipts_filter_empty_body" = "Pick another month, or tap All to see everything.";
+"home_stat_spent" = "Spent";
+"home_stat_receipts" = "Receipts";
+"home_stat_duplicates" = "Duplicates";
+"home_expense_overview" = "Expense Overview – %1$s";
+"home_budget_spent_of" = "%1$s of %2$s";
+"home_budget_left" = "%1$s left";
+"home_budget_over" = "%1$s over budget";
+"home_recent_title" = "Recent receipts";
+"home_see_all" = "See all";
+"home_receipt_items" = "%1$d items";
+"home_synced_a11y" = "Synced to cloud";
+"budget_history_title" = "Last 12 months";
+"budget_history_avg" = "Avg %1$s / month";
+"budget_history_budget" = "Budget %1$s";
+"budget_history_no_budget" = "No budget set";
+"budget_history_empty" = "Your monthly totals will build up here as you scan receipts.";
+"nav_alerts" = "Food recalls";

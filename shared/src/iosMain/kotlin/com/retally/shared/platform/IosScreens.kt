@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.platform
 
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.ComposeUIViewController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.retally.shared.presentation.duplicates.DuplicatesContract
+import com.retally.shared.presentation.howitworks.HowItWorksContract
 import com.retally.shared.presentation.budget.BudgetContract
 import com.retally.shared.presentation.receipts.ReceiptsContract
 import com.retally.shared.presentation.home.HomeContract
@@ -27,6 +32,8 @@ import com.retally.shared.presentation.onboarding.OnboardingContract
 import com.retally.shared.presentation.auth.AuthContract
 import com.retally.shared.presentation.auth.OtpContract
 import com.retally.shared.ui.duplicates.DuplicatesScreen
+import com.retally.shared.ui.howitworks.HowItWorksScreen
+import com.retally.shared.ui.web.WebPageScreen
 import com.retally.shared.ui.budget.BudgetScreen
 import com.retally.shared.ui.home.HomeScreen
 import com.retally.shared.ui.navigation.ReTallyTabBar
@@ -81,6 +88,9 @@ object IosScreens {
             progress = state.progress,
             adsEnabled = shell.adsEnabled,
             bannerAdUnitId = IosDependencies.getAdsConfig().homeBannerUnitId,
+            update = state.update,
+            onUpdate = { store.dispatch(SplashContract.Action.UpdateClicked) },
+            onUpdateLater = { store.dispatch(SplashContract.Action.UpdateDismissed) },
         )
     }
 
@@ -123,6 +133,7 @@ object IosScreens {
             snackbarHostState = snackbar,
             adsEnabled = shell.adsEnabled,
             adUnitId = IosDependencies.getAdsConfig().homeBannerUnitId,
+            showDebugActions = IosDependencies.showDebugActions,
         )
     }
 
@@ -189,6 +200,12 @@ object IosScreens {
         DuplicatesScreen(state = state, dispatch = store::dispatch, snackbarHostState = snackbar)
     }
 
+    /** "See how it works", pushed from the empty Home. */
+    fun howItWorks(store: HowItWorksContract.Store): ComposeScreen = screen { snackbar ->
+        val state by store.observeState().collectAsStateWithLifecycle()
+        HowItWorksScreen(state = state, dispatch = store::dispatch, snackbarHostState = snackbar)
+    }
+
     /** AI Shopping List tab. */
     fun shoppingList(store: ShoppingListContract.Store, mainStore: MainContract.Store): ComposeScreen = screen { snackbar ->
         val state by store.observeState().collectAsStateWithLifecycle()
@@ -225,6 +242,11 @@ object IosScreens {
     fun budget(store: BudgetContract.Store): ComposeScreen = screen { snackbar ->
         val state by store.observeState().collectAsStateWithLifecycle()
         BudgetScreen(state = state, dispatch = store::dispatch, snackbarHostState = snackbar)
+    }
+
+    /** One of our own web pages (privacy, terms, support): top bar + web view, no address bar. */
+    fun webPage(title: String, url: String, onBack: () -> Unit): ComposeScreen = screen { _ ->
+        WebPageScreen(title = title, url = url, onBack = onBack)
     }
 
     fun scanReview(store: ScanReviewContract.Store): ComposeScreen = screen { snackbar ->

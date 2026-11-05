@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.app.ui.splash
 
 import android.os.Bundle
@@ -37,6 +41,7 @@ class SplashFragment : BaseComposeFragment<State, Action, SideEffect, SplashView
 
     override suspend fun onViewEffect(effect: SideEffect) {
         when (effect) {
+            is SideEffect.ShowMessage -> snackbarHostState.showSnackbar(effect.message)
             is NavigateToMain -> {
                 mainViewModel.onAdsInitialized(effect.adsReady)
                 // Safe Args; the graph pops splash so Back from Home exits the app.

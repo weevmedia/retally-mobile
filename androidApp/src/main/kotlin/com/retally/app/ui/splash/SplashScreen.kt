@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.app.ui.splash
 
 import androidx.compose.runtime.Composable
@@ -12,9 +16,16 @@ import com.retally.shared.ui.splash.SplashScreen as SharedSplashScreen
 @Composable
 fun SplashScreen(
     state: State,
-    @Suppress("UNUSED_PARAMETER") dispatch: (Action) -> Unit,
+    dispatch: (Action) -> Unit,
     adsEnabled: Boolean = false,
     bannerAdUnitId: String = "",
 ) {
-    SharedSplashScreen(progress = state.progress, adsEnabled = adsEnabled, bannerAdUnitId = bannerAdUnitId)
+    SharedSplashScreen(
+        progress = state.progress,
+        adsEnabled = adsEnabled,
+        bannerAdUnitId = bannerAdUnitId,
+        update = state.update,
+        onUpdate = { dispatch(Action.UpdateClicked) },
+        onUpdateLater = { dispatch(Action.UpdateDismissed) },
+    )
 }

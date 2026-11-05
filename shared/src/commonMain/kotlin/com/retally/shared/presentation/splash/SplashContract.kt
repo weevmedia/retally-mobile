@@ -1,16 +1,34 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.presentation.splash
 
 import com.retally.shared.core.Effect
+import com.retally.shared.core.Platform
+import com.retally.shared.core.strings.EnglishStringResolver
+import com.retally.shared.core.strings.StringAssetIdentifiers
+import com.retally.shared.core.strings.StringResolver
+import com.retally.shared.core.strings.getString
 import com.retally.shared.domain.ads.AdsReadiness
 import com.retally.shared.domain.ads.AdsSession
 import com.retally.shared.domain.preferences.AppPreferences
+import com.retally.shared.domain.update.AppUpdateRepository
+import com.retally.shared.domain.update.UpdateStatus
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Splash: plays the brand animation and kicks off the ads bootstrap through [AdsSession].
  * It gives the SDK a short grace period so a fast start shows the banner immediately, but
  * never blocks on it — [MainContract.Store] keeps observing readiness after hand-off.
+ *
+ * It also runs the store version check ([AppUpdateRepository]) alongside the animation. A newer
+ * build holds the hand-off behind an "update available" prompt the shopper can skip; a build
+ * below the backend's minimum replaces the splash with "update required" and never hands off.
+ * The check is bounded by [UPDATE_CHECK_MS] and any failure counts as "up to date".
  */
 interface SplashContract {
 
@@ -18,11 +36,17 @@ interface SplashContract {
         val progress: Float = 0f,
         val adsReadiness: AdsReadiness? = null,
         val isFirstLaunch: Boolean = false,
+        /** Store version check result; the hand-off waits while this is not [UpdateStatus.None]. */
+        val update: UpdateStatus = UpdateStatus.None,
     ) : com.retally.shared.core.State
 
     sealed class Action : com.retally.shared.core.Action {
         /** Fired once from the screen's LaunchedEffect. Idempotent. */
         data object Start : Action()
+        /** "Update" on either update view: opens the store page. */
+        data object UpdateClicked : Action()
+        /** "Not now" on the optional update: remembered per version, then the app continues. */
+        data object UpdateDismissed : Action()
     }
 
     sealed class SideEffect : Effect {
@@ -31,20 +55,35 @@ interface SplashContract {
          * @param isFirstLaunch true on the very first app launch — hosts route to onboarding.
          */
         data class NavigateToMain(val adsReady: Boolean, val isFirstLaunch: Boolean) : SideEffect()
+        data class ShowMessage(val message: String) : SideEffect()
     }
 
     class Store(
         private val adsSession: AdsSession,
         private val preferences: AppPreferences,
+        /** Store version check; null in tests and previews (no update prompt). */
+        private val appUpdates: AppUpdateRepository? = null,
+        /** Opens the store page for an update; null in tests and previews. */
+        private val platform: Platform? = null,
+        private val strings: StringResolver = EnglishStringResolver,
     ) : com.retally.shared.core.Store<State, Action, SideEffect>() {
 
         private var started = false
+        private var handedOff = false
+        private var pendingHandOff: SideEffect.NavigateToMain? = null
 
         override fun initState() = State(isFirstLaunch = !preferences.hasLaunchedBefore)
 
         override fun dispatch(action: Action) {
             when (action) {
                 Action.Start -> start()
+                Action.UpdateClicked -> openStore()
+                Action.UpdateDismissed -> {
+                    val status = currentState.update as? UpdateStatus.Available ?: return
+                    appUpdates?.dismiss(status.version)
+                    currentState = currentState.copy(update = UpdateStatus.None)
+                    pendingHandOff?.let(::handOff)
+                }
             }
         }
 
@@ -52,6 +91,16 @@ interface SplashContract {
             if (started) return
             started = true
             adsSession.ensureStarted()
+            // Runs under the animation. The read itself is never cancelled (so a slow first
+            // read still lands in the cache for the next launch); only the wait is bounded, in
+            // the hand-off below, so a slow or failed read never delays the launch.
+            val updateCheck = async {
+                val repo = appUpdates ?: return@async UpdateStatus.None
+                runCatching { repo.check() }.getOrElse { e ->
+                    println("[ReTallyUpdate] check failed: ${e.message}")
+                    UpdateStatus.None
+                }
+            }
             launch {
                 // Brand moment: the logo animation needs ~MIN_SPLASH_MS to read as intentional
                 // rather than a flash. Progress is purely cosmetic.
@@ -66,18 +115,48 @@ interface SplashContract {
                 currentState = currentState.copy(adsReadiness = readiness, progress = 1f)
                 // hasLaunchedBefore is set only once onboarding/auth finishes (Auth/Otp stores),
                 // so killing the app mid-onboarding shows onboarding again on next launch.
-                sideEffect(
-                    SideEffect.NavigateToMain(
-                        adsReady = readiness == AdsReadiness.READY,
-                        isFirstLaunch = currentState.isFirstLaunch,
-                    ),
+                val navigate = SideEffect.NavigateToMain(
+                    adsReady = readiness == AdsReadiness.READY,
+                    isFirstLaunch = currentState.isFirstLaunch,
                 )
+                val update = withTimeoutOrNull(UPDATE_CHECK_MS) { updateCheck.await() }
+                    ?: UpdateStatus.None.also { println("[ReTallyUpdate] check still running after ${UPDATE_CHECK_MS}ms; launching without it") }
+                when (update) {
+                    UpdateStatus.None -> handOff(navigate)
+                    // Optional: prompt, and hand off once the shopper answers.
+                    is UpdateStatus.Available -> {
+                        pendingHandOff = navigate
+                        currentState = currentState.copy(update = update)
+                    }
+                    // Mandatory: the splash becomes the update screen; no hand-off.
+                    is UpdateStatus.Required -> currentState = currentState.copy(update = update)
+                }
+            }
+        }
+
+        private fun handOff(navigate: SideEffect.NavigateToMain) {
+            if (handedOff) return
+            handedOff = true
+            pendingHandOff = null
+            sideEffect(navigate)
+        }
+
+        private fun openStore() {
+            val url = when (val status = currentState.update) {
+                is UpdateStatus.Available -> status.storeUrl
+                is UpdateStatus.Required -> status.storeUrl
+                UpdateStatus.None -> return
+            }
+            if (platform?.openUrl(url) != true) {
+                sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.UPDATE_STORE_FAILED)))
             }
         }
 
         companion object {
             const val MIN_SPLASH_MS = 1_200L
             const val MAX_SPLASH_MS = 3_000L
+            /** Upper bound on the version check; within the splash's own budget. */
+            const val UPDATE_CHECK_MS = 2_500L
         }
     }
 }
