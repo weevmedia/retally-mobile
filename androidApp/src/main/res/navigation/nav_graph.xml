@@ -59,6 +59,11 @@
             android:name="firstLaunch"
             app:argType="boolean"
             android:defaultValue="false" />
+        <!-- "Continue as guest": first launch via Get Started only, not "I already have an account". -->
+        <argument
+            android:name="showGuestOption"
+            app:argType="boolean"
+            android:defaultValue="false" />
         <action
             android:id="@+id/action_auth_to_otp"
             app:destination="@id/otpFragment"
@@ -159,7 +164,20 @@
             app:exitAnim="@anim/nav_default_exit_anim"
             app:popEnterAnim="@anim/nav_default_pop_enter_anim"
             app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+        <action
+            android:id="@+id/action_home_to_howItWorks"
+            app:destination="@id/howItWorksFragment"
+            app:enterAnim="@anim/nav_default_enter_anim"
+            app:exitAnim="@anim/nav_default_exit_anim"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
     </fragment>
+
+    <!-- "See how it works" from the empty Home: demo built from the real receipt screens. -->
+    <fragment
+        android:id="@+id/howItWorksFragment"
+        android:name="com.retally.app.ui.howitworks.HowItWorksFragment"
+        android:label="@string/nav_how_it_works" />
 
     <!-- Home bell: notifications the app raised in the last 48 hours (until dismissed). -->
     <fragment
@@ -281,5 +299,26 @@
             app:enterAnim="@android:anim/fade_in"
             app:exitAnim="@android:anim/fade_out" />
     </fragment>
+
+    <!-- Our own web pages (privacy, terms, support) inside the app: title + URL, no address bar. -->
+    <fragment
+        android:id="@+id/webPageFragment"
+        android:name="com.retally.app.ui.web.WebPageFragment"
+        android:label="{title}">
+        <argument
+            android:name="title"
+            app:argType="string" />
+        <argument
+            android:name="url"
+            app:argType="string" />
+    </fragment>
+
+    <action
+        android:id="@+id/action_global_webPage"
+        app:destination="@id/webPageFragment"
+        app:enterAnim="@anim/nav_default_enter_anim"
+        app:exitAnim="@anim/nav_default_exit_anim"
+        app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+        app:popExitAnim="@anim/nav_default_pop_exit_anim" />
 
 </navigation>

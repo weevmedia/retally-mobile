@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.app.ui.auth
 
 import com.retally.shared.domain.auth.SignInProvider
@@ -28,7 +32,7 @@ class AuthFragment : BaseComposeFragment<State, Action, SideEffect, AuthViewMode
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         // "Continue as guest" only on the first-launch sign-in.
-        dispatchViewAction(Action.GuestOptionVisible(args.firstLaunch))
+        dispatchViewAction(Action.GuestOptionVisible(args.firstLaunch && args.showGuestOption))
     }
 
     @Composable
@@ -49,6 +53,9 @@ class AuthFragment : BaseComposeFragment<State, Action, SideEffect, AuthViewMode
             is ShowMessage -> {
                 Toast.makeText(requireContext(), effect.message, Toast.LENGTH_SHORT).show()
             }
+            is SideEffect.OpenWebPage -> findNavController().navigate(
+                com.retally.app.NavGraphDirections.actionGlobalWebPage(title = effect.title, url = effect.url),
+            )
             is SideEffect.StartProviderSignIn -> {
                 // Android offers Google only (Apple is iOS-only).
                 if (effect.provider != SignInProvider.GOOGLE) {

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.presentation.scan
 
 import app.cash.turbine.test
@@ -127,6 +131,70 @@ class ScanReviewStoreTest {
         assertEquals(1, state.duplicates.size)
         assertEquals(1, repository.current().single().duplicates.size)
         assertEquals(null, repository.current().single().syncedAt)
+        store.clear()
+    }
+
+    @Test
+    fun `editing an item's name and price saves it and re-runs duplicate matching`() = runTest(dispatcher) {
+        val store = store()
+        store.dispatch(ScanReviewContract.Action.TextRecognized(lines))
+        dispatcher.scheduler.advanceUntilIdle()
+        val dup = store.observeState().value.duplicates.first()
+
+        store.dispatch(ScanReviewContract.Action.ItemEditOpened(dup.id))
+        assertEquals(dup.id, store.observeState().value.itemEdit?.itemId)
+        store.dispatch(ScanReviewContract.Action.ItemNameChanged("Something Else Entirely"))
+        store.dispatch(ScanReviewContract.Action.ItemPriceChanged("1.23"))
+        store.dispatch(ScanReviewContract.Action.ItemEditSaveClicked)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = store.observeState().value
+        assertEquals(null, state.itemEdit)
+        val saved = repository.current().single().items.first { it.id == dup.id }
+        assertEquals("Something Else Entirely", saved.name)
+        assertEquals(1.23, saved.price, absoluteTolerance = 0.001)
+        assertFalse(saved.isDuplicate)
+        assertEquals(null, repository.current().single().syncedAt)
+        store.clear()
+    }
+
+    @Test
+    fun `a category-only edit keeps the duplicate flags untouched`() = runTest(dispatcher) {
+        val store = store()
+        store.dispatch(ScanReviewContract.Action.TextRecognized(lines))
+        dispatcher.scheduler.advanceUntilIdle()
+        val before = store.observeState().value.duplicates.map { it.id }
+        val dup = store.observeState().value.duplicates.first()
+
+        store.dispatch(ScanReviewContract.Action.ItemEditOpened(dup.id))
+        assertTrue(store.observeState().value.itemEdit!!.isDuplicate)
+        store.dispatch(ScanReviewContract.Action.ItemCategoryPicked("household"))
+        store.dispatch(ScanReviewContract.Action.ItemEditSaveClicked)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val saved = repository.current().single()
+        assertEquals("household", saved.items.first { it.id == dup.id }.categoryId)
+        assertEquals(before, saved.duplicates.map { it.id })
+        store.clear()
+    }
+
+    @Test
+    fun `the sheet's duplicate switch overrides the matcher for that line`() = runTest(dispatcher) {
+        val store = store()
+        store.dispatch(ScanReviewContract.Action.TextRecognized(lines))
+        dispatcher.scheduler.advanceUntilIdle()
+        val dup = store.observeState().value.duplicates.first()
+
+        // Unflag by hand while also renaming (which re-runs the matcher): the switch wins.
+        store.dispatch(ScanReviewContract.Action.ItemEditOpened(dup.id))
+        store.dispatch(ScanReviewContract.Action.ItemNameChanged(dup.name + " x"))
+        store.dispatch(ScanReviewContract.Action.ItemDuplicateChanged(false))
+        store.dispatch(ScanReviewContract.Action.ItemEditSaveClicked)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val saved = repository.current().single().items.first { it.id == dup.id }
+        assertFalse(saved.isDuplicate)
+        assertEquals(dup.name + " x", saved.name)
         store.clear()
     }
 

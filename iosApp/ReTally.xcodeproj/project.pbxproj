@@ -13,6 +13,7 @@
 		03D623ED3079AFB3002CEF58 /* ReceiptScannerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03D623EC3079AFB3002CEF58 /* ReceiptScannerViewController.swift */; };
 		03D623EE3079AFB3002CEF58 /* ReceiptScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03D623EB3079AFB3002CEF58 /* ReceiptScannerView.swift */; };
 		03D623F13079F481002CEF58 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 03D623F03079F481002CEF58 /* FirebaseStorage */; };
+		03F3681F309552C50065AA9C /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 03F3681E309552C50065AA9C /* FirebaseCrashlytics */; };
 		5B0A11C00000000000000A03 /* ShoppingListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0A11C00000000000000A01 /* ShoppingListView.swift */; };
 		5B0A11C00000000000000A04 /* ShoppingListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0A11C00000000000000A02 /* ShoppingListViewModel.swift */; };
 		5B0A11C00000000000000B03 /* AlertsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0A11C00000000000000B01 /* AlertsView.swift */; };
@@ -118,6 +119,7 @@
 				A1000001000000000000A004 /* GoogleMobileAds in Frameworks */,
 				A1000001000000000000A005 /* GoogleUserMessagingPlatform in Frameworks */,
 				A1000001000000000000A006 /* FirebaseCore in Frameworks */,
+				03F3681F309552C50065AA9C /* FirebaseCrashlytics in Frameworks */,
 				A1000001000000000000A007 /* FirebaseAuth in Frameworks */,
 				A1000001000000000000A008 /* FirebaseFirestore in Frameworks */,
 				03D623F13079F481002CEF58 /* FirebaseStorage in Frameworks */,
@@ -396,6 +398,7 @@
 				A1000001000000000000D004 /* FirebaseAuth */,
 				A1000001000000000000D005 /* FirebaseFirestore */,
 				03D623F03079F481002CEF58 /* FirebaseStorage */,
+				03F3681E309552C50065AA9C /* FirebaseCrashlytics */,
 			);
 			productName = ReTally;
 			productReference = A1000001000000000000F005 /* ReTally.app */;
@@ -780,6 +783,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A1000001000000000000E003 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseStorage;
+		};
+		03F3681E309552C50065AA9C /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1000001000000000000E003 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
 		};
 		A1000001000000000000D001 /* GoogleMobileAds */ = {
 			isa = XCSwiftPackageProductDependency;

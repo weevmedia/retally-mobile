@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.domain.receipt.model
 
 import com.retally.shared.domain.category.ItemCategory
@@ -71,7 +75,17 @@ data class Receipt(
     val confidence: Double = 1.0,
     /** Which engine produced the parsed data — LOCAL or CLOUD_AI (Gemini). */
     val parseSource: ParseSource = ParseSource.LOCAL,
+    /**
+     * ISO 4217 code the receipt was paid in, fixed at scan time from the device's region.
+     * Lives on the receipt, not the user, so history stays right if the shopper moves or
+     * travels. Pre-v2 receipts decode as USD (the US-only release).
+     */
+    val currency: String = DEFAULT_CURRENCY,
 ) {
+    companion object {
+        const val DEFAULT_CURRENCY = "USD"
+    }
+
     /** Sum of the printed line prices — a diagnostic, never the receipt total. */
     val itemsTotal: Double get() = items.sumOf { it.price }
 

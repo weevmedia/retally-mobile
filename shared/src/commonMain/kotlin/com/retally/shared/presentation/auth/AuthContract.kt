@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.presentation.auth
 
 import com.retally.shared.domain.preferences.AppPreferences
@@ -11,6 +15,8 @@ import com.retally.shared.core.strings.getString
 import com.retally.shared.domain.auth.AuthRepository
 import com.retally.shared.domain.auth.OtpService
 import kotlinx.coroutines.launch
+import com.retally.shared.presentation.settings.LegalLinks
+import com.retally.shared.ui.web.inAppPageUrl
 
 /**
  * Email-first sign-in ("Welcome to ReTally"):
@@ -81,7 +87,10 @@ interface AuthContract {
         data object GoogleClicked : Action()
         data object GuestClicked : Action()
         /** Terms / Privacy links — TODO(auth): open the real hosted documents. */
-        data object LegalClicked : Action()
+        /** Footer "Terms & Conditions" link. */
+        data object TermsClicked : Action()
+        /** Footer "Privacy Policy" link. */
+        data object PrivacyClicked : Action()
         /**
          * Back chevron: on the name form returns to the email step;
          * on the email step returns to the onboarding screen.
@@ -125,6 +134,8 @@ interface AuthContract {
         /** Back to the onboarding screen. */
         data object NavigateBack : SideEffect()
         data class ShowMessage(val message: String) : SideEffect()
+        /** Host: show Terms or Privacy in the in-app web page screen. */
+        data class OpenWebPage(val title: String, val url: String) : SideEffect()
         /** Host: run the platform's sign-in sheet for [provider], then report back with a token. */
         data class StartProviderSignIn(val provider: SignInProvider) : SideEffect()
     }
@@ -161,9 +172,13 @@ interface AuthContract {
                 Action.NameContinueClicked -> onNameContinue()
                 Action.AppleClicked -> startProvider(SignInProvider.APPLE)
                 Action.GoogleClicked -> startProvider(SignInProvider.GOOGLE)
-                Action.LegalClicked ->
-                    // TODO(auth): hosted legal docs. Not wired yet.
-                    sideEffect(SideEffect.ShowMessage(strings.getString(S.GENERAL_COMING_SOON)))
+                // Our hosted pages, opened in the app (no browser, no address bar).
+                Action.TermsClicked -> sideEffect(
+                    SideEffect.OpenWebPage(strings.getString(S.SETTINGS_TERMS), inAppPageUrl(LegalLinks().terms)),
+                )
+                Action.PrivacyClicked -> sideEffect(
+                    SideEffect.OpenWebPage(strings.getString(S.SETTINGS_PRIVACY), inAppPageUrl(LegalLinks().privacyPolicy)),
+                )
                 is Action.ProviderTokenReceived -> onProviderToken(action)
                 Action.ProviderSignInCancelled -> currentState = currentState.copy(providerInProgress = null)
                 Action.ProviderSignInFailed -> {

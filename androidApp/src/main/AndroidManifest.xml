@@ -66,6 +66,11 @@
             </intent-filter>
         </receiver>
 
+        <!-- Daily "budget is orange / red" reminders (local AlarmManager alarms). -->
+        <receiver
+            android:name=".budget.BudgetReminderReceiver"
+            android:exported="false" />
+
         <!-- Share receipt image via FileProvider. -->
         <provider
             android:name="androidx.core.content.FileProvider"

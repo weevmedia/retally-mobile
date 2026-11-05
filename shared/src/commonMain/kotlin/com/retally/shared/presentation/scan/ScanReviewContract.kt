@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.presentation.scan
 
 import com.retally.shared.core.crash.CrashReporting
@@ -8,6 +12,7 @@ import com.retally.shared.core.strings.StringAssetIdentifiers
 import com.retally.shared.core.strings.StringResolver
 import com.retally.shared.core.strings.getString
 import com.retally.shared.core.Effect
+import com.retally.shared.core.locale.LocaleInfo
 import com.retally.shared.core.newId
 import com.retally.shared.domain.category.CategorySource
 import com.retally.shared.domain.category.ItemCategorizer
@@ -20,6 +25,8 @@ import com.retally.shared.domain.receipt.model.Receipt
 import com.retally.shared.domain.receipt.model.ReceiptItem
 import com.retally.shared.domain.receipt.model.ParseSource
 import com.retally.shared.domain.receipt.model.ScanStatus
+import com.retally.shared.domain.scan.AddressExtractor
+import com.retally.shared.domain.scan.StoreAddressNormalizer
 import com.retally.shared.domain.scan.ContentReport
 import com.retally.shared.domain.scan.QualityReport
 import com.retally.shared.domain.scan.ScanOutcome
@@ -58,8 +65,8 @@ interface ScanReviewContract {
         val savedAt: kotlin.time.Instant? = null,
         /** Line the shopper asked to remove; the UI shows a confirmation until this is null. */
         val pendingRemoval: ReceiptItem? = null,
-        /** Line whose category the shopper is changing; the UI shows a picker until null. */
-        val categoryPickerItem: ReceiptItem? = null,
+        /** Non-null while the "Edit item" sheet is open (swipe a line item → Edit). */
+        val itemEdit: ItemEdit? = null,
         /** Server-pushed spending categories, for the picker and item badges. */
         val categories: List<ItemCategory> = emptyList(),
         /** Whether the receipt's store is a favorite (toggled by the top-bar heart). */
@@ -71,6 +78,42 @@ interface ScanReviewContract {
     ) : com.retally.shared.core.State {
         val duplicates: List<ReceiptItem> get() = receipt?.duplicates.orEmpty()
         val overchargeAmount: Double get() = receipt?.overchargeAmount ?: 0.0
+    }
+
+    /**
+     * Draft in the "Edit item" sheet: name, item number, price, spending category and the
+     * duplicate flag of one line. Price is kept as typed so "4." or "" don't fight the
+     * keyboard; it's parsed on Save.
+     */
+    data class ItemEdit(
+        val itemId: String,
+        val name: String,
+        val itemNumber: String,
+        val price: String,
+        val categoryId: String,
+        val isDuplicate: Boolean,
+    ) {
+        val parsedPrice: Double? get() = price.trim().replace(",", ".").removePrefix("$").toDoubleOrNull()?.takeIf { it >= 0.0 }
+        val canSave: Boolean get() = name.isNotBlank() && parsedPrice != null
+
+        companion object {
+            fun of(item: ReceiptItem) = ItemEdit(
+                itemId = item.id,
+                name = item.name,
+                itemNumber = item.itemNumber.orEmpty(),
+                price = formatPriceInput(item.price),
+                categoryId = item.categoryId,
+                isDuplicate = item.isDuplicate && !item.keptAsDistinct,
+            )
+
+            /** 4.5 → "4.50", 3.0 → "3.00" (two decimals, no locale grouping). */
+            internal fun formatPriceInput(value: Double): String {
+                val cents = kotlin.math.round(value * 100).toLong()
+                val sign = if (cents < 0) "-" else ""
+                val abs = kotlin.math.abs(cents)
+                return "$sign${abs / 100}.${(abs % 100).toString().padStart(2, '0')}"
+            }
+        }
     }
 
     /** A US address split for editing (see [StoreEdit.splitAddress]). */
@@ -106,25 +149,13 @@ interface ScanReviewContract {
             }
 
             /**
-             * Best-effort split of a printed US address. "123 Main St\nEDISON NJ 08817" and
-             * "123 Main St, Edison, NJ 08817" both give street / city / state / ZIP. Anything it
-             * can't place stays in the street, so no text is ever lost.
+             * Split of a printed US address, via [AddressExtractor]: "123 Main St\nEDISON NJ 08817"
+             * and "123 Main St, Edison, NJ 08817" both give street / city / state / ZIP. Anything
+             * it can't place stays in the street, so no text is ever lost.
              */
             fun splitAddress(address: String): AddressParts {
-                val text = address.trim()
-                if (text.isEmpty()) return AddressParts("", "", "", "")
-                val tail = Regex("""[,\s]+([A-Za-z]{2})\.?\s+(\d{5}(?:-\d{4})?)\s*$""").find(text)
-                    ?: Regex("""[,\s]+([A-Z]{2})\s*$""").find(text)
-                    ?: return AddressParts(text, "", "", "")
-                val state = tail.groupValues[1].uppercase()
-                val zip = tail.groupValues.getOrNull(2).orEmpty()
-                val rest = text.substring(0, tail.range.first).trimEnd(',', ' ')
-                val (street, city) = when {
-                    '\n' in rest -> rest.substringBeforeLast('\n').trim() to rest.substringAfterLast('\n').trim().trimEnd(',')
-                    ',' in rest -> rest.substringBeforeLast(',').trim() to rest.substringAfterLast(',').trim()
-                    else -> rest to ""
-                }
-                return AddressParts(street, city, state, zip)
+                val parsed = AddressExtractor.extract(address)
+                return AddressParts(parsed.street, parsed.city, parsed.state, parsed.zip)
             }
         }
     }
@@ -156,10 +187,17 @@ interface ScanReviewContract {
         data class RemoveOneRequested(val id: String) : Action()
         data object RemoveOneConfirmed : Action()
         data object RemoveOneCancelled : Action()
-        /** Change an item's spending category (auto-tagged at scan time). */
-        data class ItemCategoryPickerOpened(val id: String) : Action()
+        /** Swipe → Edit on a line item: opens the "Edit item" sheet. */
+        data class ItemEditOpened(val id: String) : Action()
+        data class ItemNameChanged(val name: String) : Action()
+        data class ItemNumberChanged(val itemNumber: String) : Action()
+        data class ItemPriceChanged(val price: String) : Action()
         data class ItemCategoryPicked(val categoryId: String) : Action()
-        data object ItemCategoryPickerDismissed : Action()
+        /** "Mark as duplicate" switch in the sheet. */
+        data class ItemDuplicateChanged(val isDuplicate: Boolean) : Action()
+        data object ItemEditSaveClicked : Action()
+        /** Sheet swiped down / Cancel: discards the draft. */
+        data object ItemEditDismissed : Action()
         /** Top-bar heart: favorite/unfavorite this receipt's store. */
         data object FavoriteStoreToggled : Action()
         /** Top-bar share: share the receipt image. */
@@ -203,6 +241,8 @@ interface ScanReviewContract {
         private val storeIcons: StoreIconRepository? = null,
         /** Server AI categories, applied right after a new scan is saved. Null = keywords only. */
         private val itemClassifier: ItemCategoryClassifier? = null,
+        /** Device region → the currency stamped on every new receipt. */
+        private val locale: LocaleInfo = LocaleInfo.US,
     ) : com.retally.shared.core.Store<State, Action, SideEffect>() {
 
         private var started = false
@@ -228,7 +268,7 @@ interface ScanReviewContract {
 
         override fun dispatch(action: Action) {
             when (action) {
-                is Action.TextRecognized -> if (!started) { started = true; parseAndSave(action.lines, action.imagePath) }
+                is Action.TextRecognized -> if (!started) { started = true; launch { parseAndSave(action.lines, action.imagePath) } }
                 is Action.LoadReceipt -> if (!started) { started = true; load(action.id) }
                 is Action.ItemDuplicateToggled -> toggleDuplicate(action.id)
                 is Action.KeepBoth -> keepBoth(action.id)
@@ -237,11 +277,27 @@ interface ScanReviewContract {
                 )
                 Action.RemoveOneCancelled -> currentState = currentState.copy(pendingRemoval = null)
                 Action.RemoveOneConfirmed -> removeOne()
-                is Action.ItemCategoryPickerOpened -> currentState = currentState.copy(
-                    categoryPickerItem = currentState.receipt?.items?.firstOrNull { it.id == action.id },
-                )
-                is Action.ItemCategoryPicked -> changeItemCategory(action.categoryId)
-                Action.ItemCategoryPickerDismissed -> currentState = currentState.copy(categoryPickerItem = null)
+                is Action.ItemEditOpened -> currentState.receipt?.items?.firstOrNull { it.id == action.id }?.let { item ->
+                    currentState = currentState.copy(itemEdit = ItemEdit.of(item))
+                }
+                is Action.ItemNameChanged -> currentState.itemEdit?.let {
+                    currentState = currentState.copy(itemEdit = it.copy(name = action.name))
+                }
+                is Action.ItemNumberChanged -> currentState.itemEdit?.let {
+                    currentState = currentState.copy(itemEdit = it.copy(itemNumber = action.itemNumber.trim().take(32)))
+                }
+                is Action.ItemPriceChanged -> currentState.itemEdit?.let {
+                    val price = action.price.filter { c -> c.isDigit() || c == '.' || c == ',' }.take(10)
+                    currentState = currentState.copy(itemEdit = it.copy(price = price))
+                }
+                is Action.ItemCategoryPicked -> currentState.itemEdit?.let {
+                    currentState = currentState.copy(itemEdit = it.copy(categoryId = action.categoryId))
+                }
+                is Action.ItemDuplicateChanged -> currentState.itemEdit?.let {
+                    currentState = currentState.copy(itemEdit = it.copy(isDuplicate = action.isDuplicate))
+                }
+                Action.ItemEditSaveClicked -> saveItemEdit()
+                Action.ItemEditDismissed -> currentState = currentState.copy(itemEdit = null)
                 Action.FavoriteStoreToggled -> toggleFavoriteStore()
                 Action.ShareClicked -> sideEffect(SideEffect.ShareReceipt(currentState.receipt?.imagePath))
                 Action.SaveToPhotosClicked -> sideEffect(SideEffect.SaveToPhotos(currentState.receipt?.imagePath))
@@ -338,9 +394,12 @@ interface ScanReviewContract {
             )
         }
 
-        private fun parseAndSave(lines: List<String>, imagePath: String?) {
+        private suspend fun parseAndSave(lines: List<String>, imagePath: String?) {
             val parseStart = clock.now()
             val parsed = parser.parse(lines)
+            // One clean "street / City, ST ZIP" block whatever the chain's header layout —
+            // the platform address detector over the raw header, regex split as fallback.
+            val storeAddress = StoreAddressNormalizer.normalize(lines, parsed.storeAddress)
             // Nothing usable at all — no items and no total.
             if (parsed.items.isEmpty() && parsed.total == null) {
                 currentState = currentState.copy(isLoading = false, nothingFound = true)
@@ -392,7 +451,8 @@ interface ScanReviewContract {
             val receipt = Receipt(
                 id = newId(),
                 storeName = parsed.storeName.trim(),
-                storeAddress = parsed.storeAddress,
+                storeAddress = storeAddress,
+                currency = locale.currencyCode,
                 purchaseDate = parsed.purchaseDate ?: now,
                 paymentInfo = parsed.paymentInfo,
                 items = parsed.items.map {
@@ -614,18 +674,56 @@ interface ScanReviewContract {
             sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.RECEIPT_MSG_REMOVED_ONE, target.name)))
         }
 
-        /** Manual category fix: the shopper's choice wins and is never auto-retagged. */
-        private fun changeItemCategory(categoryId: String) {
+        /**
+         * Saves the "Edit item" sheet into the open receipt (local first, then re-uploaded) and
+         * closes it. Name / number / price feed duplicate matching, so the flags are re-run
+         * when any of those changed. The sheet's own "Mark as duplicate" switch is the
+         * shopper's word and wins over the matcher for this line; a category-only change
+         * touches nothing else. A hand-picked category is never auto-retagged.
+         * The printed receipt TOTAL is never touched.
+         */
+        private fun saveItemEdit() {
             val receipt = currentState.receipt ?: return
-            val target = currentState.categoryPickerItem ?: return
+            val draft = currentState.itemEdit ?: return
+            val price = draft.parsedPrice ?: return
+            if (draft.name.isBlank()) return
+            val original = receipt.items.firstOrNull { it.id == draft.itemId } ?: run {
+                currentState = currentState.copy(itemEdit = null)
+                return
+            }
+            val wasFlagged = original.isDuplicate && !original.keptAsDistinct
+            val flagChanged = draft.isDuplicate != wasFlagged
+            val edited = original.copy(
+                name = draft.name.trim(),
+                itemNumber = draft.itemNumber.trim().ifEmpty { null },
+                price = price,
+                categoryId = draft.categoryId,
+                // A hand-picked category is never overwritten by the server's AI pass.
+                categoryLocked = original.categoryLocked || draft.categoryId != original.categoryId,
+                isDuplicate = if (flagChanged) draft.isDuplicate else original.isDuplicate,
+                // Flagging by hand undoes an earlier "Keep both"; unflagging just clears it.
+                keptAsDistinct = if (flagChanged) false else original.keptAsDistinct,
+            )
+            if (edited == original) {
+                currentState = currentState.copy(itemEdit = null)
+                return
+            }
+            val matchingChanged = edited.name != original.name ||
+                edited.itemNumber != original.itemNumber ||
+                edited.price != original.price
+            var items = receipt.items.map { if (it.id == edited.id) edited else it }
+            if (matchingChanged) {
+                items = DuplicateMatcher.flag(items)
+                // The matcher must not undo what the shopper just set on this line.
+                if (flagChanged) items = items.map { if (it.id == edited.id) it.copy(isDuplicate = draft.isDuplicate, keptAsDistinct = false) else it }
+            }
             val updated = receipt.copy(
-                items = receipt.items.map {
-                    if (it.id == target.id) it.copy(categoryId = categoryId, categoryLocked = true) else it
-                },
+                items = items,
                 syncedAt = null, // changed locally → needs re-upload
             )
-            currentState = currentState.copy(receipt = updated, categoryPickerItem = null, isSaving = true)
+            currentState = currentState.copy(receipt = updated, itemEdit = null, isSaving = true)
             persist(updated, announce = false)
+            sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.RECEIPT_ITEM_UPDATED)))
         }
 
         /**

@@ -1,3 +1,7 @@
+//
+//  Copyright (c) 2026-2027 Weev Media. All rights reserved.
+//
+
 import SwiftUI
 
 /// First launch only: sign-in between onboarding and the tab bar.
@@ -13,5 +17,15 @@ struct AuthView: View {
     var body: some View {
         ComposeHostView(controller: viewModel.screen.viewController)
             .ignoresSafeArea() // Compose pads for the system bars itself.
+            .sheet(item: $viewModel.webPage) { page in
+                WebPageView(title: page.title, url: page.url, onFinished: { viewModel.webPage = nil })
+            }
     }
+}
+
+/// Terms / Privacy page to show from the sign-in screen.
+struct WebPageItem: Identifiable {
+    let title: String
+    let url: String
+    var id: String { url }
 }

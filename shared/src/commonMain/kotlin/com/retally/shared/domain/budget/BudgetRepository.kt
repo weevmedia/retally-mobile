@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.domain.budget
 
 import kotlinx.datetime.number
@@ -99,8 +103,7 @@ enum class BudgetPace { ON_TRACK, WARNING, OVER }
  */
 fun budgetPace(spent: Double, budget: Double, dayOfMonth: Int, daysInMonth: Int): BudgetPace {
     if (budget <= 0 || spent >= budget) return BudgetPace.OVER
-    val timeProgress = dayOfMonth.toDouble() / daysInMonth.coerceAtLeast(1)
-    val projected = if (timeProgress <= 0) spent else spent / timeProgress
+    val projected = projectedMonthEnd(spent, dayOfMonth, daysInMonth)
     return when {
         projected > budget * 1.2 -> BudgetPace.OVER
         projected > budget -> BudgetPace.WARNING

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.app.ui.notifications
 
 import androidx.compose.runtime.Composable
@@ -35,6 +39,12 @@ class NotificationsFragment : BaseComposeFragment<State, Action, SideEffect, Not
                     .setPopUpTo(R.id.homeFragment, inclusive = false, saveState = true)
                     .build()
                 nav.navigate(R.id.aiListFragment, null, options)
+            }
+            // A budget reminder / month-end wrap-up: back to Home, then the Budget screen.
+            SideEffect.OpenBudget -> {
+                val nav = findNavController()
+                nav.popBackStack()
+                nav.navigate(R.id.budgetFragment)
             }
         }
     }

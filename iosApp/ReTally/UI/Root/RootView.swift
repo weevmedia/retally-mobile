@@ -1,3 +1,7 @@
+//
+//  Copyright (c) 2026-2027 Weev Media. All rights reserved.
+//
+
 import SwiftUI
 
 struct RootView: View {
@@ -13,12 +17,12 @@ struct RootView: View {
                     .transition(.opacity)
             }
             if viewModel.showOnboarding {
-                OnboardingView(onFinished: viewModel.onboardingFinished)
+                OnboardingView(onFinished: { viewModel.onboardingFinished(showGuestOption: $0) })
                     // Fades in after the splash; "Get Started" pushes it off to the left.
                     .transition(.asymmetric(insertion: .opacity, removal: .move(edge: .leading)))
             }
             if viewModel.showAuth {
-                AuthView(showGuestOption: !viewModel.authFromSettings, onFinished: viewModel.authFinished, onEmailContinue: viewModel.authEmailContinue, onBack: viewModel.authBack)
+                AuthView(showGuestOption: !viewModel.authFromSettings && viewModel.authShowsGuestOption, onFinished: viewModel.authFinished, onEmailContinue: viewModel.authEmailContinue, onBack: viewModel.authBack)
                     // Slides in from the right (after "Get Started", or Log in from the app);
                     // fades away once signed in.
                     .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .opacity))

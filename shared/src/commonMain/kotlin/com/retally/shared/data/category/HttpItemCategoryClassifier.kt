@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.data.category
 
 import com.retally.shared.domain.auth.AuthRepository
@@ -35,7 +39,14 @@ class HttpItemCategoryClassifier(
 ) : ItemCategoryClassifier {
 
     override suspend fun classify(storeName: String, itemNames: List<String>): Map<String, String>? {
-        val names = itemNames.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+        // Send cleaned names, but answer with the caller's exact names: callers look results up
+        // by `item.name`. OCR differs per platform (iOS Vision can leave trailing / non-breaking
+        // spaces where ML Kit doesn't), so a trimmed key used to miss and the item stayed
+        // "Uncategorized" on iOS while the same receipt worked on Android.
+        val originalsByKey = itemNames
+            .filter { normalize(it).isNotEmpty() }
+            .groupBy { normalize(it).lowercase() }
+        val names = originalsByKey.values.map { normalize(it.first()) }
         if (names.isEmpty()) return emptyMap()
         val token = try {
             auth.getIdToken(forceRefresh = false)
@@ -43,7 +54,11 @@ class HttpItemCategoryClassifier(
             throw e
         } catch (e: Exception) {
             null
-        } ?: return null
+        } ?: run {
+            // No Firebase user yet (guest sign-in not finished): items keep their keyword guess.
+            log("skipped: no Firebase ID token")
+            return null
+        }
         val out = mutableMapOf<String, String>()
         for (chunk in names.chunked(MAX_PER_CALL)) {
             try {
@@ -63,7 +78,9 @@ class HttpItemCategoryClassifier(
                         ?.get("categories") as? JsonObject
                 }.getOrNull() ?: continue
                 for ((name, value) in categories) {
-                    (value as? JsonPrimitive)?.contentOrNull?.let { out[name] = it }
+                    val id = (value as? JsonPrimitive)?.contentOrNull ?: continue
+                    // Match the server's key back to every original spelling of that name.
+                    originalsByKey[normalize(name).lowercase()]?.forEach { original -> out[original] = id }
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -72,9 +89,14 @@ class HttpItemCategoryClassifier(
                 return out.takeIf { it.isNotEmpty() }
             }
         }
-        log("${out.size}/${names.size} item(s) categorised")
+        val missed = itemNames.filter { it !in out && normalize(it).isNotEmpty() }
+        log("${out.size}/${itemNames.size} item(s) categorised" + if (missed.isEmpty()) "" else " — no category for: ${missed.take(10)}")
         return out
     }
+
+    /** Trims and collapses whitespace, including non-breaking spaces from OCR. */
+    private fun normalize(name: String): String =
+        name.replace('\u00A0', ' ').replace(WHITESPACE, " ").trim()
 
     private fun log(message: String) = println("[ReTallyCategories] $message")
 
@@ -82,5 +104,6 @@ class HttpItemCategoryClassifier(
         const val DEFAULT_URL = "https://us-east1-retally-c5212.cloudfunctions.net/categorizeItems"
         /** The server takes up to 120 lines per call. */
         private const val MAX_PER_CALL = 100
+        private val WHITESPACE = Regex("\\s+")
     }
 }

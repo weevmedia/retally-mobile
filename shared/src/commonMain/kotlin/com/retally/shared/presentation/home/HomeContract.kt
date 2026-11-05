@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.presentation.home
 
 import com.retally.shared.domain.budget.BudgetScope
@@ -8,6 +12,10 @@ import com.retally.shared.domain.budget.budgetMonthKey
 import com.retally.shared.domain.budget.budgetPace
 import com.retally.shared.domain.budget.BudgetPace
 import com.retally.shared.domain.budget.BudgetRepository
+import com.retally.shared.domain.budget.BudgetReminderScheduler
+import com.retally.shared.domain.budget.BudgetReminderLog
+import com.retally.shared.domain.budget.planBudgetReminders
+import com.retally.shared.domain.budget.projectedMonthEnd
 import com.retally.shared.core.strings.EnglishStringResolver
 import com.retally.shared.core.strings.StringAssetIdentifiers
 import com.retally.shared.core.strings.StringResolver
@@ -26,6 +34,13 @@ import com.retally.shared.domain.ai.Nudge
 import com.retally.shared.presentation.main.ScanRequests
 import com.retally.shared.domain.receipt.SampleReceipts
 import com.retally.shared.domain.receipt.model.Receipt
+import com.retally.shared.ui.format.formatCurrency
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.datetime.TimeZone
@@ -33,6 +48,8 @@ import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import com.retally.shared.core.newId
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 /**
  * Home: the receipt list plus the primary "Scan receipt" call to action.
@@ -60,6 +77,8 @@ interface HomeContract {
         val isRestoring: Boolean = false,
         /** Notifications raised in the last 48h and not dismissed — drives the bell's dot. */
         val notificationCount: Int = 0,
+        /** Of those, how many arrived since the inbox was last opened — makes the bell shake. */
+        val newNotificationCount: Int = 0,
         /** This month's budget; null when none is set (the Home budget bar stays hidden). */
         val budgetAmount: Double? = null,
         /** What this month's budget tracks (all spending or chosen categories). */
@@ -105,7 +124,17 @@ interface HomeContract {
                 return budgetPace(budgetSpent, budget, today.day, daysInMonth(today))
             }
 
+        /** Month-end spend at the current pace, shown on the Home budget card; null without a budget. */
+        val budgetProjected: Double?
+            get() {
+                budgetAmount?.takeIf { it > 0 } ?: return null
+                val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+                return projectedMonthEnd(budgetSpent, today.day, daysInMonth(today))
+            }
+
         val hasNotifications: Boolean get() = notificationCount > 0
+
+        val hasNewNotifications: Boolean get() = newNotificationCount > 0
 
         val totalOvercharge: Double get() = receipts.sumOf { it.overchargeAmount }
 
@@ -218,8 +247,11 @@ interface HomeContract {
         data object OpenSignIn : SideEffect()
         /** Host: switch to the Smart List tab (the store is already queued on the repository). */
         data object OpenShoppingList : SideEffect()
+        /** Host: open the "How it works" screen (demo built from the real receipt screens). */
+        data object OpenHowItWorks : SideEffect()
     }
 
+    @OptIn(FlowPreview::class) // debounce
     class Store(
         private val repository: ReceiptRepository,
         private val categories: CategoryRepository,
@@ -231,6 +263,10 @@ interface HomeContract {
         private val budgets: BudgetRepository? = null,
         private val nudgeRepository: NudgeRepository? = null,
         private val shoppingLists: ShoppingListRepository? = null,
+        /** Daily "budget is orange / red" local notifications; null in tests and previews. */
+        private val budgetReminders: BudgetReminderScheduler? = null,
+        /** Files fired budget notifications under the bell; null in tests and previews. */
+        private val budgetReminderLog: BudgetReminderLog? = null,
     ) : com.retally.shared.core.Store<State, Action, SideEffect>() {
 
         override fun initState() = State()
@@ -278,9 +314,45 @@ interface HomeContract {
             }
             inbox?.let { box ->
                 box.prune() // drop anything that expired while the app was closed
-                box.notifications
-                    .onEach { list -> updateStateSafely { it.copy(notificationCount = list.size) } }
+                combine(box.notifications, box.lastSeenAtMillis) { list, lastSeen ->
+                    list.size to list.count { it.postedAtMillis > lastSeen }
+                }
+                    .onEach { (total, new) ->
+                        updateStateSafely { it.copy(notificationCount = total, newNotificationCount = new) }
+                    }
                     .launchIn(this)
+            }
+            budgetReminders?.let { scheduler ->
+                // Re-plan whenever the budget or this month's spend changes (receipt added, budget
+                // edited, scope switched). Waits for receipts to load so it never plans from $0.
+                observeState()
+                    .filter { !it.isLoading }
+                    .map { it.budgetAmount to it.budgetSpent }
+                    .distinctUntilChanged()
+                    .debounce(REMINDER_REPLAN_DEBOUNCE_MS)
+                    .onEach { (budget, spent) ->
+                        val plan = planBudgetReminders(
+                            spent = spent,
+                            budget = budget,
+                            now = Clock.System.now(),
+                            timeZone = TimeZone.currentSystemDefault(),
+                            strings = strings,
+                            formatMoney = ::formatCurrency,
+                        )
+                        budgetReminderLog?.replacePlan(plan) // bell copy of each notification
+                        scheduler.replaceAll(plan)
+                    }
+                    .launchIn(this)
+            }
+            budgetReminderLog?.let { log ->
+                // Budget notifications are shown by the OS on their own, so file the ones that
+                // have fired into the bell: now (missed while closed) and every minute while open.
+                launch {
+                    while (isActive) {
+                        log.collectFired()
+                        delay(BELL_SYNC_INTERVAL_MS)
+                    }
+                }
             }
             // The shell's scan FAB routes here so the scanner flow stays owned by Home.
             ScanRequests.flow
@@ -309,9 +381,7 @@ interface HomeContract {
                 Action.DuplicatesClicked -> sideEffect(SideEffect.OpenDuplicates)
                 Action.BudgetClicked -> sideEffect(SideEffect.OpenBudget)
                 Action.SeeAllReceiptsClicked -> sideEffect(SideEffect.OpenReceipts)
-                Action.HowItWorksClicked -> sideEffect(
-                    SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.HOME_MSG_HOW_IT_WORKS)),
-                )
+                Action.HowItWorksClicked -> sideEffect(SideEffect.OpenHowItWorks)
                 Action.NotificationsClicked -> sideEffect(SideEffect.OpenNotifications)
                 // Sign-in / account linking is not built yet: say so instead of routing to the host.
                 // Guest banner "Sign in to enable cloud sync": open the same sign-in flow as More › Log in.
@@ -347,6 +417,14 @@ interface HomeContract {
                 repository.delete(target.id)
                 sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.HOME_MSG_DELETED, target.storeName)))
             }
+        }
+
+        private companion object {
+            /** Receipts restore in bursts; wait for the spend to settle before re-planning reminders. */
+            const val REMINDER_REPLAN_DEBOUNCE_MS = 1_000L
+
+            /** How often fired budget notifications are copied to the bell while Home is alive. */
+            const val BELL_SYNC_INTERVAL_MS = 60_000L
         }
     }
 }

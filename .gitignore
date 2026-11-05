@@ -76,3 +76,6 @@ firebase-debug.log
 firestore-debug.log
 ui-debug.log
 backend/
+
+# Local release builds (upload to Play from CI / by hand, never commit)
+androidApp/release/

@@ -1,3 +1,7 @@
+//
+//  Copyright (c) 2026-2027 Weev Media. All rights reserved.
+//
+
 import SwiftUI
 
 struct HomeView: View {
@@ -20,7 +24,10 @@ struct HomeView: View {
                     BudgetView(onFinished: viewModel.budgetFinished)
                 }
                 .navigationDestination(isPresented: $viewModel.isNotificationsPresented) {
-                    NotificationsView(onFinished: viewModel.notificationsFinished)
+                    NotificationsView(onFinished: viewModel.notificationsFinished, onOpenBudget: viewModel.openBudgetFromNotifications)
+                }
+                .navigationDestination(isPresented: $viewModel.isHowItWorksPresented) {
+                    HowItWorksView(onFinished: viewModel.howItWorksFinished)
                 }
                 .fullScreenCover(isPresented: $viewModel.isScannerPresented) {
                     ReceiptScannerView(onResult: viewModel.scannerFinished)
@@ -30,5 +37,24 @@ struct HomeView: View {
                         .onDisappear { viewModel.scannerCoverDismissed() }
                 }
         }
+    }
+}
+
+/// "See how it works" — pushed from the empty Home. Lives in this file so no Xcode project
+/// change is needed.
+struct HowItWorksView: View {
+    @StateObject private var viewModel: HowItWorksViewModel
+
+    init(onFinished: @escaping () -> Void) {
+        _viewModel = StateObject(wrappedValue: HowItWorksViewModel(onFinished: onFinished))
+    }
+
+    var body: some View {
+        ComposeHostView(controller: viewModel.screen.viewController)
+            .ignoresSafeArea()
+            .toolbar(.hidden, for: .navigationBar) // Compose draws the top bar with its own Back.
+            .toolbar(.hidden, for: .tabBar)
+            .onAppear { NotificationCenter.default.post(name: .retallyHideScanButton, object: nil) }
+            .onDisappear { NotificationCenter.default.post(name: .retallyShowScanButton, object: nil) }
     }
 }

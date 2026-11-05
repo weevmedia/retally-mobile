@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.platform
 
 import com.retally.shared.domain.ads.AdsConfig
@@ -8,6 +12,7 @@ import com.retally.shared.domain.shopping.notificationSummary
 import com.retally.shared.presentation.home.HomeContract
 import com.retally.shared.presentation.main.MainContract
 import com.retally.shared.presentation.duplicates.DuplicatesContract
+import com.retally.shared.presentation.howitworks.HowItWorksContract
 import com.retally.shared.presentation.budget.BudgetContract
 import com.retally.shared.presentation.receipts.ReceiptsContract
 import com.retally.shared.presentation.scan.ScanReviewContract
@@ -42,6 +47,7 @@ object IosDependencies {
     fun getSettingsStore(): SettingsContract.Store = KoinPlatform.getKoin().get()
     fun getScanReviewStore(): ScanReviewContract.Store = KoinPlatform.getKoin().get()
     fun getDuplicatesStore(): DuplicatesContract.Store = KoinPlatform.getKoin().get()
+    fun getHowItWorksStore(): HowItWorksContract.Store = KoinPlatform.getKoin().get()
     fun getBudgetStore(): BudgetContract.Store = KoinPlatform.getKoin().get()
     fun getReceiptsStore(): ReceiptsContract.Store = KoinPlatform.getKoin().get()
     fun getShoppingListStore(): ShoppingListContract.Store = KoinPlatform.getKoin().get()

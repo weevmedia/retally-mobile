@@ -1,8 +1,13 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.app.scan
 
 import android.graphics.Rect
 import android.content.Context
 import android.net.Uri
+import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
@@ -22,11 +27,12 @@ import kotlin.math.max
 class ReceiptTextRecognizer(private val context: Context) {
 
     private val recognizer by lazy { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
+    private val barcodeScanner by lazy { BarcodeScanning.getClient() }
 
     suspend fun recognizeLines(pages: List<Uri>): List<String> = withContext(Dispatchers.Default) {
         pages.flatMap { uri ->
             val image = InputImage.fromFilePath(context, uri)
-            mergeRows(recognizer.process(image).await())
+            mergeRows(recognizer.process(image).await()) + barcodes(image)
         }
     }
 
@@ -34,8 +40,27 @@ class ReceiptTextRecognizer(private val context: Context) {
     data class Page(val lines: List<String>, val textBounds: Rect?)
 
     suspend fun recognizePage(uri: Uri): Page = withContext(Dispatchers.Default) {
-        val text = recognizer.process(InputImage.fromFilePath(context, uri)).await()
-        Page(mergeRows(text), receiptTextBounds(text))
+        val image = InputImage.fromFilePath(context, uri)
+        val text = recognizer.process(image).await()
+        Page(mergeRows(text) + barcodes(image), receiptTextBounds(text))
+    }
+
+    /**
+     * Barcode payloads read from the bars themselves, not OCR'd digits: text OCR on the
+     * small digits under a top-of-receipt barcode often drops or misreads them, which is
+     * why Walmart/Shaw's top barcodes came and went. Numeric payloads join as their own
+     * lines, last, so the shared parser's barcode detector picks them up without ever
+     * touching the store address at the top. A failed scan just yields no payloads.
+     */
+    private suspend fun barcodes(image: InputImage): List<String> = try {
+        barcodeScanner.process(image).await().mapNotNull { it.rawValue }
+            .filter { payload ->
+                val digits = payload.filter { it.isDigit() }
+                digits.length >= 12 && payload.all { it.isDigit() || it.isWhitespace() || it == '-' }
+            }
+            .map { payload -> payload.filter { it.isDigit() } }
+    } catch (e: Exception) {
+        emptyList()
     }
 
     /**

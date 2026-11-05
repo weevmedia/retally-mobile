@@ -1,0 +1,3 @@
+-- v1 → v2: every receipt carries its own currency (ISO 4217). Existing rows were all
+-- scanned in the US-only release, so USD is the correct backfill.
+ALTER TABLE receipt ADD COLUMN currency TEXT NOT NULL DEFAULT 'USD';

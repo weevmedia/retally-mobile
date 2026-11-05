@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.ui.settings
 
 import com.retally.shared.ui.components.InFeedSquareAd
@@ -135,6 +139,8 @@ fun SettingsScreen(
     /** Ads allowed (consent + SDK ready); the block ad above the footer shows only then. */
     adsEnabled: Boolean = false,
     adUnitId: String = "",
+    /** Debug builds only: "Reset nearby cooldowns" and "Send test crash" rows. */
+    showDebugActions: Boolean = false,
 ) {
     // Keeps the last draft so the page can slide out after the store clears it.
     val lastNameEdit = remember { mutableStateOf<SettingsContract.NameEdit?>(null) }
@@ -188,6 +194,7 @@ fun SettingsScreen(
                     contentPadding = padding,
                     dispatch = dispatch,
                     adUnitId = adUnitId.takeIf { adsEnabled && it.isNotBlank() },
+                    showDebugActions = showDebugActions,
                 )
             }
         }
@@ -249,6 +256,7 @@ private fun MoreContent(
     dispatch: (SettingsContract.Action) -> Unit,
     /** Medium-rectangle ad above the company logo; null = no ad (ads off / no unit id). */
     adUnitId: String? = null,
+    showDebugActions: Boolean = false,
 ) {
     val d = ReTallyTheme.dimensions
     val account = state.account
@@ -318,23 +326,25 @@ private fun MoreContent(
                     checked = state.preferences.hapticsEnabled,
                     onChange = { dispatch(SettingsContract.Action.SetHapticsEnabled(it)) },
                 )
-                // DEBUG-ONLY (remove before release): retest geofences without waiting 24h.
-                HorizontalDivider(Modifier.padding(horizontal = d.lg))
-                MenuRow(
-                    icon = Icons.Rounded.Refresh,
-                    title = "Reset nearby cooldowns (debug)",
-                    showChevron = false,
-                    onClick = { dispatch(SettingsContract.Action.ResetNearbyCooldownsClicked) },
-                )
-                // DEBUG-ONLY (remove before release): crash on purpose; reopen the app and the
-                // report shows in Firebase → Crashlytics within a few minutes.
-                HorizontalDivider(Modifier.padding(horizontal = d.lg))
-                MenuRow(
-                    icon = Icons.Rounded.Refresh,
-                    title = "Send test crash (debug)",
-                    showChevron = false,
-                    onClick = { dispatch(SettingsContract.Action.CrashTestClicked) },
-                )
+                if (showDebugActions) {
+                    // Debug builds only: retest geofences without waiting 24h.
+                    HorizontalDivider(Modifier.padding(horizontal = d.lg))
+                    MenuRow(
+                        icon = Icons.Rounded.Refresh,
+                        title = "Reset nearby cooldowns (debug)",
+                        showChevron = false,
+                        onClick = { dispatch(SettingsContract.Action.ResetNearbyCooldownsClicked) },
+                    )
+                    // Debug builds only: crash on purpose; reopen the app and the report shows
+                    // in Firebase → Crashlytics within a few minutes.
+                    HorizontalDivider(Modifier.padding(horizontal = d.lg))
+                    MenuRow(
+                        icon = Icons.Rounded.Refresh,
+                        title = "Send test crash (debug)",
+                        showChevron = false,
+                        onClick = { dispatch(SettingsContract.Action.CrashTestClicked) },
+                    )
+                }
                 HorizontalDivider(Modifier.padding(horizontal = d.lg))
                 MenuRow(
                     icon = Icons.AutoMirrored.Rounded.HelpOutline,
@@ -1135,13 +1145,14 @@ private fun TileIcon(icon: ImageVector, destructive: Boolean = false) {
         modifier = Modifier
             .size(34.dp)
             .clip(RoundedCornerShape(9.dp))
-            .background(if (destructive) MaterialTheme.colorScheme.errorContainer else TileGray),
+            // Brand tint (mint on light, deep green on dark), matching the rest of the app.
+            .background(if (destructive) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = if (destructive) MaterialTheme.colorScheme.onErrorContainer else TileInk,
+            tint = if (destructive) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer,
             modifier = Modifier.size(20.dp),
         )
     }

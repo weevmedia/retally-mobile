@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.presentation.settings
 
 import com.russhwolf.settings.Settings
@@ -7,6 +11,7 @@ import com.retally.shared.core.strings.EnglishStringResolver
 import com.retally.shared.core.strings.StringAssetIdentifiers
 import com.retally.shared.core.strings.StringResolver
 import com.retally.shared.core.strings.getString
+import com.retally.shared.ui.web.inAppPageUrl
 import com.retally.shared.core.Effect
 import com.retally.shared.core.Platform
 import com.retally.shared.domain.recalls.RecallsRepository
@@ -131,6 +136,8 @@ interface SettingsContract {
 
     sealed class SideEffect : Effect {
         data class OpenUrl(val url: String) : SideEffect()
+        /** Host: show one of our own pages (privacy, terms, support) in the in-app web page screen. */
+        data class OpenWebPage(val title: String, val url: String) : SideEffect()
         /** Host: push the food recalls screen. */
         data object OpenRecalls : SideEffect()
         data class ShowMessage(val message: String) : SideEffect()
@@ -203,10 +210,15 @@ interface SettingsContract {
                         account = account,
                         favoriteStores = favs,
                         knownStores = known,
+                        // Removing the last favourite ends edit mode: nothing is left to edit.
+                        favoritesEditMode = it.favoritesEditMode && favs.isNotEmpty(),
                     )
                 }
             }.launchIn(this)
         }
+
+        private fun openWebPage(titleId: String, url: String) =
+            sideEffect(SideEffect.OpenWebPage(strings.getString(titleId), inAppPageUrl(url)))
 
         override fun dispatch(action: Action) {
             when (action) {
@@ -227,9 +239,10 @@ interface SettingsContract {
                 Action.DeleteAllRequested -> currentState = currentState.copy(showDeleteAllConfirmation = true)
                 Action.DeleteAllCancelled -> currentState = currentState.copy(showDeleteAllConfirmation = false)
                 Action.DeleteAllConfirmed -> deleteAll()
-                Action.PrivacyPolicyClicked -> sideEffect(SideEffect.OpenUrl(links.privacyPolicy))
-                Action.TermsClicked -> sideEffect(SideEffect.OpenUrl(links.terms))
-                Action.SupportClicked -> sideEffect(SideEffect.OpenUrl(links.support))
+                // Our own pages open in the app (no browser, no address bar).
+                Action.PrivacyPolicyClicked -> openWebPage(StringAssetIdentifiers.SETTINGS_PRIVACY, links.privacyPolicy)
+                Action.TermsClicked -> openWebPage(StringAssetIdentifiers.SETTINGS_TERMS, links.terms)
+                Action.SupportClicked -> openWebPage(StringAssetIdentifiers.SETTINGS_HELP, links.support)
                 Action.RecallsClicked -> sideEffect(SideEffect.OpenRecalls)
                 Action.DismissSyncMessage -> currentState = currentState.copy(
                     syncMessage = null,
@@ -263,13 +276,13 @@ interface SettingsContract {
                 Action.DeleteAccountRequested -> currentState = currentState.copy(showDeleteAccountConfirm = true)
                 Action.DeleteAccountCancelled -> currentState = currentState.copy(showDeleteAccountConfirm = false)
                 Action.DeleteAccountConfirmed -> deleteAccount()
-                Action.EditFavoritesToggled -> {
-                    if (currentState.favoriteStores.isEmpty()) {
-                        // Nothing to remove — EDIT opens the picker, matching the empty-state copy.
-                        openStorePicker()
-                    } else {
-                        currentState = currentState.copy(favoritesEditMode = !currentState.favoritesEditMode)
-                    }
+                Action.EditFavoritesToggled -> when {
+                    // DONE always leaves edit mode, even if the last favourite was just removed
+                    // (it used to open the picker instead, leaving the button stuck on DONE).
+                    currentState.favoritesEditMode -> currentState = currentState.copy(favoritesEditMode = false)
+                    // Nothing to remove — EDIT opens the picker, matching the empty-state copy.
+                    currentState.favoriteStores.isEmpty() -> openStorePicker()
+                    else -> currentState = currentState.copy(favoritesEditMode = true)
                 }
                 is Action.RemoveFavorite -> favorites.remove(action.key)
                 Action.AddFavoritesClicked -> openStorePicker()

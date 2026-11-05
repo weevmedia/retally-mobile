@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 // Single source of truth for versions and coordinates, same shape as the Sidearm build.
 // Plugin classpath entries live in the root build.gradle.kts `buildscript` block; module
 // build files reference `Deps.*` / `Versions.*` directly.
@@ -42,6 +46,9 @@ object Versions {
     // Receipt scanning: Play-services-delivered ML Kit (no bundled model, small APK).
     const val mlkitDocumentScanner = "16.0.0-beta1"
     const val mlkitTextRecognition = "19.0.1"
+    // Play-services barcode scanning, same unbundled shape as text recognition (the model
+    // downloads via Play services on first use; until then barcode detection yields nothing).
+    const val mlkitBarcodeScanning = "18.3.1"
     // Custom scanner UI (replaces the ML Kit document scanner): CameraX for the live preview.
     // 1.4+ ships libimage_processing_util_jni.so with 16 KB-aligned segments (1.3.x was 4 KB and
     // failed Android's 16 KB page-size check). 1.4.2 is the smallest jump from 1.3.x.
@@ -69,6 +76,8 @@ object Versions {
     // CrashKiOS: Kotlin exceptions → Crashlytics with Kotlin stack traces on iOS. 0.9.0 is built
     // with an older Kotlin than ours (readable); 0.10.x may need a newer compiler.
     const val crashKiOS = "0.9.0"
+    // Spotless: keeps the copyright header on every Kotlin / Gradle file (spotlessApply / spotlessCheck).
+    const val spotless = "7.0.2"
 }
 
 object Deps {
@@ -114,6 +123,7 @@ object Deps {
         const val userMessagingPlatform = "com.google.android.ump:user-messaging-platform:${Versions.userMessagingPlatform}"
         const val mlkitDocumentScanner = "com.google.android.gms:play-services-mlkit-document-scanner:${Versions.mlkitDocumentScanner}"
         const val mlkitTextRecognition = "com.google.android.gms:play-services-mlkit-text-recognition:${Versions.mlkitTextRecognition}"
+        const val mlkitBarcodeScanning = "com.google.android.gms:play-services-mlkit-barcode-scanning:${Versions.mlkitBarcodeScanning}"
         const val credentials = "androidx.credentials:credentials:${Versions.credentials}"
         const val credentialsPlayServices = "androidx.credentials:credentials-play-services-auth:${Versions.credentials}"
         const val googleId = "com.google.android.libraries.identity.googleid:googleid:${Versions.googleId}"
@@ -177,5 +187,9 @@ object Deps {
 
     object Test {
         const val turbine = "app.cash.turbine:turbine:${Versions.turbine}"
+    }
+
+    object Build {
+        const val spotlessPlugin = "com.diffplug.spotless:spotless-plugin-gradle:${Versions.spotless}"
     }
 }

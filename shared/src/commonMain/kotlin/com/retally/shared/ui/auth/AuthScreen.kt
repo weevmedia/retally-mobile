@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.ui.auth
 
 import androidx.compose.foundation.layout.aspectRatio
@@ -165,7 +169,10 @@ private fun EmailStep(
         }
 
         Spacer(Modifier.height(24.dp))
-        LegalFooter(onLegalClick = { dispatch(AuthContract.Action.LegalClicked) })
+        LegalFooter(
+            onTermsClick = { dispatch(AuthContract.Action.TermsClicked) },
+            onPrivacyClick = { dispatch(AuthContract.Action.PrivacyClicked) },
+        )
         Spacer(Modifier.height(12.dp))
     }
 }
@@ -604,20 +611,25 @@ private fun DividerRow(text: String) {
 }
 
 @Composable
-private fun LegalFooter(onLegalClick: () -> Unit) {
+private fun LegalFooter(onTermsClick: () -> Unit, onPrivacyClick: () -> Unit) {
     val colors = ReTallyTheme.colors
     val linkStyle = SpanStyle(
         color = colors.ink,
         textDecoration = TextDecoration.Underline,
     )
+    // Spaces are added here, not taken from the strings: Android trims leading/trailing spaces
+    // in strings.xml, which ran the words together ("agree to ourTerms & ConditionsandPrivacy").
     val annotated = buildAnnotatedString {
-        append(str(S.AUTH_LEGAL_PREFIX))
+        append(str(S.AUTH_LEGAL_PREFIX).trim())
+        append(' ')
         pushStringAnnotation(tag = "legal", annotation = "terms")
-        withStyle(linkStyle) { append(str(S.AUTH_LEGAL_TERMS)) }
+        withStyle(linkStyle) { append(str(S.AUTH_LEGAL_TERMS).trim()) }
         pop()
-        append(str(S.AUTH_LEGAL_AND))
+        append(' ')
+        append(str(S.AUTH_LEGAL_AND).trim())
+        append(' ')
         pushStringAnnotation(tag = "legal", annotation = "privacy")
-        withStyle(linkStyle) { append(str(S.AUTH_LEGAL_PRIVACY)) }
+        withStyle(linkStyle) { append(str(S.AUTH_LEGAL_PRIVACY).trim()) }
         pop()
     }
     ClickableText(
@@ -630,8 +642,10 @@ private fun LegalFooter(onLegalClick: () -> Unit) {
         ),
         modifier = Modifier.padding(horizontal = 24.dp),
         onClick = { offset ->
-            annotated.getStringAnnotations(tag = "legal", start = offset, end = offset)
-                .firstOrNull()?.let { onLegalClick() }
+            when (annotated.getStringAnnotations(tag = "legal", start = offset, end = offset).firstOrNull()?.item) {
+                "terms" -> onTermsClick()
+                "privacy" -> onPrivacyClick()
+            }
         },
     )
 }

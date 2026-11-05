@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.domain.notifications
 
 import com.russhwolf.settings.Settings
@@ -15,6 +19,9 @@ import kotlin.time.Clock
 enum class AppNotificationKind {
     /** "You're near {store}" geofence alert. A tap opens the Shopping List on that store. */
     NEARBY_STORE,
+
+    /** Daily "budget is orange / red" reminder or the month-end wrap-up. A tap opens Budget. */
+    BUDGET,
 }
 
 /** A notification the app raised on this device, kept for the in-app bell. */
@@ -47,9 +54,41 @@ class NotificationInboxRepository(
     /** Active notifications, newest first. Call [prune] to drop ones that just expired. */
     val notifications: StateFlow<List<AppNotification>> = _notifications.asStateFlow()
 
+    private val _lastSeenAtMillis = MutableStateFlow(settings.getLong(KEY_LAST_SEEN, 0L))
+
+    /**
+     * When the user last opened the inbox. Anything posted after this is "new" and makes the
+     * Home bell shake; opening the inbox ([markAllSeen]) stops it.
+     */
+    val lastSeenAtMillis: StateFlow<Long> = _lastSeenAtMillis.asStateFlow()
+
+    /** The user opened the inbox: everything in it now counts as seen. */
+    fun markAllSeen() {
+        val latest = maxOf(now(), _notifications.value.maxOfOrNull { it.postedAtMillis } ?: 0L)
+        _lastSeenAtMillis.value = latest
+        settings.putLong(KEY_LAST_SEEN, latest)
+    }
+
     /** Records a "you're near {store}" notification. Swift-friendly (no default args). */
     fun recordNearbyStore(storeName: String, title: String, body: String) {
         record(AppNotificationKind.NEARBY_STORE, title, body, storeName)
+    }
+
+    /**
+     * Records a budget notification that fired at [postedAtMillis]. [id] is the reminder's own
+     * id, so recording the same reminder twice (alarm receiver and app open) keeps one entry.
+     * Already-expired ones are ignored.
+     */
+    fun recordBudget(id: String, title: String, body: String, postedAtMillis: Long) {
+        if (_notifications.value.any { it.id == id }) return
+        val entry = AppNotification(
+            id = id,
+            kind = AppNotificationKind.BUDGET,
+            title = title,
+            body = body,
+            postedAtMillis = postedAtMillis,
+        )
+        mutate { listOf(entry) + it }
     }
 
     fun record(
@@ -103,6 +142,7 @@ class NotificationInboxRepository(
         /** Safety cap; nearby alerts are already limited to one per store per day. */
         const val MAX_ENTRIES = 50
         private const val KEY = "notifications.inbox.v1"
+        private const val KEY_LAST_SEEN = "notifications.inbox.lastSeenAt"
         private val LIST_SERIALIZER = ListSerializer(AppNotification.serializer())
     }
 }

@@ -1,6 +1,11 @@
+//
+//  Copyright (c) 2026-2027 Weev Media. All rights reserved.
+//
+
 import CoreLocation
 import Foundation
 import Shared
+import UIKit
 import UserNotifications
 
 /// Nearby-store reminders: one `CLCircularRegion` per store from receipt history
@@ -35,6 +40,7 @@ final class NearbyStoreMonitor: NSObject, CLLocationManagerDelegate {
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        nearbyLog("ios: location permission is now \(Self.describe(manager.authorizationStatus))")
         // Changed in Settings (not from our prompt): re-sync, which stops monitoring if it was turned off.
         guard let completion = permissionCompletion else {
             refresh()
@@ -62,14 +68,20 @@ final class NearbyStoreMonitor: NSObject, CLLocationManagerDelegate {
     func refresh() {
         let repo = IosDependencies.shared.getStoreLocationRepository()
         guard repo.isEnabled else {
+            nearbyLog("ios: Nearby is OFF in More — zones removed")
             stopAll()
             return
         }
         let status = manager.authorizationStatus
         guard status == .authorizedAlways || status == .authorizedWhenInUse else {
+            nearbyLog("ios: location permission \(Self.describe(status)) — zones removed")
             stopAll() // permission turned off in Settings: drop the regions too
             return
         }
+        if status != .authorizedAlways {
+            nearbyLog("ios: permission is 'While Using' — zones won't wake the app when it's closed (needs 'Always')")
+        }
+        nearbyLog("ios: refresh started (\(manager.monitoredRegions.count) zones currently monitored)")
         repo.refreshLocations { [weak self] _ in
             guard let self else { return }
             let locations = (repo.locations.value as? [StoreLocation]) ?? []
@@ -78,6 +90,7 @@ final class NearbyStoreMonitor: NSObject, CLLocationManagerDelegate {
     }
 
     private func syncRegions(locations: [StoreLocation]) {
+        nearbyLog("ios: registering \(locations.count) zones: \(locations.map { $0.storeName }.joined(separator: ", "))")
         let wanted = Set(locations.map { $0.id })
         for region in manager.monitoredRegions where !wanted.contains(region.identifier) {
             manager.stopMonitoring(for: region)
@@ -92,10 +105,14 @@ final class NearbyStoreMonitor: NSObject, CLLocationManagerDelegate {
             region.notifyOnEntry = true
             region.notifyOnExit = false
             manager.startMonitoring(for: region)
+            // didEnterRegion only fires on a crossing — opening the app while already standing
+            // in the zone gives nothing. Ask for the current state; .inside alerts below.
+            manager.requestState(for: region)
         }
     }
 
     private func stopAll() {
+        nearbyLog("ios: removing all \(manager.monitoredRegions.count) zones")
         for region in manager.monitoredRegions {
             manager.stopMonitoring(for: region)
         }
@@ -103,16 +120,33 @@ final class NearbyStoreMonitor: NSObject, CLLocationManagerDelegate {
 
     // MARK: - Region events
 
+    func locationManager(_ manager: CLLocationManager, didStartMonitoringFor region: CLRegion) {
+        nearbyLog("ios: monitoring zone \(region.identifier)")
+    }
+
+    func locationManager(_ manager: CLLocationManager, didDetermineState state: CLRegionState, for region: CLRegion) {
+        let label = state == .inside ? "inside" : state == .outside ? "outside" : "unknown"
+        nearbyLog("ios: zone \(region.identifier) state = \(label)")
+        // Also called right after didEnterRegion; the shared repository drops the duplicate.
+        if state == .inside { handleEntry(region) }
+    }
+
     func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
+        nearbyLog("ios: zone entered \(region.identifier) (app \(UIApplication.shared.applicationState == .background ? "in background" : "active"))")
+        handleEntry(region)
+    }
+
+    private func handleEntry(_ region: CLRegion) {
         let repo = IosDependencies.shared.getStoreLocationRepository()
         // Toggle off or location permission gone: never notify, and stop monitoring.
         let status = manager.authorizationStatus
         guard repo.isEnabled, status == .authorizedAlways || status == .authorizedWhenInUse else {
+            nearbyLog("ios: entry ignored — Nearby off or permission \(Self.describe(status))")
             stopAll()
             return
         }
         let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
-        // 24h per-store cooldown lives in the shared repository.
+        // Cooldown + duplicate check live in the shared repository.
         if repo.shouldNotifyAndMark(locationId: region.identifier, nowEpochMillis: nowMs) {
             let name = repo.locationName(locationId: region.identifier) ?? ""
             postNotification(storeName: name)
@@ -121,11 +155,11 @@ final class NearbyStoreMonitor: NSObject, CLLocationManagerDelegate {
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         // Region monitoring failures (e.g. no network for a fix) — the OS retries.
-        print("[NearbyStoreMonitor] location error: \(error.localizedDescription)")
+        nearbyLog("ios: location error: \(error.localizedDescription)")
     }
 
     func locationManager(_ manager: CLLocationManager, monitoringDidFailFor region: CLRegion?, withError error: Error) {
-        print("[NearbyStoreMonitor] monitoring failed for \(region?.identifier ?? "?"): \(error.localizedDescription)")
+        nearbyLog("ios: monitoring FAILED for \(region?.identifier ?? "?"): \(error.localizedDescription)")
     }
 
     // MARK: - Local notification
@@ -146,12 +180,16 @@ final class NearbyStoreMonitor: NSObject, CLLocationManagerDelegate {
             ?? NSLocalizedString("nearby_notify_body", comment: "")
         // Tapping opens the Shopping List on this store (see AppDelegate.didReceive).
         content.userInfo = [NearbyStoreMonitor.shoppingStoreKey: storeName]
+        content.sound = .default // system notification sound
         let request = UNNotificationRequest(
             identifier: "nearby-\(storeName)-\(Date().timeIntervalSince1970)",
             content: content,
             trigger: nil, // deliver immediately
         )
-        center.add(request)
+        nearbyLog("ios: posting alert for \"\(storeName)\"")
+        center.add(request) { error in
+            if let error { nearbyLog("ios: posting alert FAILED: \(error.localizedDescription)") }
+        }
         // Keep it in the Home bell for 48 hours (or until dismissed).
         IosDependencies.shared.getNotificationInbox().recordNearbyStore(
             storeName: storeName,
@@ -159,4 +197,21 @@ final class NearbyStoreMonitor: NSObject, CLLocationManagerDelegate {
             body: content.body
         )
     }
+
+    private static func describe(_ status: CLAuthorizationStatus) -> String {
+        switch status {
+        case .authorizedAlways: return "Always"
+        case .authorizedWhenInUse: return "While Using"
+        case .denied: return "Denied"
+        case .restricted: return "Restricted"
+        case .notDetermined: return "Not asked yet"
+        @unknown default: return "Unknown"
+        }
+    }
+}
+
+/// Nearby-store diagnostics, same `[Nearby]` tag as the shared code. Filter the Xcode console
+/// (or Console.app, for background wake-ups) on "[Nearby]".
+func nearbyLog(_ message: String) {
+    NSLog("[Nearby] %@", message)
 }

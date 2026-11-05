@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.ui.notifications
 
 import com.retally.shared.ui.components.CircleIconButton
@@ -8,6 +12,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -20,6 +25,7 @@ import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.Savings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -95,11 +101,23 @@ fun NotificationsScreen(
     ) { padding ->
         val content = Modifier.fillMaxSize().padding(padding)
         if (state.isEmpty) {
-            Box(content.padding(horizontal = d.screen), contentAlignment = Alignment.Center) {
+            // Centred on the whole screen, not just the area under the top bar: this Box starts
+            // below the bar, so shift up by half its height (same as the Receipts empty state).
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .offset(y = -padding.calculateTopPadding() / 2)
+                    .padding(horizontal = d.screen),
+                contentAlignment = Alignment.Center,
+            ) {
+                // A large bare bell, no tinted disc behind it.
                 EmptyState(
                     icon = Icons.Outlined.NotificationsNone,
                     title = str(S.NOTIFICATIONS_EMPTY_TITLE),
                     body = str(S.NOTIFICATIONS_EMPTY_BODY),
+                    iconSize = EMPTY_BELL_SIZE,
+                    showIconDisc = false,
                 )
             }
         } else {
@@ -109,20 +127,21 @@ fun NotificationsScreen(
                 contentPadding = PaddingValues(horizontal = d.screen, vertical = d.sm),
                 verticalArrangement = Arrangement.spacedBy(d.md),
             ) {
+                // The 48-hour note sits above the list so it's seen before scrolling.
+                item(key = "retention-note") {
+                    Text(
+                        str(S.NOTIFICATIONS_RETENTION_NOTE),
+                        style = ReTallyTheme.typography.caption,
+                        color = c.muted,
+                        modifier = Modifier.padding(horizontal = d.xs),
+                    )
+                }
                 items(state.notifications, key = { it.id }) { notification ->
                     NotificationCard(
                         notification = notification,
                         nowMillis = now,
                         onClick = { dispatch(Action.NotificationClicked(notification.id)) },
                         onDismiss = { dispatch(Action.DismissClicked(notification.id)) },
-                    )
-                }
-                item {
-                    Text(
-                        str(S.NOTIFICATIONS_RETENTION_NOTE),
-                        style = ReTallyTheme.typography.caption,
-                        color = c.muted,
-                        modifier = Modifier.padding(horizontal = d.xs),
                     )
                 }
                 item { Spacer(Modifier.height(24.dp)) }
@@ -148,6 +167,7 @@ private fun NotificationCard(
             IconBadge(
                 icon = when (notification.kind) {
                     AppNotificationKind.NEARBY_STORE -> Icons.Rounded.LocationOn
+                    AppNotificationKind.BUDGET -> Icons.Rounded.Savings
                 },
                 tint = c.primaryDark,
                 background = c.primaryTint,
@@ -201,3 +221,6 @@ private fun relativeTime(postedAt: Long, now: Long): String {
         else -> str(S.NOTIFICATIONS_TIME_YESTERDAY)
     }
 }
+
+/** "You're all caught up" bell. */
+private val EMPTY_BELL_SIZE = 96.dp

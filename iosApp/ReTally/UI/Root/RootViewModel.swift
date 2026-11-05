@@ -1,3 +1,7 @@
+//
+//  Copyright (c) 2026-2027 Weev Media. All rights reserved.
+//
+
 import Combine
 import Foundation
 
@@ -14,6 +18,8 @@ final class RootViewModel: ObservableObject {
     /// True when the sign-in overlay was opened from the More tab (guest → log in) instead
     /// of the first-launch flow — Back then dismisses instead of re-showing onboarding.
     @Published private(set) var authFromSettings = false
+    /// First launch: "Continue as guest" shows after Get Started, not after "I already have an account".
+    @Published private(set) var authShowsGuestOption = true
     /// First launch: the 6-digit email code entry sits between sign-in and the tab bar.
     @Published private(set) var showOtp = false
     /// The validated email the OTP screen is verifying.
@@ -33,7 +39,8 @@ final class RootViewModel: ObservableObject {
         self.showOnboarding = isFirstLaunch
     }
 
-    func onboardingFinished() {
+    func onboardingFinished(showGuestOption: Bool) {
+        authShowsGuestOption = showGuestOption
         showOnboarding = false
         showAuth = true
     }

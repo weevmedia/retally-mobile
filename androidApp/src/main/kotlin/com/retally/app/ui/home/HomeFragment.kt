@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.app.ui.home
 
 import com.retally.shared.presentation.home.HomeContract
@@ -80,6 +84,7 @@ class HomeFragment : BaseComposeFragment<State, Action, SideEffect, HomeViewMode
                     .setPopUpTo(R.id.homeFragment, inclusive = false, saveState = true)
                     .build(),
             )
+            SideEffect.OpenHowItWorks -> navigate(HomeFragmentDirections.actionHomeToHowItWorks())
             is ShowMessage -> effect.userMessage()?.let { snackbarHostState.showSnackbar(it) }
         }
     }

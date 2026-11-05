@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.io.FileInputStream
 import java.util.Properties
@@ -149,7 +153,10 @@ dependencies {
     implementation(Deps.Koin.android)
     implementation(Deps.Firebase.crashlytics)
     implementation(Deps.Android.playServicesAds)
-    // Unity Ads mediation adapter (AdMob bidding for banners) — pulls in the Unity Ads SDK.
+    // Unity Ads mediation adapter (AdMob bidding for banners) + the Unity Ads SDK itself.
+    // The adapter alone does not bring the Unity classes: without the SDK line, release
+    // R8 fails on missing com.unity3d.ads.* classes (debug only failed at runtime instead).
+    implementation("com.unity3d.ads:unity-ads:4.21.0")
     implementation("com.google.ads.mediation:unity:4.21.0.0")
     implementation(Deps.Android.playServicesLocation)
     implementation(Deps.Android.userMessagingPlatform)
@@ -157,6 +164,9 @@ dependencies {
     // Receipt scanning (ML Kit document scanner UI + on-device text recognition).
     implementation(Deps.Android.mlkitDocumentScanner)
     implementation(Deps.Android.mlkitTextRecognition)
+    // Reads the barcode bars themselves (ReceiptTextRecognizer) — text OCR on the small
+    // digits under a top-of-receipt barcode is what kept dropping Walmart/Shaw's codes.
+    implementation(Deps.Android.mlkitBarcodeScanning)
     // Sign in with Google.
     implementation(Deps.Android.credentials)
     implementation(Deps.Android.credentialsPlayServices)

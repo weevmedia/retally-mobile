@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.app.ui.scan
 
 import com.retally.app.R
@@ -42,12 +46,15 @@ class ScanReviewFragment : BaseComposeFragment<State, Action, SideEffect, ScanRe
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        // System Back on the "Edit store" page closes just that page, like its top-left Back.
+        // System Back on the "Edit store" / "Edit item" pages closes just that page (or its open sheet), like its top-left Back.
         requireActivity().onBackPressedDispatcher.addCallback(
             viewLifecycleOwner,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
-                    if (viewModel.store.observeState().value.storeEdit != null) {
+                    val page = viewModel.store.observeState().value
+                    if (page.itemEdit != null) {
+                        dispatchViewAction(Action.ItemEditDismissed)
+                    } else if (page.storeEdit != null) {
                         dispatchViewAction(Action.StoreEditDismissed)
                     } else {
                         isEnabled = false

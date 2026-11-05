@@ -1,3 +1,7 @@
+//
+//  Copyright (c) 2026-2027 Weev Media. All rights reserved.
+//
+
 import UIKit
 import Vision
 
@@ -72,7 +76,34 @@ enum ReceiptTextRecognizer {
                 continuation.resume(throwing: error)
             }
         }
-        return mergeRows(observations)
+        var lines = mergeRows(observations)
+        // Barcodes: Vision's barcode detector reads the bars themselves, which text OCR
+        // on the small digits under a top-of-receipt barcode often drops or misreads —
+        // why Walmart/Shaw's top barcodes came and went. Each numeric payload joins as
+        // its own line so the shared parser's barcode detector picks it up; appended
+        // last so it never pollutes the store address at the top.
+        lines += barcodes(in: cgImage)
+        return lines
+    }
+
+    /// Numeric barcode payloads on the image (digits only, 12+ digits). Non-numeric
+    /// payloads (QR links, alphanumeric codes) are left out: the shared parser only
+    /// accepts digit lines as barcodes, so anything else would be dead weight.
+    /// A failed detection just yields nothing — it never fails the scan.
+    private static func barcodes(in cgImage: CGImage) -> [String] {
+        var payloads: [String] = []
+        let request = VNDetectBarcodesRequest { request, _ in
+            for observation in (request.results as? [VNBarcodeObservation] ?? []) {
+                guard let payload = observation.payloadStringValue else { continue }
+                let digits = payload.filter(\.isNumber)
+                let numericOnly = payload.allSatisfy { $0.isNumber || $0.isWhitespace || $0 == "-" }
+                if numericOnly, digits.count >= 12 {
+                    payloads.append(digits)
+                }
+            }
+        }
+        try? VNImageRequestHandler(cgImage: cgImage, options: [:]).perform([request])
+        return payloads
     }
 
     /// Vision's origin is bottom-left: higher midY = higher on the receipt.

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.ui.receipts
 
 import com.retally.shared.ui.components.AboveScanFab
@@ -20,6 +24,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -36,7 +45,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,7 +58,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.retally.shared.core.strings.StringAssetIdentifiers as S
 import com.retally.shared.core.strings.str
+import com.retally.shared.domain.receipt.model.Receipt
 import com.retally.shared.presentation.receipts.ReceiptsContract
+import com.retally.shared.ui.barcode.BarcodeModal
 import com.retally.shared.ui.components.AdBannerSlot
 import com.retally.shared.ui.components.AdFormat
 import com.retally.shared.ui.components.InFeedSquareAd
@@ -87,6 +100,8 @@ fun ReceiptsScreen(
 ) {
     val d = ReTallyTheme.dimensions
     val c = ReTallyTheme.colors
+    // UI-only, mirroring Home: which receipt's barcode is being shown full-screen.
+    var barcodeReceipt by remember { mutableStateOf<Receipt?>(null) }
     // Opening the list re-checks stores marked "no logo" (the store throttles repeats).
     LaunchedEffect(Unit) { dispatch(ReceiptsContract.Action.Appeared) }
 
@@ -170,6 +185,7 @@ fun ReceiptsScreen(
                             bottomInset = bottomInset + bannerReserve,
                             showAd = showInFeedAd,
                             adUnitId = bannerAdUnitId,
+                            onBarcodeClick = { barcodeReceipt = it },
                         )
                     }
                 }
@@ -181,6 +197,8 @@ fun ReceiptsScreen(
             }
         }
     }
+
+    barcodeReceipt?.let { receipt -> BarcodeModal(receipt = receipt, onDismiss = { barcodeReceipt = null }) }
 
     state.pendingDelete?.let { receipt ->
         AlertDialog(
@@ -210,6 +228,7 @@ private fun ReceiptsList(
     bottomInset: Dp,
     showAd: Boolean,
     adUnitId: String,
+    onBarcodeClick: (Receipt) -> Unit,
 ) {
     val d = ReTallyTheme.dimensions
     val listState = rememberLazyListState()
@@ -238,6 +257,7 @@ private fun ReceiptsList(
         ),
         verticalArrangement = Arrangement.spacedBy(d.md),
     ) {
+            item(key = "window-note") { WindowNote() }
             // Month headers only when the list spans more than one month; with a
             // filter on, every row is the same month and the chip already says which.
             val grouped = state.visible.groupBy { formatMonthYearShort(it.purchaseDate) }
@@ -254,7 +274,7 @@ private fun ReceiptsList(
                             ReceiptRow(
                                 receipt = receipt,
                                 onClick = { dispatch(ReceiptsContract.Action.ReceiptClicked(receipt.id)) },
-                                onBarcodeClick = { dispatch(ReceiptsContract.Action.ReceiptClicked(receipt.id)) },
+                                onBarcodeClick = { onBarcodeClick(receipt) },
                             )
                         }
                     }
@@ -275,6 +295,26 @@ private fun ReceiptsList(
                 }
             }
         }
+}
+
+/** Tells the user the list only goes back 12 months (older receipts are not shown here). */
+@Composable
+private fun WindowNote() {
+    val c = ReTallyTheme.colors
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            Icons.Outlined.Info,
+            contentDescription = null,
+            tint = c.muted,
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(Modifier.width(ReTallyTheme.dimensions.xs))
+        Text(
+            str(S.RECEIPTS_WINDOW_NOTE, ReceiptsContract.State.MONTHS_SHOWN),
+            style = ReTallyTheme.typography.caption,
+            color = c.muted,
+        )
+    }
 }
 
 /** 320×50 banner with a small "Advertisement" caption, transparent on the screen background. */

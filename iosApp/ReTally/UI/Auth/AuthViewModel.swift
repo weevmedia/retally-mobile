@@ -1,3 +1,7 @@
+//
+//  Copyright (c) 2026-2027 Weev Media. All rights reserved.
+//
+
 import AuthenticationServices
 import Combine
 import CryptoKit
@@ -9,6 +13,8 @@ import UIKit
 @MainActor
 final class AuthViewModel: ObservableObject {
     let screen: ComposeScreen
+    /// Footer Terms / Privacy: shown in a sheet over the sign-in screen.
+    @Published var webPage: WebPageItem?
 
     private let store: AuthContractStore
     private var sideEffects: Closeable?
@@ -30,6 +36,8 @@ final class AuthViewModel: ObservableObject {
                 onEmailContinue(otp.email, otp.displayName, otp.isNewUser, otp.firstName, otp.codeAlreadySent)
             } else if effect is AuthContractSideEffect.NavigateBack {
                 onBack()
+            } else if let page = effect as? AuthContractSideEffect.OpenWebPage {
+                self?.webPage = WebPageItem(title: page.title, url: page.url)
             } else if let message = (effect as? AuthContractSideEffect.ShowMessage)?.message {
                 self?.screen.showMessage(message: message)
             } else if let start = effect as? AuthContractSideEffect.StartProviderSignIn {

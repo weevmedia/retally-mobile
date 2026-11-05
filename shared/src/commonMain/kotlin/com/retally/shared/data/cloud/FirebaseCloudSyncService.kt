@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.data.cloud
 
 import com.retally.shared.core.crash.CrashReporting
@@ -9,6 +13,7 @@ import com.retally.shared.domain.cloud.CloudSyncResult
 import com.retally.shared.domain.cloud.CloudSyncService
 import com.retally.shared.domain.receipt.model.Receipt
 import com.retally.shared.domain.receipt.model.ReceiptItem
+import com.retally.shared.domain.receipt.receiptWindowStart
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.firestore.DocumentSnapshot
 import dev.gitlive.firebase.firestore.FieldValue
@@ -62,7 +67,9 @@ class FirebaseCloudSyncService(
             val synced = mutableListOf<String>()
             for (receipt in receipts) {
                 val imageStoragePath = uploadImageIfNeeded(uid, receipt)
-                writeReceipt(uid, receipt, currency, deviceId, imageStoragePath)
+                // The receipt's own currency, not the user's current one: history stays
+                // right after a move or a trip.
+                writeReceipt(uid, receipt, receipt.currency, deviceId, imageStoragePath)
                 synced += receipt.id
             }
             CloudSyncResult.Success(synced, clock.now())
@@ -82,8 +89,12 @@ class FirebaseCloudSyncService(
         return try {
             val uid = auth.ensureSignedIn()
             val receiptsRef = firestore.collection("users").document(uid).collection("receipts")
+            // Only the last 12 months (see receiptWindowStart): older receipts are never
+            // downloaded, nor their line items. A one-field range filter needs no Firestore index.
+            val from = receiptWindowStart().let { Timestamp(seconds = it.epochSeconds, nanoseconds = it.nanosecondsOfSecond) }
+            val recent = receiptsRef.where { "purchaseDate" greaterThanOrEqualTo from }
             val restored = mutableListOf<Receipt>()
-            for (doc in receiptsRef.get().documents) {
+            for (doc in recent.get().documents) {
                 if (doc.id in skipIds) continue
                 if (doc.opt<Timestamp>("deletedAt") != null) continue
                 // Line items are read only for receipts the device doesn't have yet.
@@ -205,7 +216,7 @@ class FirebaseCloudSyncService(
             if (chunkIndex == 0) {
                 batch.set(
                     receiptRef,
-                    mapper.receiptDocument(receipt, currency, deviceId, platform.appVersion, imageStoragePath),
+                    mapper.receiptDocument(receipt, currency, deviceId, platform.appVersion, imageStoragePath, platform.name, platform.osVersion),
                     merge = true,
                 )
             }
@@ -219,7 +230,7 @@ class FirebaseCloudSyncService(
             batch.commit()
         }
         if (receipt.items.isEmpty()) {
-            receiptRef.set(mapper.receiptDocument(receipt, currency, deviceId, platform.appVersion, imageStoragePath), merge = true)
+            receiptRef.set(mapper.receiptDocument(receipt, currency, deviceId, platform.appVersion, imageStoragePath, platform.name, platform.osVersion), merge = true)
         }
     }
 

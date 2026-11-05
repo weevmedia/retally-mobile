@@ -1,3 +1,7 @@
+//
+//  Copyright (c) 2026-2027 Weev Media. All rights reserved.
+//
+
 import Combine
 import Foundation
 import Shared
@@ -11,7 +15,7 @@ final class NotificationsViewModel: ObservableObject {
 
     private var sideEffects: Closeable?
 
-    init(onFinished: @escaping () -> Void) {
+    init(onFinished: @escaping () -> Void, onOpenBudget: @escaping () -> Void) {
         let store = IosDependencies.shared.getNotificationsStore()
         self.store = store
         screen = IosScreens.shared.notifications(store: store)
@@ -20,6 +24,10 @@ final class NotificationsViewModel: ObservableObject {
             switch effect {
             case is NotificationsContractSideEffect.Closed:
                 onFinished()
+            case is NotificationsContractSideEffect.OpenBudget:
+                // Budget reminder / month-end wrap-up: pop back to Home, then push Budget.
+                onFinished()
+                onOpenBudget()
             case is NotificationsContractSideEffect.OpenShoppingList:
                 // The store already queued the store name on ShoppingListRepository.
                 onFinished()

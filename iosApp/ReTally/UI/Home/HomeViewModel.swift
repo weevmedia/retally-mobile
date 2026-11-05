@@ -1,3 +1,7 @@
+//
+//  Copyright (c) 2026-2027 Weev Media. All rights reserved.
+//
+
 import Combine
 import Foundation
 import Shared
@@ -14,6 +18,7 @@ final class HomeViewModel: ObservableObject {
     @Published var isDuplicatesPresented = false
     @Published var isBudgetPresented = false
     @Published var isNotificationsPresented = false
+    @Published var isHowItWorksPresented = false
     private(set) var reviewSource: ScanReviewViewModel.Source = .scan(lines: [], imagePath: nil)
     /// Finished-scan payload waiting for the camera cover to finish dismissing.
     /// Dispatching `TextRecognized` (which pushes the review) while the dismissal
@@ -72,6 +77,8 @@ final class HomeViewModel: ObservableObject {
         case is HomeContractSideEffect.OpenSignIn:
             // Guest banner: reopen the sign-in overlay, as More › Log in and the Smart List do.
             NotificationCenter.default.post(name: .retallyShowAuth, object: nil)
+        case is HomeContractSideEffect.OpenHowItWorks:
+            isHowItWorksPresented = true
         case let message as HomeContractSideEffect.ShowMessage:
             screen.showMessage(message: message.message)
         default:
@@ -125,5 +132,40 @@ final class HomeViewModel: ObservableObject {
 
     func notificationsFinished() {
         isNotificationsPresented = false
+    }
+
+    /// A budget entry was tapped in the bell: Budget is pushed once the inbox has popped.
+    func openBudgetFromNotifications() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+            self?.isBudgetPresented = true
+        }
+    }
+
+    func howItWorksFinished() {
+        isHowItWorksPresented = false
+    }
+}
+
+/// Owns `HowItWorksContract.Store` for "See how it works". Lives here (not its own file) so no
+/// Xcode project change is needed. "Scan a receipt" pops back; Home then opens the scanner.
+@MainActor
+final class HowItWorksViewModel: ObservableObject {
+    let store: HowItWorksContractStore
+    let screen: ComposeScreen
+    private var sideEffects: Closeable?
+
+    init(onFinished: @escaping () -> Void) {
+        let store = IosDependencies.shared.getHowItWorksStore()
+        self.store = store
+        screen = IosScreens.shared.howItWorks(store: store)
+        sideEffects = store.collectSideEffect { effect in
+            if effect is HowItWorksContractSideEffect.Closed { onFinished() }
+        }
+    }
+
+    deinit {
+        sideEffects?.close()
+        screen.dispose()
+        store.clear()
     }
 }

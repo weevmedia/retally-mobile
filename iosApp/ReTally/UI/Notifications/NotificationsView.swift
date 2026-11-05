@@ -1,11 +1,15 @@
+//
+//  Copyright (c) 2026-2027 Weev Media. All rights reserved.
+//
+
 import SwiftUI
 
 /// Home bell: notifications ReTally raised in the last 48 hours, until dismissed.
 struct NotificationsView: View {
     @StateObject private var viewModel: NotificationsViewModel
 
-    init(onFinished: @escaping () -> Void) {
-        _viewModel = StateObject(wrappedValue: NotificationsViewModel(onFinished: onFinished))
+    init(onFinished: @escaping () -> Void, onOpenBudget: @escaping () -> Void = {}) {
+        _viewModel = StateObject(wrappedValue: NotificationsViewModel(onFinished: onFinished, onOpenBudget: onOpenBudget))
     }
 
     var body: some View {

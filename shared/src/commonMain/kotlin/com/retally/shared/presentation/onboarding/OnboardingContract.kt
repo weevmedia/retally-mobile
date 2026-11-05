@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.presentation.onboarding
 
 import com.retally.shared.core.Effect
@@ -22,15 +26,21 @@ interface OnboardingContract {
     }
 
     sealed class SideEffect : Effect {
-        data object NavigateToMain : SideEffect()
+        /**
+         * Go to sign-in. [showGuestOption] is true for Get Started and false for "I already have
+         * an account": someone signing in doesn't need "Continue as guest".
+         */
+        data class NavigateToMain(val showGuestOption: Boolean) : SideEffect()
     }
 
     class Store : com.retally.shared.core.Store<State, Action, SideEffect>() {
         override fun initState(): State = State()
 
         override fun dispatch(action: Action) {
-            // Single exit for now; the auth destination doesn't exist yet.
-            sideEffect(SideEffect.NavigateToMain)
+            when (action) {
+                Action.GetStarted -> sideEffect(SideEffect.NavigateToMain(showGuestOption = true))
+                Action.SignInClicked -> sideEffect(SideEffect.NavigateToMain(showGuestOption = false))
+            }
         }
     }
 

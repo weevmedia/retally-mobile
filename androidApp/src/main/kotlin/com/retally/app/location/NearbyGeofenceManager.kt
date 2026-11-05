@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.app.location
 
 import android.app.PendingIntent
@@ -9,6 +13,7 @@ import com.google.android.gms.location.GeofencingClient
 import com.google.android.gms.location.GeofencingRequest
 import com.google.android.gms.location.LocationServices
 import com.retally.shared.domain.location.StoreLocation
+import com.retally.shared.domain.location.nearbyLog
 
 /**
  * Registers one Play-services geofence per store (ENTER only, never expires).
@@ -23,6 +28,7 @@ class NearbyGeofenceManager(private val context: Context) {
 
     fun start(locations: List<StoreLocation>) {
         if (locations.isEmpty()) {
+            nearbyLog("android: no zones to register (no located stores)")
             stop()
             return
         }
@@ -41,15 +47,22 @@ class NearbyGeofenceManager(private val context: Context) {
             .build()
         try {
             client.addGeofences(request, geofencePendingIntent())
+                .addOnSuccessListener {
+                    nearbyLog("android: registered ${locations.size} zones with Play services")
+                }
                 .addOnFailureListener { e ->
+                    // e.g. GEOFENCE_NOT_AVAILABLE (1000) when device Location is off.
+                    nearbyLog("android: registering zones FAILED: ${e.message}")
                     Log.w(TAG, "addGeofences failed: ${e.message}", e)
                 }
         } catch (se: SecurityException) {
+            nearbyLog("android: registering zones FAILED: missing location permission")
             Log.w(TAG, "Missing location permission for geofences", se)
         }
     }
 
     fun stop() {
+        nearbyLog("android: removing all zones")
         client.removeGeofences(geofencePendingIntent())
     }
 

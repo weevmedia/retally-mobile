@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.app.ui.onboarding
 
 import androidx.compose.runtime.Composable
@@ -23,7 +27,13 @@ class OnboardingFragment : BaseComposeFragment<State, Action, SideEffect, Onboar
             is NavigateToMain -> {
                 // Safe Args; the graph pops onboarding so Back from Home exits the app.
                 // First launch continues into sign-in; the auth screen enters Home.
-                navigate(OnboardingFragmentDirections.actionOnboardingToAuth(firstLaunch = true))
+                // "I already have an account" hides "Continue as guest".
+                navigate(
+                    OnboardingFragmentDirections.actionOnboardingToAuth(
+                        firstLaunch = true,
+                        showGuestOption = effect.showGuestOption,
+                    ),
+                )
             }
         }
     }

@@ -1,10 +1,16 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.app.di
 
+import com.retally.app.budget.AndroidBudgetReminderScheduler
 import com.retally.app.scan.ReceiptTextRecognizer
 import com.retally.app.ui.home.HomeViewModel
 import com.retally.app.ui.budget.BudgetViewModel
 import com.retally.app.ui.scan.ScanReviewViewModel
 import com.retally.app.ui.duplicates.DuplicatesViewModel
+import com.retally.app.ui.howitworks.HowItWorksViewModel
 import com.retally.app.ui.main.MainViewModel
 import com.retally.app.ui.receipts.ReceiptsViewModel
 import com.retally.app.ui.settings.SettingsViewModel
@@ -18,6 +24,7 @@ import com.retally.app.ui.auth.OtpViewModel
 import org.koin.android.ext.koin.androidApplication
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
+import com.retally.shared.domain.budget.BudgetReminderScheduler
 import org.koin.dsl.module
 
 /**
@@ -25,7 +32,9 @@ import org.koin.dsl.module
  * screen instance); each ViewModel wraps one and clears it in `onCleared`.
  */
 val viewModelModule = module {
+    single<BudgetReminderScheduler> { AndroidBudgetReminderScheduler(androidContext()) }
     viewModel { SplashViewModel(store = get()) }
+    viewModel { HowItWorksViewModel(store = get()) }
     viewModel { OnboardingViewModel(store = get()) }
     viewModel { AuthViewModel(store = get()) }
     viewModel { OtpViewModel(store = get()) }

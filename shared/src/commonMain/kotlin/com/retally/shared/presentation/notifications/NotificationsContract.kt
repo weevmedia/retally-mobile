@@ -1,9 +1,14 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.presentation.notifications
 
 import com.retally.shared.core.Effect
 import com.retally.shared.domain.notifications.AppNotification
 import com.retally.shared.domain.notifications.AppNotificationKind
 import com.retally.shared.domain.notifications.NotificationInboxRepository
+import com.retally.shared.domain.budget.BudgetReminderLog
 import com.retally.shared.domain.shopping.ShoppingListRepository
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -32,11 +37,14 @@ interface NotificationsContract {
         data object Closed : SideEffect()
         /** Host: switch to the Shopping List tab (the store is already queued on the repository). */
         data object OpenShoppingList : SideEffect()
+        /** Host: open the monthly Budget screen (a budget reminder or month-end wrap-up was tapped). */
+        data object OpenBudget : SideEffect()
     }
 
     class Store(
         private val inbox: NotificationInboxRepository,
         private val shoppingLists: ShoppingListRepository,
+        private val budgetReminderLog: BudgetReminderLog? = null,
     ) : com.retally.shared.core.Store<State, Action, SideEffect>() {
 
         override fun initState() = State(notifications = inbox.notifications.value)
@@ -49,7 +57,11 @@ interface NotificationsContract {
 
         override fun dispatch(action: Action) {
             when (action) {
-                Action.Appeared -> inbox.prune()
+                Action.Appeared -> {
+                    budgetReminderLog?.collectFired() // a budget notice that just fired shows here too
+                    inbox.prune()
+                    inbox.markAllSeen() // stops the Home bell shaking
+                }
                 Action.CloseClicked -> sideEffect(SideEffect.Closed)
                 is Action.NotificationClicked -> open(action.id)
                 is Action.DismissClicked -> inbox.dismiss(action.id)
@@ -64,6 +76,7 @@ interface NotificationsContract {
                     shoppingLists.pendingStoreName = notification.storeName
                     sideEffect(SideEffect.OpenShoppingList)
                 }
+                AppNotificationKind.BUDGET -> sideEffect(SideEffect.OpenBudget)
             }
         }
     }

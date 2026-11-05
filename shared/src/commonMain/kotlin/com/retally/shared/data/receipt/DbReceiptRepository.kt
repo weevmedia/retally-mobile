@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.data.receipt
 
 import com.retally.shared.db.ReTallyDatabase
@@ -61,6 +65,7 @@ internal class DbReceiptRepository(
             imagePath = receipt.imagePath,
             createdAt = receipt.createdAt.toEpochMilliseconds(),
             syncedAt = receipt.syncedAt?.toEpochMilliseconds(),
+            currency = receipt.currency,
         )
         loadAll()
     }
@@ -115,9 +120,11 @@ internal class DbReceiptRepository(
         return database.receiptQueries.selectAll().executeAsList().map { it.toReceipt() }
     }
 
+    // Store names always display in caps: normalize on read, so every surface (rows,
+    // detail, picker, notifications) shows the same caps without rewriting stored rows.
     private fun ReceiptRow.toReceipt(): Receipt = Receipt(
         id = id,
-        storeName = store_name,
+        storeName = store_name.uppercase(),
         storeAddress = store_address,
         purchaseDate = Instant.fromEpochMilliseconds(purchase_date),
         paymentInfo = payment_info,
@@ -129,6 +136,7 @@ internal class DbReceiptRepository(
         imagePath = image_path,
         createdAt = Instant.fromEpochMilliseconds(created_at),
         syncedAt = synced_at?.let(Instant::fromEpochMilliseconds),
+        currency = currency,
     )
 
     /**
@@ -167,6 +175,7 @@ internal class DbReceiptRepository(
                         imagePath = receipt.imagePath,
                         createdAt = receipt.createdAt.toEpochMilliseconds(),
                         syncedAt = receipt.syncedAt?.toEpochMilliseconds(),
+                        currency = receipt.currency,
                     )
                 }
             }

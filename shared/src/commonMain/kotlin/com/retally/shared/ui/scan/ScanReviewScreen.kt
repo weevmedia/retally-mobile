@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.ui.scan
 
 import androidx.compose.ui.text.style.TextAlign
@@ -72,7 +76,6 @@ import androidx.compose.ui.unit.dp
 import com.retally.shared.domain.category.ItemCategory
 import com.retally.shared.domain.receipt.model.Receipt
 import com.retally.shared.domain.receipt.model.ReceiptItem
-import com.retally.shared.domain.receipt.model.ParseSource
 import com.retally.shared.domain.receipt.model.ScanStatus
 import com.retally.shared.presentation.scan.ScanReviewContract
 import com.retally.shared.ui.barcode.BarcodeImage
@@ -85,6 +88,8 @@ import com.retally.shared.ui.components.SectionHeader
 import com.retally.shared.ui.components.IconBadge
 import androidx.compose.foundation.lazy.items
 import com.retally.shared.ui.components.SurfaceCard
+import com.retally.shared.ui.components.SwipeRevealRow
+import com.retally.shared.ui.components.SwipeAction
 import com.retally.shared.ui.components.DuplicateBadge
 import com.retally.shared.ui.components.ListDivider
 import com.retally.shared.ui.components.PrimaryButton
@@ -213,10 +218,9 @@ fun ScanReviewScreen(
                 receipt = receipt,
                 contentPadding = padding,
                 categories = state.categories,
-                onToggleDuplicate = { dispatch(ScanReviewContract.Action.ItemDuplicateToggled(it)) },
                 onKeepBoth = { dispatch(ScanReviewContract.Action.KeepBoth(it)) },
                 onRemoveOne = { dispatch(ScanReviewContract.Action.RemoveOneRequested(it)) },
-                onCategoryClick = { dispatch(ScanReviewContract.Action.ItemCategoryPickerOpened(it)) },
+                onEditItem = { dispatch(ScanReviewContract.Action.ItemEditOpened(it)) },
                 onPhotoClick = { showPhoto = true },
                 onEditStore = { dispatch(ScanReviewContract.Action.EditStoreClicked) },
                 onShare = { dispatch(ScanReviewContract.Action.ShareClicked) },
@@ -248,15 +252,6 @@ fun ScanReviewScreen(
             onDismiss = { dispatch(ScanReviewContract.Action.RemoveOneCancelled) },
         )
     }
-    state.categoryPickerItem?.let { item ->
-        CategoryPickerDialog(
-            itemName = item.name,
-            categories = state.categories,
-            selectedId = item.categoryId,
-            onPick = { dispatch(ScanReviewContract.Action.ItemCategoryPicked(it)) },
-            onDismiss = { dispatch(ScanReviewContract.Action.ItemCategoryPickerDismissed) },
-        )
-    }
     // "Edit store" page: slides in over the receipt (top bar included) with its own Back.
     // Keeps the last draft while sliding out, after the store has cleared it.
     val lastStoreEdit = remember { mutableStateOf<ScanReviewContract.StoreEdit?>(null) }
@@ -269,6 +264,10 @@ fun ScanReviewScreen(
         (state.storeEdit ?: lastStoreEdit.value)?.let { edit ->
             EditStorePage(edit = edit, dispatch = dispatch, modifier = Modifier.fillMaxSize())
         }
+    }
+    // "Edit item" sheet (swipe a line → Edit): slides up over the receipt.
+    state.itemEdit?.let { edit ->
+        EditItemSheet(edit = edit, categories = state.categories, dispatch = dispatch)
     }
     // Full-screen image viewer overlay — drawn above the Scaffold so the receipt
     // top bar (X / Receipt / heart) is hidden while viewing. Back dismisses only this.
@@ -289,59 +288,6 @@ fun ScanReviewScreen(
         }
     }
     } // Close root Box
-}
-
-/** Pick an item's spending category; the shopper's choice is never auto-retagged. */
-@Composable
-private fun CategoryPickerDialog(
-    itemName: String,
-    categories: List<ItemCategory>,
-    selectedId: String,
-    onPick: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val c = ReTallyTheme.colors
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(ReTallyTheme.dimensions.cardRadius),
-        containerColor = c.surface,
-        title = { Text(itemName, style = ReTallyTheme.typography.title, color = c.ink) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                categories.forEach { category ->
-                    val selected = category.id == selectedId
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (selected) c.primaryTint else Color.Transparent)
-                            .clickable { onPick(category.id) }
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            category.name,
-                            style = ReTallyTheme.typography.body,
-                            color = c.ink,
-                            modifier = Modifier.weight(1f),
-                        )
-                        if (selected) {
-                            Icon(
-                                Icons.Rounded.CheckCircle,
-                                contentDescription = null,
-                                tint = c.primaryDark,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(str(S.ACTION_CANCEL), style = ReTallyTheme.typography.button, color = c.ink) }
-        },
-    )
 }
 
 /** "Remove one" always confirms first — the app never deletes a line on its own. */
@@ -392,10 +338,9 @@ private fun ReceiptBody(
     receipt: Receipt,
     contentPadding: PaddingValues,
     categories: List<ItemCategory>,
-    onToggleDuplicate: (String) -> Unit,
     onKeepBoth: (String) -> Unit,
     onRemoveOne: (String) -> Unit,
-    onCategoryClick: (String) -> Unit,
+    onEditItem: (String) -> Unit,
     onPhotoClick: () -> Unit,
     onEditStore: () -> Unit = {},
     onShare: () -> Unit = {},
@@ -403,6 +348,8 @@ private fun ReceiptBody(
 ) {
     val d = ReTallyTheme.dimensions
     var showBarcode by remember { mutableStateOf(false) }
+    // The line whose swipe actions (Edit / Delete) are showing; opening one closes the rest.
+    var swipedItemId by remember { mutableStateOf<String?>(null) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
@@ -421,14 +368,35 @@ private fun ReceiptBody(
 
         item { SectionHeader(str(S.RECEIPT_ITEMS_HEADER, receipt.items.size), modifier = Modifier.padding(top = d.sm)) }
         items(receipt.items, key = { it.id }) { item ->
-            LineItemCard(
-                item = item,
-                categoryName = categories.firstOrNull { it.id == item.categoryId }?.name ?: item.categoryId,
-                onClick = { onToggleDuplicate(item.id) },
-                onKeepBoth = { onKeepBoth(item.id) },
-                onRemoveOne = { onRemoveOne(item.id) },
-                onCategoryClick = { onCategoryClick(item.id) },
-            )
+            val c = ReTallyTheme.colors
+            SwipeRevealRow(
+                actions = listOf(
+                    SwipeAction(
+                        icon = Icons.Rounded.Edit,
+                        label = str(S.ACTION_EDIT),
+                        tint = c.onPrimary,
+                        background = c.primary,
+                        onClick = { onEditItem(item.id) },
+                    ),
+                    SwipeAction(
+                        icon = Icons.Outlined.Delete,
+                        label = str(S.ACTION_DELETE),
+                        tint = c.onPrimary,
+                        background = c.danger,
+                        onClick = { onRemoveOne(item.id) },
+                    ),
+                ),
+                open = swipedItemId == item.id,
+                onOpenChange = { open -> swipedItemId = if (open) item.id else swipedItemId.takeIf { it != item.id } },
+                modifier = Modifier.animateItem(),
+            ) {
+                LineItemCard(
+                    item = item,
+                    categoryName = categories.firstOrNull { it.id == item.categoryId }?.name ?: item.categoryId,
+                    onKeepBoth = { onKeepBoth(item.id) },
+                    onRemoveOne = { onRemoveOne(item.id) },
+                )
+            }
         }
 
         // The totals card only exists when the parser found something to print: subtotal,
@@ -508,14 +476,6 @@ private fun PartialScanBanner(receipt: Receipt) {
                     "Missing: " + receipt.missingFields.joinToString(", "),
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.onTertiaryContainer.copy(alpha = 0.8f),
-                )
-            }
-            if (receipt.parseSource == ParseSource.CLOUD_AI) {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Read by AI",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = colors.onTertiaryContainer.copy(alpha = 0.7f),
                 )
             }
         }
@@ -598,7 +558,7 @@ private fun StoreHeader(receipt: Receipt, onPhotoClick: () -> Unit, onEditStore:
 
 /** The reason the app exists: either the duplicated lines with the amount, or an all-clear. */
 @Composable
-private fun DoubleChargeVerdict(receipt: Receipt) {
+internal fun DoubleChargeVerdict(receipt: Receipt) {
     val d = ReTallyTheme.dimensions
     val colors = MaterialTheme.colorScheme
     val duplicates = receipt.duplicates
@@ -661,19 +621,16 @@ private fun DoubleChargeVerdict(receipt: Receipt) {
  * Remove one. Tapping the row toggles the flag by hand (the parser is a heuristic).
  */
 @Composable
-private fun LineItemCard(
+internal fun LineItemCard(
     item: ReceiptItem,
     categoryName: String,
-    onClick: () -> Unit,
     onKeepBoth: () -> Unit,
     onRemoveOne: () -> Unit,
-    onCategoryClick: () -> Unit,
 ) {
     val d = ReTallyTheme.dimensions
     val c = ReTallyTheme.colors
     val flagged = item.isDuplicate && !item.keptAsDistinct
     SurfaceCard(
-        onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         containerColor = if (flagged) c.warningTint else c.surface,
     ) {
@@ -694,7 +651,7 @@ private fun LineItemCard(
                     if (item.keptAsDistinct) {
                         Text(str(S.RECEIPT_KEPT_BOUGHT_TWICE), style = ReTallyTheme.typography.caption, color = c.muted)
                     }
-                    // Spending category chip — tappable to fix the auto-tag.
+                    // Spending category chip (read-only here; changed on the Edit item page).
                     Spacer(Modifier.height(4.dp))
                     Text(
                         categoryName,
@@ -703,7 +660,6 @@ private fun LineItemCard(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
                             .background(c.primaryTint)
-                            .clickable(onClick = onCategoryClick)
                             .padding(horizontal = 8.dp, vertical = 2.dp),
                     )
                 }

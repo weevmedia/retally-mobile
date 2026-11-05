@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
@@ -137,6 +141,8 @@ sqldelight {
     databases {
         create("ReTallyDatabase") {
             packageName.set("com.retally.shared.db")
+            // Schema v2: migrations/1.sqm adds receipt.currency. Keep Receipt.sq and the
+            // .sqm chain in step whenever the schema changes.
         }
     }
 }

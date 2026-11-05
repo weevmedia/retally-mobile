@@ -1,3 +1,7 @@
+//
+//  Copyright (c) 2026-2027 Weev Media. All rights reserved.
+//
+
 import Combine
 import Foundation
 import Shared
@@ -11,6 +15,9 @@ final class SettingsViewModel: ObservableObject {
 
     /// More › Food recalls.
     @Published var isRecallsPresented = false
+    /// More › Privacy / Terms / Help: our own page inside the app.
+    @Published var isWebPagePresented = false
+    private(set) var webPage: (title: String, url: String) = ("", "")
 
     private var sideEffects: Closeable?
 
@@ -34,6 +41,10 @@ final class SettingsViewModel: ObservableObject {
         isRecallsPresented = false
     }
 
+    func webPageFinished() {
+        isWebPagePresented = false
+    }
+
     private func handle(_ effect: SettingsContractSideEffect) {
         switch effect {
         case let open as SettingsContractSideEffect.OpenUrl:
@@ -42,6 +53,9 @@ final class SettingsViewModel: ObservableObject {
                 return
             }
             UIApplication.shared.open(url)
+        case let page as SettingsContractSideEffect.OpenWebPage:
+            webPage = (page.title, page.url)
+            isWebPagePresented = true
         case is SettingsContractSideEffect.OpenRecalls:
             isRecallsPresented = true
         case let message as SettingsContractSideEffect.ShowMessage:

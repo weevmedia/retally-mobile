@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.app.ui.settings
 
 import androidx.compose.material3.SnackbarHostState
@@ -14,6 +18,7 @@ fun SettingsScreen(
     snackbarHostState: SnackbarHostState,
     adsEnabled: Boolean = false,
     adUnitId: String = "",
+    showDebugActions: Boolean = false,
 ) {
     SharedSettingsScreen(
         state = state,
@@ -21,5 +26,6 @@ fun SettingsScreen(
         snackbarHostState = snackbarHostState,
         adsEnabled = adsEnabled,
         adUnitId = adUnitId,
+        showDebugActions = showDebugActions,
     )
 }

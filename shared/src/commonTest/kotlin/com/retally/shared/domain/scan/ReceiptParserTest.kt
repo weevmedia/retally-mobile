@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.domain.scan
 
 import kotlinx.datetime.TimeZone
@@ -91,7 +95,7 @@ class ReceiptParserTest {
     fun `extracts store, items, payment and date`() {
         val receipt = parser.parse(walmart)
 
-        assertEquals("Walmart", receipt.storeName)
+        assertEquals("WALMART", receipt.storeName)
         assertEquals(listOf("GV WHOLE MILK", "BANANAS", "SOURDOUGH", "SOURDOUGH"), receipt.items.map { it.name })
         assertEquals(listOf(3.48, 1.27, 4.98, 4.98), receipt.items.map { it.price })
         assertEquals("Visa •••• 4242", receipt.paymentInfo)
@@ -102,7 +106,7 @@ class ReceiptParserTest {
     fun `feedback url and reprinted name do not become the store name`() {
         val receipt = parser.parse(walmartFeedbackHeader)
 
-        assertEquals("Walmart", receipt.storeName)
+        assertEquals("WALMART", receipt.storeName)
         assertEquals(listOf("GV WHOLE MILK", "BANANAS"), receipt.items.map { it.name })
     }
 
@@ -110,7 +114,7 @@ class ReceiptParserTest {
     fun `big y logo header resolves to Big Y, not the address or self checkout`() {
         val receipt = parser.parse(bigYSelfCheckout)
 
-        assertEquals("Big Y", receipt.storeName)
+        assertEquals("BIG Y", receipt.storeName)
         assertEquals(listOf("FCL CREAM CHEESE", "FC ORG MAC&CHEESE"), receipt.items.map { it.name })
         assertEquals("Visa •••• 5099", receipt.paymentInfo)
         assertEquals(Instant.parse("2026-09-12T18:52:00Z"), receipt.purchaseDate)
@@ -120,7 +124,7 @@ class ReceiptParserTest {
     fun `big y is found even when the script logo does not OCR`() {
         val receipt = parser.parse(bigYLogoNotOcr)
 
-        assertEquals("Big Y", receipt.storeName)
+        assertEquals("BIG Y", receipt.storeName)
         assertEquals(
             "10 WASHINGTON ST\nNORWELL, MA 02061\nSTORE NUMBER (781) 681-9322",
             receipt.storeAddress,
@@ -279,6 +283,48 @@ class ReceiptParserTest {
         assertEquals(250.53, parsed.total)
         assertEquals(248.59, parsed.subtotal)
         assertEquals(1.94, parsed.tax) // TOTAL TAX wins; the repeated tax lines are not summed
+    }
+
+    /** Real Shaw's receipt (Weymouth, 11/01/2026): the amount owed prints as BALANCE, and the only "Total" line is the savings total. */
+    private val shawsBalance = listOf(
+        "Shaw's",
+        "Perfecting the art of fresh",
+        "Store 3413 Dir Ryan",
+        "610 Middle Street",
+        "Weymouth MA 02189",
+        "81829001273 CHOBANI COCONUT 1.49",
+        "Sale Savings -0.49",
+        "89470001033 2@ CHOBANI YGRT MNGO 2.98",
+        "Sale Savings -0.98",
+        "85002273802 LIMES 2LB BAG 4.99",
+        "TAX 0.00",
+        "**** BALANCE 7.99",
+        "Credit Purchase 11/01/26 19:15",
+        "CARD # ************3385",
+        "PAYMENT AMOUNT 7.99",
+        "Mastercard 7.99",
+        "CHANGE 0.00",
+        "YOUR SAVINGS",
+        "Store Savings 1.47",
+        "Total 1.47",
+        "Total Savings Value 16%",
+        "TOTAL NUMBER OF ITEMS SOLD = 4",
+        "11/01/26 19:15 3413 54 284 8854",
+        "Thank you for shopping Shaws!",
+    )
+
+    @Test
+    fun `balance is the total when the receipt prints no total line`() {
+        val parsed = parser.parse(shawsBalance)
+        assertEquals("SHAW'S", parsed.storeName)
+        assertEquals(7.99, parsed.total) // not the 1.47 savings "Total" further down
+        assertEquals(0.0, parsed.tax)
+    }
+
+    @Test
+    fun `a zero balance after tender is not a total`() {
+        val parsed = parser.parse(listOf("Shop", "TOTAL 12.50", "Cash 12.50", "BALANCE 0.00"))
+        assertEquals(12.50, parsed.total)
     }
 
     @Test
@@ -522,7 +568,7 @@ class ReceiptParserTest {
         )
         // The bullseye logo doesn't OCR, so the header has no name: the "TARGET CIRCLE"
         // fingerprint later on wins, and the address is read from the top.
-        assertEquals("Target", parsed.storeName)
+        assertEquals("TARGET", parsed.storeName)
         assertEquals("1167 Washington St\nHanover, Massachusetts 02339-1643", parsed.storeAddress)
         assertEquals(19.75, parsed.total)
     }
@@ -539,14 +585,14 @@ class ReceiptParserTest {
                 "TOTAL 3.49",
             ),
         )
-        assertEquals("Walmart", parsed.storeName)
+        assertEquals("WALMART", parsed.storeName)
         assertEquals("123 Main St\nSpringfield, IL 62701", parsed.storeAddress)
     }
 
     @Test
     fun `receipts without a known chain keep the scanned name`() {
         val parsed = parser.parse(listOf("Green Market", "MILK 3.49", "TOTAL 3.49"))
-        assertEquals("Green Market", parsed.storeName)
+        assertEquals("GREEN MARKET", parsed.storeName)
     }
 
     @Test

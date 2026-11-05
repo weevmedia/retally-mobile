@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.presentation.receipts
 
 import kotlinx.coroutines.flow.first
@@ -13,6 +17,8 @@ import com.retally.shared.ui.format.formatMonthYearShort
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import com.retally.shared.domain.receipt.RECEIPT_WINDOW_MONTHS
+import com.retally.shared.domain.receipt.receiptWindowStart
 
 /**
  * Receipts tab: every receipt, newest first, filtered by month and paged in as the list
@@ -34,8 +40,16 @@ interface ReceiptsContract {
         val pendingDelete: Receipt? = null,
     ) : com.retally.shared.core.State {
 
-        /** Newest first; every other derived list builds on this order. */
-        val ordered: List<Receipt> get() = receipts.sortedByDescending { it.purchaseDate }
+        /**
+         * Newest first, limited to the last [MONTHS_SHOWN] calendar months (this month and the
+         * 11 before it, same window as the Budget history). Every other derived list builds on it.
+         */
+        val ordered: List<Receipt>
+            get() {
+                // Restore already skips older receipts; this also hides older ones kept on device.
+                val from = receiptWindowStart()
+                return receipts.filter { it.purchaseDate >= from }.sortedByDescending { it.purchaseDate }
+            }
 
         /**
          * Months that actually have receipts, newest first — the filter chips.
@@ -57,14 +71,17 @@ interface ReceiptsContract {
 
         val canLoadMore: Boolean get() = visibleCount < filtered.size
 
-        val isEmpty: Boolean get() = !isLoading && receipts.isEmpty()
+        val isEmpty: Boolean get() = !isLoading && ordered.isEmpty()
 
         /** True when the filter is on and hides everything — a different empty message. */
-        val isFilteredEmpty: Boolean get() = !isLoading && receipts.isNotEmpty() && filtered.isEmpty()
+        val isFilteredEmpty: Boolean get() = !isLoading && ordered.isNotEmpty() && filtered.isEmpty()
 
         companion object {
             /** Rows added each time the list reaches the end. */
             const val PAGE_SIZE = 20
+
+            /** The Receipts tab shows this many calendar months, including the current one. */
+            const val MONTHS_SHOWN = RECEIPT_WINDOW_MONTHS
         }
     }
 

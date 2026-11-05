@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.ui.home
 
 import com.retally.shared.domain.budget.BudgetPace
@@ -24,6 +28,8 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -122,6 +128,7 @@ fun HomeContract.SideEffect.userMessage(): String? = when (this) {
     HomeContract.SideEffect.OpenShoppingList,
     is HomeContract.SideEffect.OpenScanReview,
     is HomeContract.SideEffect.OpenReceipt,
+    HomeContract.SideEffect.OpenHowItWorks,
     -> null
 }
 
@@ -163,6 +170,7 @@ fun HomeScreen(
                     // notification inbox. Debug builds: long-press adds a sample receipt.
                     NotificationsAction(
                         hasNotifications = state.hasNotifications,
+                        newNotificationCount = state.newNotificationCount,
                         onClick = { dispatch(HomeContract.Action.NotificationsClicked) },
                         onLongClick = if (showDebugActions) ({ dispatch(HomeContract.Action.AddSampleReceipt) }) else null,
                     )
@@ -175,9 +183,10 @@ fun HomeScreen(
     ) { padding ->
         // The banner floats over the list at the bottom (above the tab bar); the list reserves
         // the same height underneath so the last receipt is never hidden behind it.
-        // With receipts: a 320×50 strip floats over the list. Empty: the same 320×50 banner
-        // sits inline under the call-to-action instead (see HomeContent).
-        val showFloatingStrip = adsEnabled && state.receipts.isNotEmpty()
+        // The 320×50 strip floats just above the scan button with or without receipts, so the
+        // empty Home matches Receipts (it used to sit inline under the call-to-action, which
+        // left a big gap above the button). Not while receipts are still restoring.
+        val showFloatingStrip = adsEnabled && !(state.isEmpty && state.isRestoring)
         val bannerReserve = if (showFloatingStrip) d.bannerHeight + d.md * 2 else 0.dp
         Box(Modifier.fillMaxSize()) {
             HomeContent(
@@ -200,15 +209,16 @@ fun HomeScreen(
                 onHowItWorks = { dispatch(HomeContract.Action.HowItWorksClicked) },
                 onSignIn = { dispatch(HomeContract.Action.SignInClicked) },
                 onSeeAll = { dispatch(HomeContract.Action.SeeAllReceiptsClicked) },
-                adsEnabled = adsEnabled,
+                // The floating strip replaces the empty state's inline banner.
+                adsEnabled = adsEnabled && !showFloatingStrip,
                 bannerAdUnitId = bannerAdUnitId,
             )
             if (showFloatingStrip) {
-                // Same gap as every other screen; FloatingAdBanner has d.xs of its own vertical
-                // padding, so take it off.
+                // Home: the ad sits 2dp above the scan FAB (Android; iOS uses fallbackBottom).
+                // FloatingAdBanner has d.xs of its own vertical padding, so take it off.
                 AboveScanFab(
                     fallbackBottom = padding.calculateBottomPadding() + bottomContentInset + floatingBannerBottomOffset,
-                    gap = BannerGapAboveScanFab - d.xs,
+                    gap = HOME_BANNER_GAP_ABOVE_SCAN_FAB - d.xs,
                 ) {
                     FloatingAdBanner(adUnitId = bannerAdUnitId, enabled = true)
                 }
@@ -286,17 +296,43 @@ internal fun InlineRectangleAd(adUnitId: String) {
     }
 }
 
-/** Bell in the top bar; the dot shows while the inbox holds anything from the last 48 hours. */
+/**
+ * Bell in the top bar. The dot shows while the inbox holds anything from the last 48 hours;
+ * the bell shakes only while there are *new* ones (arrived since the inbox was last opened).
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun NotificationsAction(hasNotifications: Boolean, onClick: () -> Unit, onLongClick: (() -> Unit)?) {
+private fun NotificationsAction(
+    hasNotifications: Boolean,
+    newNotificationCount: Int,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)?,
+) {
     val c = ReTallyTheme.colors
+    val bellAngle = remember { Animatable(0f) }
+    // Keyed on the count: another new notification restarts the shake right away.
+    LaunchedEffect(newNotificationCount) {
+        if (newNotificationCount == 0) {
+            bellAngle.snapTo(0f)
+            return@LaunchedEffect
+        }
+        while (true) {
+            for (angle in BELL_RING_ANGLES) bellAngle.animateTo(angle, tween(BELL_RING_STEP_MS))
+            delay(BELL_RING_PAUSE_MS)
+        }
+    }
     CircleIconButton(onClick = onClick, onLongClick = onLongClick) {
         Icon(
             Icons.Outlined.Notifications,
             contentDescription = str(S.HOME_NOTIFICATIONS_A11Y),
             tint = c.ink,
-            modifier = Modifier.size(22.dp),
+            modifier = Modifier
+                .size(22.dp)
+                .graphicsLayer {
+                    rotationZ = bellAngle.value
+                    // Swing from the top of the bell, like a real one.
+                    transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 0.1f)
+                },
         )
         if (hasNotifications) {
             Box(
@@ -310,6 +346,14 @@ private fun NotificationsAction(hasNotifications: Boolean, onClick: () -> Unit, 
         }
     }
 }
+
+/** Home banner ad to the top of the scan FAB (Android). Other screens use [BannerGapAboveScanFab]. */
+private val HOME_BANNER_GAP_ABOVE_SCAN_FAB = 2.dp
+
+/** Bell shake: swing angles (degrees), time per swing, and the pause between shakes. */
+private val BELL_RING_ANGLES = listOf(16f, -14f, 11f, -8f, 5f, -2f, 0f)
+private const val BELL_RING_STEP_MS = 70
+private const val BELL_RING_PAUSE_MS = 3_000L
 
 @Composable
 internal fun HomeContent(
@@ -533,12 +577,24 @@ private fun BudgetProgressCard(state: HomeContract.State, onClick: () -> Unit) {
                 )
             }
             Spacer(Modifier.height(d.sm))
-            Text(
-                if (spent <= budget) str(S.HOME_BUDGET_LEFT, formatCurrency(budget - spent))
-                else str(S.HOME_BUDGET_OVER, formatCurrency(spent - budget)),
-                style = ReTallyTheme.typography.caption,
-                color = if (spent > budget) c.danger else c.muted,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    if (spent <= budget) str(S.HOME_BUDGET_LEFT, formatCurrency(budget - spent))
+                    else str(S.HOME_BUDGET_OVER, formatCurrency(spent - budget)),
+                    style = ReTallyTheme.typography.caption,
+                    color = if (spent > budget) c.danger else c.muted,
+                    modifier = Modifier.weight(1f),
+                )
+                // Month-end at today's pace, in the bar's colour (green / amber / red).
+                state.budgetProjected?.let { projected ->
+                    Text(
+                        str(S.HOME_BUDGET_PROJECTED, formatCurrency(projected)),
+                        style = ReTallyTheme.typography.caption.copy(fontWeight = FontWeight.SemiBold),
+                        color = barColor,
+                        maxLines = 1,
+                    )
+                }
+            }
         }
     }
 }
@@ -955,8 +1011,9 @@ internal fun ReceiptRow(receipt: Receipt, onClick: () -> Unit, onBarcodeClick: (
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     if (receipt.duplicates.isNotEmpty()) {
+                        val duplicateCount = receipt.duplicates.size
                         Pill(
-                            text = "+${formatCurrency(receipt.overchargeAmount)} · ${receipt.duplicates.size} dup",
+                            text = if (duplicateCount == 1) "1 duplicate" else "$duplicateCount duplicates",
                             containerColor = MaterialTheme.colorScheme.errorContainer,
                             contentColor = MaterialTheme.colorScheme.onErrorContainer,
                         )
@@ -965,7 +1022,7 @@ internal fun ReceiptRow(receipt: Receipt, onClick: () -> Unit, onBarcodeClick: (
             }
             Spacer(Modifier.width(d.sm))
             // Trailing slot: the barcode when the receipt has one (tap → full-screen for the
-            // register scanner), otherwise the plain chevron. The total sits in the meta line.
+            // register scanner); otherwise nothing — the row itself is still tappable.
             if (receipt.barcode != null) {
                 Box(
                     modifier = Modifier
@@ -977,12 +1034,6 @@ internal fun ReceiptRow(receipt: Receipt, onClick: () -> Unit, onBarcodeClick: (
                 ) {
                     BarcodeGlyph(tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(20.dp))
                 }
-            } else {
-                Icon(
-                    Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
         }
     }

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.ui.recalls
 
 import com.retally.shared.ui.components.CircleIconButton
@@ -50,6 +54,7 @@ import com.retally.shared.ui.components.InFeedSquareAd
 import com.retally.shared.ui.components.PrimaryButton
 import com.retally.shared.ui.components.ReTallySnackbarHost
 import com.retally.shared.ui.components.SectionHeader
+import com.retally.shared.ui.components.StickyBottomAd
 import com.retally.shared.ui.components.SurfaceCard
 import com.retally.shared.ui.format.formatShortDate
 import com.retally.shared.ui.theme.ReTallyDimensions
@@ -63,7 +68,8 @@ import kotlinx.datetime.atStartOfDayIn
  * Food recalls (More › Food recalls). Cards show source, date, title and a short excerpt; a
  * tap opens the official FDA / USDA notice in the browser. Recalls that mention something the
  * shopper bought recently sit on top under "May affect you". When ads are on, an in-feed
- * square ad follows every [RECALLS_PER_AD] recalls.
+ * square ad follows every [RECALLS_PER_AD] recalls and a sticky banner is pinned under the
+ * feed ([StickyBottomAd]).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,6 +103,14 @@ fun RecallsScreen(
             )
         },
         snackbarHost = { ReTallySnackbarHost(snackbarHostState) },
+        // Sticky banner under the feed; the list keeps scrolling behind it and the Scaffold
+        // pads the content by its height so the last recall is never hidden.
+        bottomBar = {
+            StickyBottomAd(
+                adUnitId = bannerAdUnitId,
+                enabled = adsEnabled && bannerAdUnitId.isNotBlank() && !state.isLoading && !state.loadFailed,
+            )
+        },
         containerColor = c.background,
     ) { padding ->
         val content = Modifier.fillMaxSize().padding(padding)

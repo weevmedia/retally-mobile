@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.domain.scan
 
 import com.retally.shared.core.newId
@@ -70,15 +74,18 @@ class ReceiptParser(
             } else {
                 scannedName to storeIndex + nameLinesConsumed
             }
+        // Store names always display in caps: normalize once here, so every scan and
+        // every surface that reads the parsed receipt agrees.
         return ParsedReceipt(
-            storeName = storeName,
+            storeName = storeName.uppercase(),
             storeAddress = detectStoreAddress(clean, addressStart),
             purchaseDate = detectDate(clean),
             paymentInfo = detectPaymentInfo(clean),
             items = flagDuplicates(detectItems(clean)),
             subtotal = detectAmount(clean, SUBTOTAL),
             tax = detectTax(clean),
-            total = detectAmount(clean, TOTAL, preferLast = true)
+            total = detectBalance(clean)
+                ?: detectAmount(clean, TOTAL, preferLast = true)
                 ?: detectAmount(clean, AMOUNT_LINE),
             barcode = detectBarcode(clean),
             declaredItemCount = detectItemCount(clean),
@@ -205,6 +212,18 @@ class ReceiptParser(
         if (!BARE_PRICE.matches(line.trim())) return null
         return price(line)
     }
+
+    /**
+     * The amount owed on receipts that label it BALANCE instead of TOTAL (Shaw's prints
+     * "**** BALANCE 7.99" while its only "Total" line is the savings total, 1.47).
+     * Checked before TOTAL so a savings "Total" can never beat the amount owed. The first
+     * positive balance wins: a zero balance after tender is a remainder, not a total.
+     */
+    private fun detectBalance(lines: List<String>): Double? =
+        lines.mapIndexedNotNull { index, line ->
+            if (!BALANCE.containsMatchIn(line)) return@mapIndexedNotNull null
+            amountNear(lines, index, line)?.takeIf { it > 0 }
+        }.firstOrNull()
 
     /**
      * Tax as printed. A "TOTAL TAX" line wins outright; otherwise the "TAX … 1.23" lines between
@@ -462,6 +481,8 @@ class ReceiptParser(
         private val SUBTOTAL = Regex("""(?i)\bSUB\s?-?\s?TOTAL\b""")
         /** The grand total line — not "TOTAL TAX", "TOTAL SAVINGS" or "TOTAL NUMBER OF ITEMS". */
         private val TOTAL = Regex("""(?i)^\s*\**\s*TOTAL\b(?!\s*(?:TAX|SAVINGS|DISCOUNT|NUMBER|ITEMS|QTY))""")
+        /** The amount owed on receipts that print it as BALANCE, not TOTAL — never "BALANCE FORWARD". */
+        private val BALANCE = Regex("""(?i)^\s*\**\s*BALANCE\b(?!\s*FORWARD\b)""")
         /** Fallback when the TOTAL amount isn't readable (e.g., inverted/white-on-black print): "AMOUNT: $265.43" in the payment block. */
         private val AMOUNT_LINE = Regex("""(?i)^\s*AMOUNT\s*:""")
         /**

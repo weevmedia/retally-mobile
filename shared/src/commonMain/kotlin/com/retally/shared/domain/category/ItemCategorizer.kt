@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.domain.category
 
 import com.retally.shared.domain.receipt.ReceiptRepository
@@ -14,11 +18,15 @@ import kotlinx.coroutines.flow.first
  */
 object ItemCategorizer {
     fun categorize(itemName: String, categories: List<ItemCategory>): String {
-        val lower = itemName.lowercase()
+        // Same text on both platforms: iOS OCR can put non-breaking or repeated spaces between
+        // words, which made multi-word keywords ("ground beef") miss there.
+        val lower = itemName.replace('\u00A0', ' ').replace(WHITESPACE, " ").trim().lowercase()
         return categories.firstOrNull { category ->
             category.keywords.any { keyword -> keyword.lowercase() in lower }
         }?.id ?: ItemCategory.UNCATEGORIZED_ID
     }
+
+    private val WHITESPACE = Regex("\\s+")
 }
 
 /**
@@ -63,7 +71,9 @@ suspend fun backfillAiCategories(
     if (allDone) settings.putBoolean(KEY_AI_CATEGORIZED, true)
 }
 
-private const val KEY_AI_CATEGORIZED = "items.categorized.ai.v1"
+// v2: re-run once so items left "Uncategorized" by the iOS name-matching bug (fixed in
+// HttpItemCategoryClassifier) get their AI category. Hand-set categories stay locked.
+private const val KEY_AI_CATEGORIZED = "items.categorized.ai.v2"
 
 /**
  * One-time pass over stored receipts: tags every item with the current category

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.data.cloud
 
 import com.retally.shared.domain.receipt.model.Receipt
@@ -31,6 +35,9 @@ class FirestoreReceiptMapper(
         deviceId: String,
         appVersion: String,
         imageStoragePath: String? = null,
+        /** "android" / "ios" — lets the dashboard compare OCR quality and flag rates per platform. */
+        platform: String = "unknown",
+        osVersion: String = "unknown",
     ): Map<String, Any?> {
         val duplicates = receipt.duplicates
         val total = (receipt.total ?: receipt.itemsTotal).round2()
@@ -59,9 +66,15 @@ class FirestoreReceiptMapper(
             "image" to mapOf("storagePath" to imageStoragePath, "thumbnailPath" to null),
             "ocr" to mapOf(
                 "rawText" to "",
-                "engine" to "mlkit",
+                // Android reads with ML Kit, iOS with Apple Vision.
+                "engine" to if (platform == "ios") "vision" else "mlkit",
                 "appVersion" to appVersion,
                 "piiScrubbed" to true,
+            ),
+            "client" to mapOf(
+                "platform" to platform,
+                "osVersion" to osVersion,
+                "appVersion" to appVersion,
             ),
             "source" to "scan",
             "deviceId" to deviceId,

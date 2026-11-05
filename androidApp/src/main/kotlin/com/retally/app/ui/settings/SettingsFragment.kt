@@ -1,5 +1,10 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.app.ui.settings
 
+import com.retally.app.BuildConfig
 import org.koin.androidx.viewmodel.ext.android.activityViewModel
 import com.retally.app.ui.main.MainViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -55,6 +60,7 @@ class SettingsFragment : BaseComposeFragment<State, Action, SideEffect, Settings
             snackbarHostState = snackbarHostState,
             adsEnabled = shell.adsEnabled,
             adUnitId = mainViewModel.homeBannerUnitId,
+            showDebugActions = BuildConfig.DEBUG,
         )
     }
 
@@ -84,6 +90,9 @@ class SettingsFragment : BaseComposeFragment<State, Action, SideEffect, Settings
     override suspend fun onViewEffect(effect: SideEffect) {
         when (effect) {
             is OpenUrl -> if (!platform.openUrl(effect.url)) snackbarHostState.showSnackbar(getString(R.string.host_link_open_failed))
+            is SideEffect.OpenWebPage -> findNavController().navigate(
+                com.retally.app.NavGraphDirections.actionGlobalWebPage(title = effect.title, url = effect.url),
+            )
             is ShowMessage -> snackbarHostState.showSnackbar(effect.message)
             is SideEffect.OpenRecalls -> findNavController().navigate(
                 SettingsFragmentDirections.actionSettingsToAlerts(),
