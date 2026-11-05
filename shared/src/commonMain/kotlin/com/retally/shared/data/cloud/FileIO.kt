@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.data.cloud
 
 /** Reads file bytes from a local path. Platform-specific. */

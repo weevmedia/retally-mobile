@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.core
 
 import androidx.lifecycle.ViewModel as LifecycleViewModel

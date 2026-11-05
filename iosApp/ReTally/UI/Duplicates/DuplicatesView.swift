@@ -1,3 +1,7 @@
+//
+//  Copyright (c) 2026-2027 Weev Media. All rights reserved.
+//
+
 import SwiftUI
 
 /// "Duplicates found" — pushed from Home's stat card. Can push a receipt on top.

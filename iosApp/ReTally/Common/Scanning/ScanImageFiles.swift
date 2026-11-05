@@ -1,3 +1,7 @@
+//
+//  Copyright (c) 2026-2027 Weev Media. All rights reserved.
+//
+
 import UIKit
 
 /// Saves a scanned or gallery-picked receipt image (downscaled to ~1600 px) into

@@ -1,3 +1,7 @@
+//
+//  Copyright (c) 2026-2027 Weev Media. All rights reserved.
+//
+
 import Foundation
 
 /// Per-build configuration. Real AdMob ids and the backend URL belong here (or in an
