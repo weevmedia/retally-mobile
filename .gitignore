@@ -79,3 +79,6 @@ backend/
 
 # Local release builds (upload to Play from CI / by hand, never commit)
 androidApp/release/
+# Signing material and its passwords — never commit
+signin/
+signing/

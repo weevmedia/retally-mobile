@@ -288,5 +288,7 @@ final class NearbyStoreMonitor: NSObject, CLLocationManagerDelegate {
 /// Nearby-store diagnostics, same `[Nearby]` tag as the shared code. Filter the Xcode console
 /// (or Console.app, for background wake-ups) on "[Nearby]".
 func nearbyLog(_ message: String) {
+    #if DEBUG
     NSLog("[Nearby] %@", message)
+    #endif
 }

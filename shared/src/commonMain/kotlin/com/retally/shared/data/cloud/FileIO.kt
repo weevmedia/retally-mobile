@@ -16,3 +16,6 @@ expect fun writeFileBytes(path: String, bytes: ByteArray): Boolean
  * the receipts directory location differs per platform.
  */
 expect fun resolveImagePath(stored: String): String?
+
+/** Deletes the file at [path]; true when it is gone. Never throws. */
+expect fun deleteFile(path: String): Boolean

@@ -4,6 +4,7 @@
 
 package com.retally.shared.presentation.scan
 
+import com.retally.shared.core.log.debugLog
 import com.retally.shared.core.crash.CrashReporting
 import com.retally.shared.domain.category.ItemCategoryClassifier
 import com.retally.shared.data.store.StoreIconRepository
@@ -524,14 +525,14 @@ interface ScanReviewContract {
                 outcome == ScanOutcome.RETAKE) &&
                 tornReceiptClient != null && imagePath != null
             if (needsAi) {
-                println("[ReTallyScan] parseSource=LOCAL (incomplete: ${missingFields.joinToString()}) → trying CLOUD_AI")
+                debugLog("ReTallyScan") { "parseSource=LOCAL (incomplete: ${missingFields.joinToString()}) → trying CLOUD_AI" }
                 CrashReporting.setValue("lastParseSource", "CLOUD_AI")
                 currentState = currentState.copy(isLoading = true, isAiParsing = true)
                 tryAiFallback(imagePath!!, receipt)
                 return
             }
 
-            println("[ReTallyScan] parseSource=LOCAL outcome=$outcome status=$scanStatus")
+            debugLog("ReTallyScan") { "parseSource=LOCAL outcome=$outcome status=$scanStatus" }
             CrashReporting.setValue("lastParseSource", "LOCAL")
             // Show it right away; persistence completes in the background.
             // Keep the cooking animation visible for at least 1.2s total so it's
@@ -580,7 +581,7 @@ interface ScanReviewContract {
                 when (val result = client.parse(base64)) {
                     is TornReceiptResult.Success -> {
                         val aiReceipt = receiptFromAi(result.receipt, fallback)
-                        println("[ReTallyScan] parseSource=CLOUD_AI items=${aiReceipt.items.size} total=${aiReceipt.receiptTotal}")
+                        debugLog("ReTallyScan") { "parseSource=CLOUD_AI items=${aiReceipt.items.size} total=${aiReceipt.receiptTotal}" }
                         currentState = currentState.copy(
                             receipt = aiReceipt,
                             isLoading = false,
@@ -600,7 +601,7 @@ interface ScanReviewContract {
 
         /** AI call failed — show the local partial result and log why. */
         private fun showLocalFallback(fallback: Receipt, reason: String) {
-            println("[ReTallyScan] parseSource=LOCAL (ai-fallback-failed: $reason)")
+            debugLog("ReTallyScan") { "parseSource=LOCAL (ai-fallback-failed: $reason)" }
             currentState = currentState.copy(
                 receipt = fallback,
                 isLoading = false,

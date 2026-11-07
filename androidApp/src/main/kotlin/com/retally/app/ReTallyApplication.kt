@@ -6,6 +6,7 @@ package com.retally.app
 
 import com.retally.shared.core.crash.CrashReporting
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.retally.shared.core.log.DebugLog
 import com.retally.app.security.AndroidAppCheck
 import com.retally.app.security.AndroidAppCheckTokenProvider
 import android.app.Application
@@ -29,6 +30,8 @@ class ReTallyApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         registerActivityLifecycleCallbacks(CurrentActivityTracker)
+        // Shared-module diagnostics ([Nearby], [ReTallyScan]…) only in debug builds.
+        DebugLog.enabled = BuildConfig.DEBUG
         // Before any Firebase call: Firestore / Storage / our functions all expect the token.
         AndroidAppCheck.install()
 

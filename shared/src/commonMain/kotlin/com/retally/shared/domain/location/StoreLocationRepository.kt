@@ -4,6 +4,7 @@
 
 package com.retally.shared.domain.location
 
+import com.retally.shared.core.log.debugLog
 import com.retally.shared.db.ReTallyDatabase
 import com.retally.shared.domain.receipt.ReceiptRepository
 import com.russhwolf.settings.Settings
@@ -352,7 +353,7 @@ class StoreLocationRepository(
  * Nearby-store diagnostics, tagged `[Nearby]` on both platforms (Logcat on Android, the Xcode
  * console on iOS), so one filter shows the whole path: zone lookup → registration → entry → alert.
  */
-fun nearbyLog(message: String) = println("[Nearby] $message")
+fun nearbyLog(message: String) = debugLog("Nearby") { "$message" }
 
 /** Great-circle distance in metres (haversine). */
 internal fun distanceMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {

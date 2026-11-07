@@ -77,6 +77,21 @@ val syncIosVersion by tasks.registering {
 }
 tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(syncIosVersion) }
 
+// Release builds need the upload key. Checked when a release task actually runs (not at
+// configuration), so debug builds and IDE sync work on machines without keystore.properties.
+val hasReleaseKeystore = keystoreProperties.isNotEmpty()
+val requireReleaseKeystore by tasks.registering {
+    doLast {
+        if (!hasReleaseKeystore) {
+            throw GradleException(
+                "Release build needs the upload key: create keystore.properties in the project root " +
+                    "(storeFile, storePassword, keyAlias, keyPassword). Refusing to sign a release with the debug key.",
+            )
+        }
+    }
+}
+tasks.matching { it.name == "preReleaseBuild" }.configureEach { dependsOn(requireReleaseKeystore) }
+
 android {
     namespace = "com.retally.app"
     compileSdk = Versions.androidCompileSdk
@@ -131,11 +146,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            signingConfig = if (keystoreProperties.isNotEmpty()) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
-            }
+            // Always the upload key. No debug-key fallback: a debug-signed "release" is rejected
+            // by Play and fails App Check, so without keystore.properties the release build
+            // stops (see requireReleaseKeystore above) instead of quietly signing with debug.
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 

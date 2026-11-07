@@ -4,6 +4,7 @@
 
 package com.retally.shared.data.device
 
+import com.retally.shared.core.log.debugLog
 import com.retally.shared.core.Platform
 import com.retally.shared.domain.auth.AuthRepository
 import com.retally.shared.domain.preferences.AppPreferences
@@ -106,7 +107,7 @@ class DeviceRegistrar(
         }
     }
 
-    private fun log(message: String) = println("[ReTallyDevices] $message")
+    private fun log(message: String) = debugLog("ReTallyDevices") { "$message" }
 
     companion object {
         const val DEFAULT_URL = "https://us-east1-retally-c5212.cloudfunctions.net/registerDevice"

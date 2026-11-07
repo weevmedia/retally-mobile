@@ -86,7 +86,6 @@ interface AuthContract {
         data object AppleClicked : Action()
         data object GoogleClicked : Action()
         data object GuestClicked : Action()
-        /** Terms / Privacy links — TODO(auth): open the real hosted documents. */
         /** Footer "Terms & Conditions" link. */
         data object TermsClicked : Action()
         /** Footer "Privacy Policy" link. */

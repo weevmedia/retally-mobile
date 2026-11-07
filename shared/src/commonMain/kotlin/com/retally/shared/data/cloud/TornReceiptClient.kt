@@ -4,6 +4,7 @@
 
 package com.retally.shared.data.cloud
 
+import com.retally.shared.core.log.debugLog
 import com.retally.shared.domain.auth.AuthRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -99,7 +100,7 @@ class TornReceiptClient(
             }
             // Log the raw JSON for debugging — shows exactly what Gemini returned.
             val rawJson: String = response.body()
-            println("[ReTallyScan] gemini-raw: $rawJson")
+            debugLog("ReTallyScan") { "gemini-raw: $rawJson" }
             val body = try {
                 kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
                     .decodeFromString<ParseTornReceiptResponse>(rawJson)

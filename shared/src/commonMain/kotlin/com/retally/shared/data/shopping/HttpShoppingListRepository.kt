@@ -4,6 +4,7 @@
 
 package com.retally.shared.data.shopping
 
+import com.retally.shared.core.log.debugLog
 import com.retally.shared.domain.auth.AuthRepository
 import com.retally.shared.domain.shopping.ShoppingList
 import com.retally.shared.domain.shopping.ShoppingListLoadResult
@@ -144,7 +145,7 @@ class HttpShoppingListRepository(
         }
     }
 
-    private fun log(message: String) = println("[ReTallyShopping] $message")
+    private fun log(message: String) = debugLog("ReTallyShopping") { "$message" }
 
     override var pendingStoreName: String? = null
 

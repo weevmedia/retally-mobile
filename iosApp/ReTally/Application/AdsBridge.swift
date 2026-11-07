@@ -21,7 +21,9 @@ final class AdsBridge: NSObject, BannerViewDelegate {
 
     private func log(_ message: String) {
         #if DEBUG
+        #if DEBUG
         print("[ReTallyAds] \(message)")
+        #endif
         #endif
     }
 

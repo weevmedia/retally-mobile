@@ -4,6 +4,7 @@
 
 package com.retally.shared.data.ai
 
+import com.retally.shared.core.log.debugLog
 import com.retally.shared.domain.ai.Nudge
 import com.retally.shared.domain.ai.NudgeRepository
 import com.retally.shared.domain.auth.AuthRepository
@@ -120,7 +121,7 @@ class HttpNudgeRepository(
             runCatching { json.decodeFromString(LIST_SERIALIZER, raw) }.getOrNull()
         } ?: emptyList()
 
-    private fun log(message: String) = println("[ReTallyNudges] $message")
+    private fun log(message: String) = debugLog("ReTallyNudges") { "$message" }
 
     companion object {
         const val DEFAULT_URL = "https://us-east1-retally-c5212.cloudfunctions.net/getNudges"

@@ -4,6 +4,7 @@
 
 package com.retally.shared.domain.cloud
 
+import com.retally.shared.core.log.debugLog
 import com.retally.shared.domain.auth.AuthRepository
 import com.retally.shared.domain.receipt.ReceiptRepository
 import com.russhwolf.settings.Settings
@@ -115,11 +116,11 @@ class ReceiptRestore(
                         result.receipts.forEach { repository.upsert(it) }
                         settings.putString(KEY_LAST_UID, uid)
                         settings.putLong(KEY_LAST_RUN, clock.now().toEpochMilliseconds())
-                        println("[ReTallyRestore] restored ${result.receipts.size} receipt(s)")
+                        debugLog("ReTallyRestore") { "restored ${result.receipts.size} receipt(s)" }
                         _outcome.value = RestoreOutcome.Restored(result.receipts.size)
                     }
                     is CloudRestoreResult.Failure -> {
-                        println("[ReTallyRestore] failed: ${result.message}")
+                        debugLog("ReTallyRestore") { "failed: ${result.message}" }
                         _outcome.value = RestoreOutcome.Failed(result.message)
                     }
                 }

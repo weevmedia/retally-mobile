@@ -4,6 +4,7 @@
 
 package com.retally.shared.data.category
 
+import com.retally.shared.core.log.debugLog
 import com.retally.shared.domain.auth.AuthRepository
 import com.retally.shared.domain.category.ItemCategoryClassifier
 import io.ktor.client.HttpClient
@@ -98,7 +99,7 @@ class HttpItemCategoryClassifier(
     private fun normalize(name: String): String =
         name.replace('\u00A0', ' ').replace(WHITESPACE, " ").trim()
 
-    private fun log(message: String) = println("[ReTallyCategories] $message")
+    private fun log(message: String) = debugLog("ReTallyCategories") { "$message" }
 
     companion object {
         const val DEFAULT_URL = "https://us-east1-retally-c5212.cloudfunctions.net/categorizeItems"

@@ -4,6 +4,7 @@
 
 package com.retally.shared.data.update
 
+import com.retally.shared.core.log.debugLog
 import com.retally.shared.core.Platform
 import com.retally.shared.domain.update.AppUpdateRepository
 import com.retally.shared.domain.update.AppVersionConfig
@@ -103,7 +104,7 @@ class FirestoreAppUpdateRepository(
             runCatching { json.decodeFromString(AppVersionConfig.serializer(), raw) }.getOrNull()
         }
 
-    private fun log(message: String) = println("[ReTallyUpdate] $message")
+    private fun log(message: String) = debugLog("ReTallyUpdate") { "$message" }
 
     companion object {
         private const val KEY_CONFIG = "app_update.config.v1"

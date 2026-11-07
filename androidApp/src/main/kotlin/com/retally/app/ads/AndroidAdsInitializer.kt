@@ -67,7 +67,7 @@ class AndroidAdsInitializer(private val application: Application) : AdsInitializ
             activity != null -> gatherConsent(activity, consent)
             else -> consent.canRequestAds() || ALLOW_WITHOUT_CONSENT
         }
-        Log.d(TAG, "consent resolved: canRequestAds=$canRequestAds (activity=${activity != null}, debugBypass=$ALLOW_WITHOUT_CONSENT)")
+        if (BuildConfig.DEBUG) Log.d(TAG, "consent resolved: canRequestAds=$canRequestAds (activity=${activity != null}, debugBypass=$ALLOW_WITHOUT_CONSENT)")
         if (!canRequestAds) return AdsReadiness.UNAVAILABLE
 
         if (initialized.compareAndSet(false, true)) {
@@ -80,12 +80,12 @@ class AndroidAdsInitializer(private val application: Application) : AdsInitializ
                             .setTestDeviceIds(listOf(AdRequest.DEVICE_ID_EMULATOR) + DEBUG_TEST_DEVICE_IDS)
                             .build(),
                     )
-                    Log.d(TAG, "test devices: emulator + ${DEBUG_TEST_DEVICE_IDS.size} phone(s); a physical phone logs its hash on the first request — add it to DEBUG_TEST_DEVICE_IDS")
+                    if (BuildConfig.DEBUG) Log.d(TAG, "test devices: emulator + ${DEBUG_TEST_DEVICE_IDS.size} phone(s); a physical phone logs its hash on the first request — add it to DEBUG_TEST_DEVICE_IDS")
                 }
                 suspendCancellableCoroutine { cont -> MobileAds.initialize(application) { cont.resume(Unit) } }
             }
         }
-        Log.d(TAG, "Mobile Ads SDK ready")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Mobile Ads SDK ready")
         return AdsReadiness.READY
     }
 

@@ -4,6 +4,7 @@
 
 package com.retally.shared.data.recalls
 
+import com.retally.shared.core.log.debugLog
 import com.retally.shared.domain.auth.AuthRepository
 import com.retally.shared.domain.recalls.Recall
 import com.retally.shared.domain.recalls.RecallsLoadResult
@@ -78,7 +79,7 @@ class HttpRecallsRepository(
             }
             val body = response.bodyAsText()
             if (!response.status.isSuccess()) {
-                println("[ReTallyRecalls] HTTP ${response.status.value}: ${body.take(200)}")
+                debugLog("ReTallyRecalls") { "HTTP ${response.status.value}: ${body.take(200)}" }
                 return RecallsLoadResult.Failure("http-${response.status.value}")
             }
             val result = runCatching { json.parseToJsonElement(body).jsonObject["result"] as? JsonObject }.getOrNull()
@@ -91,7 +92,7 @@ class HttpRecallsRepository(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            println("[ReTallyRecalls] request failed: ${e.message}")
+            debugLog("ReTallyRecalls") { "request failed: ${e.message}" }
             RecallsLoadResult.Failure(e.message ?: "network")
         }
     }

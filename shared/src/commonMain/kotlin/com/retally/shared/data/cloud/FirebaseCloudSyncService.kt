@@ -4,6 +4,7 @@
 
 package com.retally.shared.data.cloud
 
+import com.retally.shared.core.log.debugLog
 import com.retally.shared.core.crash.CrashReporting
 import com.retally.shared.core.Platform
 import com.retally.shared.domain.auth.AuthRepository
@@ -95,7 +96,7 @@ class FirebaseCloudSyncService(
             val recent = receiptsRef.where { "purchaseDate" greaterThanOrEqualTo from }
             val restored = mutableListOf<Receipt>()
             val docs = recent.get().documents
-            println("[ReTallyRestore] uid=$uid cloud=${docs.size} alreadyLocal=${docs.count { it.id in skipIds }}")
+            debugLog("ReTallyRestore") { "uid=$uid cloud=${docs.size} alreadyLocal=${docs.count { it.id in skipIds }}" }
             for (doc in docs) {
                 if (doc.id in skipIds) continue
                 if (doc.opt<Timestamp>("deletedAt") != null) continue
@@ -109,7 +110,7 @@ class FirebaseCloudSyncService(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
-            println("[ReTallyRestore] download failed: ${e.message}")
+            debugLog("ReTallyRestore") { "download failed: ${e.message}" }
             CloudRestoreResult.Failure(e.message ?: "Restore failed")
         }
     }
@@ -136,7 +137,7 @@ class FirebaseCloudSyncService(
                 throw e
             } catch (e: Throwable) {
                 // No cloud copy, or offline: the local tombstone still keeps it from being restored.
-                println("[ReTallyRestore] markDeleted($id) failed: ${e.message}")
+                debugLog("ReTallyRestore") { "markDeleted($id) failed: ${e.message}" }
             }
         }
     }

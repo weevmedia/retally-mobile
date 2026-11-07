@@ -4,6 +4,7 @@
 
 package com.retally.shared.data.store
 
+import com.retally.shared.core.log.debugLog
 import com.retally.shared.data.auth.HttpOtpService
 import com.retally.shared.domain.store.StoreIcon
 import com.retally.shared.domain.store.iconKeyOf
@@ -212,7 +213,7 @@ class StoreIconRepository(
         null
     }
 
-    private fun log(message: String) = println("[ReTallyStoreIcons] $message")
+    private fun log(message: String) = debugLog("ReTallyStoreIcons") { "$message" }
 
     private fun save(key: String, entry: Entry) {
         _cache.update { it + (key to entry) }

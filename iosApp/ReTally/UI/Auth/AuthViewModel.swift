@@ -200,7 +200,9 @@ final class GoogleSignInCoordinator: NSObject, ASWebAuthenticationPresentationCo
               let plist = NSDictionary(contentsOfFile: path),
               let clientId = plist["CLIENT_ID"] as? String,
               let scheme = plist["REVERSED_CLIENT_ID"] as? String else {
+            #if DEBUG
             print("[ReTallyGoogleSignIn] CLIENT_ID missing: enable Google sign-in in Firebase and update GoogleService-Info.plist")
+            #endif
             finish(.failed)
             return
         }
@@ -262,7 +264,9 @@ final class GoogleSignInCoordinator: NSObject, ASWebAuthenticationPresentationCo
             guard error == nil, let data,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let idToken = json["id_token"] as? String else {
+                #if DEBUG
                 print("[ReTallyGoogleSignIn] token exchange failed")
+                #endif
                 self.finish(.failed)
                 return
             }

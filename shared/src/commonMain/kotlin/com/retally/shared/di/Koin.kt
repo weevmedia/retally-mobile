@@ -72,6 +72,8 @@ import com.retally.shared.presentation.onboarding.OnboardingContract
 import com.retally.shared.presentation.storealerts.StoreAlertsContract
 import com.retally.shared.presentation.storealerts.StoreAlertsPrompt
 import com.russhwolf.settings.Settings
+import com.retally.shared.data.cloud.deleteFile
+import com.retally.shared.data.cloud.resolveImagePath
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.api.createClientPlugin
 import com.retally.shared.domain.security.APP_CHECK_HEADER
@@ -224,10 +226,11 @@ val dataModule = module {
             prefs = get(),
             auth = get(),
             onDeleteImageFiles = { paths ->
-                // Delete local image files for pruned receipts.
-                // Platform-specific: the paths are filenames or absolute paths.
-                // For now, best-effort via the shared resolver (actual deletion needs platform file API).
-                // TODO: Wire platform file deletion via expect/actual.
+                // Pruned receipts' photos on this device (absolute paths or bare filenames).
+                // Cloud paths ("users/…") are not local files; guests have none anyway.
+                paths.filterNot { it.startsWith("users/") }
+                    .mapNotNull { resolveImagePath(it) }
+                    .forEach { deleteFile(it) }
             },
             settings = get(),
         )

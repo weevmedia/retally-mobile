@@ -4,6 +4,7 @@
 
 package com.retally.shared.domain.cloud
 
+import com.retally.shared.core.log.debugLog
 import com.retally.shared.domain.auth.AuthRepository
 import com.retally.shared.domain.preferences.AppPreferences
 import com.retally.shared.domain.receipt.ReceiptRepository
@@ -146,7 +147,7 @@ class ReceiptBackup(
         scope.launch {
             val pending = repository.observeReceipts().first().filter { it.syncedAt == null }
             if (pending.isEmpty()) return@launch
-            println("[ReTallyBackup] uploading ${pending.size} pending receipt(s)")
+            debugLog("ReTallyBackup") { "uploading ${pending.size} pending receipt(s)" }
             _backingUpCount.value = pending.size
             try {
                 _outcome.value = when (val result = upload(pending)) {
@@ -171,7 +172,7 @@ class ReceiptBackup(
         if (result is CloudSyncResult.Success) {
             repository.markSynced(result.syncedIds, result.syncedAt)
         } else if (result is CloudSyncResult.Failure) {
-            println("[ReTallyBackup] upload failed: ${result.message}")
+            debugLog("ReTallyBackup") { "upload failed: ${result.message}" }
         }
         result
     }

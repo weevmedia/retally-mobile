@@ -65,3 +65,7 @@ actual fun resolveImagePath(stored: String): String? {
         .let { (it as NSString).stringByAppendingPathComponent(filename) }
     return if (NSFileManager.defaultManager.fileExistsAtPath(full)) full else null
 }
+
+@OptIn(ExperimentalForeignApi::class)
+actual fun deleteFile(path: String): Boolean =
+    NSFileManager.defaultManager.removeItemAtPath(path, null)

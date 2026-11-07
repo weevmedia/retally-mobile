@@ -6,6 +6,7 @@ package com.retally.shared.platform
 
 import com.retally.shared.core.crash.CrashReporting
 import co.touchlab.crashkios.crashlytics.setCrashlyticsUnhandledExceptionHook
+import com.retally.shared.core.log.DebugLog
 import com.retally.shared.core.Platform
 import com.retally.shared.core.strings.IosStringResolver
 import com.retally.shared.di.PlatformDependencies
@@ -69,6 +70,8 @@ object IosApp {
         debug: Boolean = false,
     ) {
         IosAdBannerFactory.create = bannerFactory
+        // Shared-module diagnostics ([Nearby], [ReTallyScan]…) only in debug builds.
+        DebugLog.enabled = debug
         // Crashlytics (FirebaseApp.configure() already ran in Swift). The hook turns an uncaught
         // Kotlin exception into a Crashlytics crash with the Kotlin stack trace.
         CrashReporting.start()

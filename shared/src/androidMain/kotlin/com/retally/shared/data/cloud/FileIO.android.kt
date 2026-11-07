@@ -36,10 +36,14 @@ actual fun resolveImagePath(stored: String): String? {
     // Legacy absolute path that still exists.
     val absFile = File(stored)
     if (stored.startsWith("/") && absFile.exists()) return stored
-    // Filename: resolve in the app's files/receipts directory.
-    // Note: Android stores images via app-specific storage; the exact location
-    // is determined by the platform image saver. For now, try the filename as-is
-    // if it's already a valid path, otherwise return null.
-    // TODO: Align with Android's image storage location.
-    return null
+    // A bare filename (a cached cloud photo), or an absolute path from an older install whose
+    // sandbox path changed: look for the file in the app's receipts folder.
+    val inReceipts = receiptsDir()?.let { File(it, absFile.name) } ?: return null
+    return inReceipts.absolutePath.takeIf { inReceipts.exists() }
+}
+
+actual fun deleteFile(path: String): Boolean = try {
+    File(path).delete()
+} catch (e: Exception) {
+    false
 }

@@ -4,6 +4,7 @@
 
 package com.retally.shared.ui.components
 
+import com.retally.shared.core.log.DebugLog
 import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -31,7 +32,7 @@ internal actual fun PlatformAdBanner(
             this.adUnitId = adUnitId
             adListener = object : AdListener() {
                 override fun onAdLoaded() {
-                    Log.d("ReTallyAds", "banner loaded: $adUnitId ($format)")
+                    if (DebugLog.enabled) Log.d("ReTallyAds", "banner loaded: $adUnitId ($format)")
                     onAdSettled()
                 }
 

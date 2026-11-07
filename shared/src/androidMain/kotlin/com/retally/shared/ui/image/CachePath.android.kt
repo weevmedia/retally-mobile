@@ -4,8 +4,14 @@
 
 package com.retally.shared.ui.image
 
+import com.retally.shared.data.cloud.receiptsDir
+import java.io.File
+
+/**
+ * Where a downloaded cloud receipt photo is kept: the app's receipts folder (the same one the
+ * scanners save to), so it is read from disk next time instead of downloaded again.
+ */
 actual fun getCachePath(filename: String): String? {
-    // TODO: Return the app's cache directory + "/receipts/" + filename.
-    // Requires application context; wire via Platform or expect/actual.
-    return null
+    val dir = receiptsDir()?.apply { mkdirs() } ?: return null
+    return File(dir, filename).absolutePath
 }
