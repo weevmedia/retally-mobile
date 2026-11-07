@@ -41,7 +41,6 @@ class SplashFragment : BaseComposeFragment<State, Action, SideEffect, SplashView
 
     override suspend fun onViewEffect(effect: SideEffect) {
         when (effect) {
-            is SideEffect.ShowMessage -> snackbarHostState.showSnackbar(effect.message)
             is NavigateToMain -> {
                 mainViewModel.onAdsInitialized(effect.adsReady)
                 // Safe Args; the graph pops splash so Back from Home exits the app.

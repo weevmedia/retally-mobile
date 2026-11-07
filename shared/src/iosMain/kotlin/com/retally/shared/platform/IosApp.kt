@@ -9,6 +9,9 @@ import co.touchlab.crashkios.crashlytics.setCrashlyticsUnhandledExceptionHook
 import com.retally.shared.core.Platform
 import com.retally.shared.core.strings.IosStringResolver
 import com.retally.shared.di.PlatformDependencies
+import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
+import com.retally.shared.domain.security.AppCheckTokenProvider
 import com.retally.shared.di.initKoin
 import com.retally.shared.domain.budget.BudgetReminderScheduler
 import com.retally.shared.domain.budget.IosBudgetReminderScheduler
@@ -16,7 +19,6 @@ import com.retally.shared.di.iosDatabaseModule
 import com.retally.shared.domain.ads.AdsConfig
 import com.retally.shared.domain.ads.CallbackAdsInitializer
 import com.retally.shared.domain.cloud.CloudConfig
-import com.retally.shared.domain.location.NearbyTestZone
 import com.retally.shared.ui.components.AdFormat
 import com.retally.shared.ui.components.IosAdBannerFactory
 import com.russhwolf.settings.NSUserDefaultsSettings
@@ -61,6 +63,8 @@ object IosApp {
         cloudBaseUrl: String = "",
         cloudApiKey: String? = null,
         simulateCloud: Boolean = false,
+        /** Current Firebase App Check token (see Swift `AppCheckSetup`); completes with nil when none. */
+        appCheckToken: ((onToken: (String?) -> Unit) -> Unit)? = null,
         adsEnabled: Boolean = true,
         debug: Boolean = false,
     ) {
@@ -82,6 +86,7 @@ object IosApp {
                 cloudConfig = CloudConfig(baseUrl = cloudBaseUrl, apiKey = cloudApiKey, simulate = simulateCloud),
                 verboseNetworkLogging = debug,
                 stringResolver = IosStringResolver,
+                appCheck = appCheckToken?.let { CallbackAppCheckTokenProvider(it) } ?: AppCheckTokenProvider.None,
             ),
             extraModules = listOf(
                 iosDatabaseModule,
@@ -89,8 +94,6 @@ object IosApp {
             ),
         )
         IosDependencies.showDebugActions = debug
-        // TEMP-DEBUG (remove before release): fixed "Home Store" geofence for testing.
-        if (debug) NearbyTestZone.address = "15 Hazelwood Drive, Hingham, MA 02043"
     }
 }
 
@@ -117,5 +120,14 @@ internal class IosPlatform : Platform {
         if (!app.canOpenURL(nsUrl)) return false
         app.openURL(nsUrl, options = emptyMap<Any?, Any>(), completionHandler = null)
         return true
+    }
+}
+
+/** Bridges Swift's completion-style App Check token fetch into the shared suspend provider. */
+private class CallbackAppCheckTokenProvider(
+    private val fetch: (onToken: (String?) -> Unit) -> Unit,
+) : AppCheckTokenProvider {
+    override suspend fun token(): String? = suspendCancellableCoroutine { cont ->
+        fetch { token -> if (cont.isActive) cont.resume(token) }
     }
 }

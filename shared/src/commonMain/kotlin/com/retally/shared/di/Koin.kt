@@ -69,8 +69,13 @@ import com.retally.shared.presentation.howitworks.HowItWorksContract
 import com.retally.shared.presentation.shopping.ShoppingListContract
 import com.retally.shared.presentation.splash.SplashContract
 import com.retally.shared.presentation.onboarding.OnboardingContract
+import com.retally.shared.presentation.storealerts.StoreAlertsContract
+import com.retally.shared.presentation.storealerts.StoreAlertsPrompt
 import com.russhwolf.settings.Settings
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.api.createClientPlugin
+import com.retally.shared.domain.security.APP_CHECK_HEADER
+import com.retally.shared.domain.security.AppCheckTokenProvider
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.logging.LogLevel
@@ -99,6 +104,8 @@ data class PlatformDependencies(
     val verboseNetworkLogging: Boolean,
     /** Platform string lookup (strings.xml / Localizable.strings). */
     val stringResolver: StringResolver,
+    /** App Check token for every backend call; see [AppCheckTokenProvider]. */
+    val appCheck: AppCheckTokenProvider = AppCheckTokenProvider.None,
 )
 
 fun initKoin(
@@ -127,10 +134,14 @@ private fun platformModule(deps: PlatformDependencies) = module {
     single { AdsSession(initializer = get(), config = get()) }
     single { deps.cloudConfig }
     single { deps.stringResolver }
+    single { deps.appCheck }
     single(qualifier = org.koin.core.qualifier.named(VERBOSE_LOGGING)) { deps.verboseNetworkLogging }
 }
 
 private const val VERBOSE_LOGGING = "verboseNetworkLogging"
+
+/** Cloud Functions host suffix the App Check token is sent to (region-specific hosts share it). */
+private const val RETALLY_FUNCTIONS_HOST = "retally-c5212.cloudfunctions.net"
 
 val dataModule = module {
     single {
@@ -141,7 +152,19 @@ val dataModule = module {
         }
     }
     single {
+        val appCheck: AppCheckTokenProvider = get()
+        // Every call to our backend carries the App Check token (the Firebase SDKs attach their
+        // own). Fetched per request so a refreshed token is always the one sent, and only for
+        // our own host: the token must never travel to a third party.
+        val appCheckHeader = createClientPlugin("AppCheck") {
+            onRequest { request, _ ->
+                if (request.url.host.endsWith(RETALLY_FUNCTIONS_HOST)) {
+                    appCheck.token()?.let { request.headers.append(APP_CHECK_HEADER, it) }
+                }
+            }
+        }
         HttpClient {
+            install(appCheckHeader)
             install(ContentNegotiation) { json(get()) }
             install(HttpTimeout) {
                 requestTimeoutMillis = 15_000
@@ -193,7 +216,8 @@ val dataModule = module {
             functionUrl = TornReceiptClient.DEFAULT_URL,
         )
     }
-    single {
+    // App-lifetime so its sign-in hook (upload receipts scanned as a guest) runs from launch.
+    single(createdAtStart = true) {
         ReceiptBackup(
             cloudSync = get(),
             repository = get(),
@@ -205,6 +229,7 @@ val dataModule = module {
                 // For now, best-effort via the shared resolver (actual deletion needs platform file API).
                 // TODO: Wire platform file deletion via expect/actual.
             },
+            settings = get(),
         )
     }
     single<CloudSyncService> {
@@ -234,15 +259,24 @@ val dataModule = module {
  * cancel its work on exit. Only [MainContract.Store] is a `single` — it outlives its tabs.
  */
 val storesModule = module {
-    factory { SplashContract.Store(adsSession = get(), preferences = get(), appUpdates = get(), platform = get(), strings = get()) }
+    factory { SplashContract.Store(adsSession = get(), preferences = get()) }
     factory { OnboardingContract.Store() }
+    // Store-alerts opt-in after the first sign-in; the gate is a single so hosts can ask it.
+    single { StoreAlertsPrompt(settings = get(), nearbyStores = get()) }
+    factory { StoreAlertsContract.Store(prompt = get()) }
     factory { AuthContract.Store(authRepository = get(), otpService = get(), strings = get(), preferences = get()) }
     factory { OtpContract.Store(otpService = get(), authRepository = get(), strings = get(), preferences = get()) }
     single { CategoryRepository(client = get(), settings = get(), json = get()) } bind CategorySource::class
     single { StoreIconRepository(client = get(), settings = get(), json = get()) }
     single { MainContract.Store(adsSession = get(), categories = get(), storeIcons = get(), receipts = get(), settings = get(), itemClassifier = get(), devices = get(), crashContext = get()) }
-    factory { HomeContract.Store(repository = get(), categories = get(), authRepository = get(), strings = get(), restore = get(), inbox = get(), budgets = get(), nudgeRepository = get(), shoppingLists = get(), budgetReminders = getOrNull(), budgetReminderLog = get()) }
-    factory { ScanReviewContract.Store(repository = get(), backup = get(), favorites = get(), strings = get(), categories = get(), tornReceiptClient = get(), storeIcons = get(), itemClassifier = get(), locale = get()) }
+    factory {
+        HomeContract.Store(
+            repository = get(), categories = get(), authRepository = get(), strings = get(), restore = get(),
+            backup = get(), inbox = get(), budgets = get(), nudgeRepository = get(), shoppingLists = get(),
+            budgetReminders = getOrNull(), budgetReminderLog = get(), appUpdates = get(), platform = get(),
+        )
+    }
+    factory { ScanReviewContract.Store(repository = get(), backup = get(), favorites = get(), strings = get(), categories = get(), tornReceiptClient = get(), storeIcons = get(), itemClassifier = get(), locale = get(), auth = get()) }
     factory { DuplicatesContract.Store(repository = get(), strings = get()) }
     factory { ReceiptsContract.Store(repository = get(), strings = get(), storeIcons = get()) }
     factory { BudgetContract.Store(budgets = get(), receipts = get(), categories = get(), strings = get()) }

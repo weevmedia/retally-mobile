@@ -167,8 +167,6 @@ interface OtpContract {
             if (!state.canVerify) return
             currentState = state.copy(isVerifying = true, showError = false)
             launch {
-                // TEMP-AUTH-DEBUG: remove before release.
-                println("[auth-debug] otpVerify email=${state.email} isNewUser=${state.isNewUser}")
                 val token = try {
                     otpService.verifyCode(state.email, state.code, state.displayName)
                 } catch (e: OtpException) {

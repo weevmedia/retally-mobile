@@ -68,9 +68,16 @@ class ReceiptRestore(
     /** True while a restore is downloading — Home shows "Restoring your receipts…". */
     val isRestoring: StateFlow<Boolean> = _isRestoring.asStateFlow()
 
-    private val _restoredCount = MutableStateFlow(0)
-    /** Receipts added by the last restore (0 when nothing new). */
-    val restoredCount: StateFlow<Int> = _restoredCount.asStateFlow()
+    private val _outcome = MutableStateFlow<RestoreOutcome?>(null)
+    /**
+     * How the last restore ended. Kept until Home has shown it ([clearOutcome]): sign-in
+     * happens on the Auth screen, so the restore usually finishes before Home exists.
+     */
+    val outcome: StateFlow<RestoreOutcome?> = _outcome.asStateFlow()
+
+    fun clearOutcome() {
+        _outcome.value = null
+    }
 
     init {
         auth.observeAccount()
@@ -106,12 +113,15 @@ class ReceiptRestore(
                 when (val result = cloudSync.download(skip)) {
                     is CloudRestoreResult.Success -> {
                         result.receipts.forEach { repository.upsert(it) }
-                        _restoredCount.value = result.receipts.size
                         settings.putString(KEY_LAST_UID, uid)
                         settings.putLong(KEY_LAST_RUN, clock.now().toEpochMilliseconds())
                         println("[ReTallyRestore] restored ${result.receipts.size} receipt(s)")
+                        _outcome.value = RestoreOutcome.Restored(result.receipts.size)
                     }
-                    is CloudRestoreResult.Failure -> println("[ReTallyRestore] failed: ${result.message}")
+                    is CloudRestoreResult.Failure -> {
+                        println("[ReTallyRestore] failed: ${result.message}")
+                        _outcome.value = RestoreOutcome.Failed(result.message)
+                    }
                 }
             } finally {
                 _isRestoring.value = false
@@ -124,4 +134,11 @@ class ReceiptRestore(
         const val KEY_LAST_RUN = "restore.lastRunAt"
         val THROTTLE = 6.hours
     }
+}
+
+/** Result of the last cloud restore. */
+sealed interface RestoreOutcome {
+    /** [count] receipts added; 0 means the account had nothing new for this device. */
+    data class Restored(val count: Int) : RestoreOutcome
+    data class Failed(val message: String) : RestoreOutcome
 }

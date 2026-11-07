@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -28,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import com.retally.shared.core.strings.StringAssetIdentifiers as S
 import com.retally.shared.core.strings.str
 import com.retally.shared.domain.update.UpdateStatus
@@ -35,7 +37,7 @@ import com.retally.shared.ui.components.PrimaryButton
 import com.retally.shared.ui.theme.ReTallyTheme
 
 /**
- * Soft update prompt shown over the splash: a newer build is on the store, the shopper can take
+ * Soft update prompt shown over Home: a newer build is on the store, the shopper can take
  * it now or continue ("Not now" hides it until the next release).
  */
 @Composable
@@ -46,7 +48,10 @@ fun UpdateAvailableDialog(
 ) {
     val c = ReTallyTheme.colors
     AlertDialog(
+        // A stray tap outside must not count as "Not now" (that hides the prompt for the whole
+        // release); only the buttons — or the back gesture — answer it.
         onDismissRequest = onLater,
+        properties = DialogProperties(dismissOnClickOutside = false),
         shape = RoundedCornerShape(ReTallyTheme.dimensions.cardRadius),
         containerColor = c.surface,
         icon = { Icon(Icons.Rounded.Download, contentDescription = null, tint = c.primaryDark) },
@@ -72,7 +77,7 @@ fun UpdateAvailableDialog(
 }
 
 /**
- * Replaces the splash when this build is below the backend's minimum: nothing to dismiss and no
+ * Replaces Home when this build is below the backend's minimum: nothing to dismiss and no
  * hand-off to the app; the only way forward is the store.
  */
 @Composable
@@ -111,6 +116,6 @@ fun UpdateRequiredScreen(
             Text(status.message, style = ReTallyTheme.typography.secondaryBody, color = c.muted, textAlign = TextAlign.Center)
         }
         Spacer(Modifier.height(d.xl))
-        PrimaryButton(text = str(S.UPDATE_ACTION), onClick = onUpdate, modifier = Modifier.fillMaxWidth())
+        PrimaryButton(text = str(S.UPDATE_ACTION), onClick = onUpdate, modifier = Modifier.fillMaxWidth(), icon = Icons.Rounded.SystemUpdate)
     }
 }

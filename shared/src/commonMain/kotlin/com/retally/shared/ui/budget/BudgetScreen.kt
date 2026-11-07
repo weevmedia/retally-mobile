@@ -339,6 +339,7 @@ fun BudgetScreen(
                     )
                     PrimaryButton(
                         text = str(S.BUDGET_SAVE),
+                        icon = Icons.Rounded.Check,
                         onClick = {
                             keyboardController?.hide()
                             dispatch(BudgetContract.Action.SaveClicked)

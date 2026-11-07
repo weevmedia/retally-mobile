@@ -22,11 +22,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
@@ -69,21 +70,23 @@ import org.jetbrains.compose.resources.painterResource
  * restarts afterwards, so it never fights a swipe.
  */
 @Composable
-fun OnboardingScreen(dispatch: (OnboardingContract.Action) -> Unit) {
+fun OnboardingScreen(
+    dispatch: (OnboardingContract.Action) -> Unit,
+    state: OnboardingContract.State = OnboardingContract.State(),
+) {
     val colors = ReTallyTheme.colors
     val pagerState = rememberPagerState(pageCount = { OnboardingContract.PAGE_COUNT })
     val scope = rememberCoroutineScope()
 
     // Auto-advance loop: waits for the pager to be fully settled and untouched before every
     // tick, so it can never fight a swipe. The countdown restarts after any interaction,
-    // and the loop ends on the last page.
+    // and after the last page it wraps back to the first.
     LaunchedEffect(Unit) {
         while (true) {
             snapshotFlow { pagerState.isScrollInProgress }.first { !it }
             delay(OnboardingContract.AUTO_ADVANCE_MS)
             if (pagerState.isScrollInProgress) continue
-            val next = pagerState.currentPage + 1
-            if (next >= OnboardingContract.PAGE_COUNT) break
+            val next = (pagerState.currentPage + 1) % OnboardingContract.PAGE_COUNT
             pagerState.animateScrollToPage(next)
         }
     }
@@ -198,28 +201,31 @@ private fun PageDots(
     ) {
         repeat(pageCount) { index ->
             val selected = index == currentPage
-            // 28dp touch target with the 10dp dot centered inside.
+            // The current page's dot stretches into a flat pill; the others stay small rings.
+            val dotWidth by animateDpAsState(if (selected) 24.dp else 10.dp, label = "dot-width")
+            // 28dp-tall touch target with the dot centered inside.
             Box(
                 modifier = Modifier
-                    .size(28.dp)
-                    .clip(CircleShape)
+                    .height(28.dp)
+                    .width(dotWidth + 18.dp)
+                    .clip(RoundedCornerShape(14.dp))
                     .clickable { onDotClick(index) },
                 contentAlignment = Alignment.Center,
             ) {
                 Box(
                     modifier = Modifier
-                        .size(10.dp)
-                        .clip(CircleShape)
+                        .height(10.dp)
+                        .width(dotWidth)
+                        .clip(RoundedCornerShape(5.dp))
                         .then(
                             if (selected) {
                                 Modifier.background(colors.primary)
                             } else {
-                                Modifier.border(1.5.dp, colors.muted.copy(alpha = 0.5f), CircleShape)
+                                Modifier.border(1.5.dp, colors.muted.copy(alpha = 0.5f), RoundedCornerShape(5.dp))
                             },
                         ),
                 )
             }
-            if (index < pageCount - 1) Spacer(Modifier.width(4.dp))
         }
     }
 }

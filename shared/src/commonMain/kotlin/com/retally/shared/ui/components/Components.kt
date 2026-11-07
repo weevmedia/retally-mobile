@@ -32,6 +32,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -136,6 +140,22 @@ fun SyncedBadge(modifier: Modifier = Modifier) {
     Pill(text = str(S.BADGE_SYNCED_TO_CLOUD), containerColor = c.primaryTint, contentColor = c.primaryDark, modifier = modifier, icon = Icons.Rounded.CloudDone)
 }
 
+/**
+ * A button's label: always one line. When a narrow button (two side by side, "Keep both" /
+ * "Remove one") can't fit the text at full size, it shrinks a little instead of wrapping.
+ */
+@Composable
+private fun ButtonLabel(text: String) {
+    val style = ReTallyTheme.typography.button
+    BasicText(
+        text,
+        style = style.copy(color = LocalContentColor.current),
+        maxLines = 1,
+        softWrap = false,
+        autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = style.fontSize, stepSize = 0.5.sp),
+    )
+}
+
 /** btn/primary — 52pt, 12pt radius, Primary fill; pressed state darkens to Primary dark. */
 @Composable
 fun PrimaryButton(
@@ -166,7 +186,7 @@ fun PrimaryButton(
             Icon(icon, contentDescription = null, modifier = Modifier.size(ReTallyDimensions.iconMedium))
             Spacer(Modifier.width(ReTallyTheme.dimensions.sm))
         }
-        Text(text, style = ReTallyTheme.typography.button)
+        ButtonLabel(text)
     }
 }
 
@@ -194,7 +214,7 @@ fun SecondaryButton(
             Icon(icon, contentDescription = null, modifier = Modifier.size(ReTallyDimensions.iconMedium))
             Spacer(Modifier.width(ReTallyTheme.dimensions.sm))
         }
-        Text(text, style = ReTallyTheme.typography.button)
+        ButtonLabel(text)
     }
 }
 

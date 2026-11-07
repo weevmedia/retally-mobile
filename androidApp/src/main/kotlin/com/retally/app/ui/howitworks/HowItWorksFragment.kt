@@ -26,7 +26,7 @@ class HowItWorksFragment : BaseComposeFragment<State, Action, SideEffect, HowItW
     override suspend fun onViewEffect(effect: SideEffect) {
         when (effect) {
             // "Scan a receipt" also queues a scan request that Home picks up once it's back.
-            SideEffect.Closed -> findNavController().popBackStack()
+            SideEffect.Closed -> popBack()
         }
     }
 }

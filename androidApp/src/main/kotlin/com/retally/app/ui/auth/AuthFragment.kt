@@ -21,6 +21,8 @@ import com.retally.shared.presentation.auth.AuthContract.SideEffect.NavigateToMa
 import com.retally.shared.presentation.auth.AuthContract.SideEffect.NavigateToOtp
 import com.retally.shared.presentation.auth.AuthContract.SideEffect.ShowMessage
 import com.retally.shared.presentation.auth.AuthContract.State
+import com.retally.shared.presentation.storealerts.StoreAlertsPrompt
+import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
 /** First launch only: sign-in between onboarding and Home. The tab bar stays hidden. */
@@ -28,6 +30,7 @@ class AuthFragment : BaseComposeFragment<State, Action, SideEffect, AuthViewMode
 
     override val viewModel: AuthViewModel by viewModel()
     private val args: AuthFragmentArgs by navArgs()
+    private val storeAlertsPrompt: StoreAlertsPrompt by inject()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -43,8 +46,13 @@ class AuthFragment : BaseComposeFragment<State, Action, SideEffect, AuthViewMode
     override suspend fun onViewEffect(effect: SideEffect) {
         when (effect) {
             is NavigateToMain -> {
-                // Safe Args; the graph pops auth so Back from Home exits the app.
-                navigate(AuthFragmentDirections.actionAuthToHome())
+                // Safe Args; both actions pop auth so Back from Home exits the app. The
+                // first-launch path stops at the store-alerts opt-in once before Home.
+                if (args.firstLaunch && storeAlertsPrompt.isNeeded) {
+                    navigate(AuthFragmentDirections.actionAuthToStoreAlerts())
+                } else {
+                    navigate(AuthFragmentDirections.actionAuthToHome())
+                }
             }
             is NavigateToOtp -> {
                 // Safe Args; auth stays on the stack so Back returns to fix the email.
@@ -84,7 +92,7 @@ class AuthFragment : BaseComposeFragment<State, Action, SideEffect, AuthViewMode
                     navigate(AuthFragmentDirections.actionAuthToOnboarding())
                 } else {
                     // Opened from inside the app (Home, More, Smart List…): just close sign-in.
-                    findNavController().popBackStack()
+                    popBack()
                 }
             }
         }

@@ -25,6 +25,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.automirrored.rounded.Login
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -57,6 +59,7 @@ import com.retally.shared.ui.components.SectionHeader
 import com.retally.shared.ui.components.StickyBottomAd
 import com.retally.shared.ui.components.SurfaceCard
 import com.retally.shared.ui.format.formatShortDate
+import com.retally.shared.ui.shopping.OpticalCenter
 import com.retally.shared.ui.theme.ReTallyDimensions
 import com.retally.shared.ui.theme.ReTallyTheme
 import kotlin.time.Instant
@@ -118,12 +121,14 @@ fun RecallsScreen(
             state.isLoading -> Box(content, contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = c.primary)
             }
-            state.loadFailed -> Box(content.padding(horizontal = ReTallyTheme.dimensions.screen), contentAlignment = Alignment.Center) {
+            state.loadFailed -> Box(content.padding(horizontal = ReTallyTheme.dimensions.screen), contentAlignment = OpticalCenter) {
                 EmptyState(
                     icon = Icons.Rounded.Warning,
                     title = str(S.ALERTS_FAILED_TITLE),
                     body = str(S.ALERTS_FAILED_BODY),
-                    action = { PrimaryButton(str(S.SHOPPING_RETRY), onClick = { dispatch(Action.Refresh) }) },
+                    iconSize = ReTallyDimensions.emptyStateIconLarge,
+                    showIconDisc = false,
+                    action = { PrimaryButton(str(S.SHOPPING_RETRY), onClick = { dispatch(Action.Refresh) }, icon = Icons.Rounded.Refresh) },
                 )
             }
             // Pull down to re-check FDA / USDA (replaces the old refresh icon).
@@ -311,7 +316,7 @@ private fun SignInHint(onSignIn: () -> Unit) {
             Spacer(Modifier.height(d.xs))
             Text(str(S.ALERTS_SIGN_IN_BODY), style = ReTallyTheme.typography.secondaryBody, color = c.muted)
             Spacer(Modifier.height(d.md))
-            PrimaryButton(str(S.SHOPPING_SIGN_IN), onClick = onSignIn, modifier = Modifier.fillMaxWidth())
+            PrimaryButton(str(S.SHOPPING_SIGN_IN), onClick = onSignIn, modifier = Modifier.fillMaxWidth(), icon = Icons.AutoMirrored.Rounded.Login)
         }
     }
 }

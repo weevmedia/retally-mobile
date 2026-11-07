@@ -214,8 +214,6 @@ interface AuthContract {
                         )
                     }
                     .getOrNull() ?: return@launch
-                // TEMP-AUTH-DEBUG: remove before release.
-                println("[auth-debug] lookupAccount email=$email exists=${lookup.exists}")
                 if (lookup.exists) {
                     // Existing account: send the code now, then OTP.
                     currentState = currentState.copy(isCheckingAccount = false, isSendingCode = true)
@@ -264,8 +262,6 @@ interface AuthContract {
             val displayName = "${state.firstName.trim()} ${state.lastName.trim()}".trim()
             currentState = state.copy(isSendingCode = true, showLookupError = false)
             launch {
-                // TEMP-AUTH-DEBUG: remove before release.
-                println("[auth-debug] requestCode (new user) email=$email")
                 runCatching { otpService.requestCode(email) }
                     .onSuccess {
                         currentState = currentState.copy(isSendingCode = false)

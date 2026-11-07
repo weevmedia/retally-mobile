@@ -369,27 +369,27 @@
 
 "more_add_favorites_title" = "Add favorite stores";
 
-"more_sign_out" = "SIGN OUT";
+"more_sign_out" = "Sign Out";
 
-"more_delete_account" = "DELETE MY ACCOUNT";
+"more_delete_account" = "Delete My Account";
 
-"more_log_in" = "LOG IN";
+"more_log_in" = "Sign In";
 
 "more_account_title" = "Account";
 
-"more_account_login" = "Log in / Sign up";
+"more_account_login" = "Sign in / Sign up";
 
 "more_account_login_sub" = "Sync receipts across devices";
 
-"more_account_guest_body" = "You're browsing as a guest. Log in to back up receipts and sync them across devices.";
+"more_account_guest_body" = "You're browsing as a guest. Sign in to back up receipts and sync them across devices.";
 
-"more_account_logout" = "Log out";
+"more_account_logout" = "Sign Out";
 
-"more_account_logout_title" = "Log out?";
+"more_account_logout_title" = "Sign out?";
 
-"more_account_logout_body" = "You'll be logged out on this device. Your receipts stay saved here.";
+"more_account_logout_body" = "You'll be signed out on this device. Your receipts stay saved here.";
 
-"more_account_delete" = "Delete my account";
+"more_account_delete" = "Delete My Account";
 
 "more_account_delete_title" = "Delete account?";
 
@@ -399,9 +399,9 @@
 
 "more_account_delete_failed" = "Couldn't delete the account — please try again.";
 
-"more_logged_out" = "Logged out";
+"more_logged_out" = "Signed out";
 
-"more_logged_out_failed" = "Couldn't log out — please try again.";
+"more_logged_out_failed" = "Couldn't sign out — please try again.";
 
 "more_favorite_added" = "%1$s added to favorites";
 
@@ -453,6 +453,10 @@
 "onboarding_have_account_prefix" = "Already have an account? ";
 
 "onboarding_sign_in" = "Sign In";
+"onboarding_alerts_title" = "Know when you’re at the store";
+"onboarding_alerts_body" = "ReTally can remind you what you usually buy the moment you walk into a store you shop at.";
+"onboarding_alerts_disclosure" = "To do this, ReTally uses your location in the background to notice when you arrive at a store, even when the app is closed, and sends you a notification. Nothing is tracked between visits.";
+"onboarding_alerts_hint" = "When asked, choose “Always Allow” so alerts work while the app is closed.";
 
 /********** Nearby store alerts **********/
 
@@ -463,6 +467,7 @@
 "settings_nearby_sub" = "Get a reminder when you're near a store you've shopped at";
 
 "settings_msg_nearby_denied" = "Location permission is needed for nearby-store reminders.";
+"settings_nearby_allow" = "Turn on";
 
 "nearby_notify_title" = "You're near %1$s";
 

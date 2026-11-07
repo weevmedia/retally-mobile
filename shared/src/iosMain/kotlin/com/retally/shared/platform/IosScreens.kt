@@ -29,6 +29,7 @@ import com.retally.shared.presentation.settings.SettingsContract
 import com.retally.shared.presentation.shopping.ShoppingListContract
 import com.retally.shared.presentation.splash.SplashContract
 import com.retally.shared.presentation.onboarding.OnboardingContract
+import com.retally.shared.presentation.storealerts.StoreAlertsContract
 import com.retally.shared.presentation.auth.AuthContract
 import com.retally.shared.presentation.auth.OtpContract
 import com.retally.shared.ui.duplicates.DuplicatesScreen
@@ -46,6 +47,7 @@ import com.retally.shared.ui.settings.SettingsScreen
 import com.retally.shared.ui.shopping.ShoppingListScreen
 import com.retally.shared.ui.splash.SplashScreen
 import com.retally.shared.ui.onboarding.OnboardingScreen
+import com.retally.shared.ui.storealerts.StoreAlertsScreen
 import com.retally.shared.ui.auth.AuthScreen
 import com.retally.shared.ui.auth.OtpScreen
 import com.retally.shared.ui.theme.ReTallyTheme
@@ -88,15 +90,19 @@ object IosScreens {
             progress = state.progress,
             adsEnabled = shell.adsEnabled,
             bannerAdUnitId = IosDependencies.getAdsConfig().homeBannerUnitId,
-            update = state.update,
-            onUpdate = { store.dispatch(SplashContract.Action.UpdateClicked) },
-            onUpdateLater = { store.dispatch(SplashContract.Action.UpdateDismissed) },
         )
     }
 
     /** First launch only: value-prop pager between splash and the tab bar. */
     fun onboarding(store: OnboardingContract.Store): ComposeScreen = screen { _ ->
-        OnboardingScreen(dispatch = store::dispatch)
+        val state by store.observeState().collectAsStateWithLifecycle()
+        OnboardingScreen(dispatch = store::dispatch, state = state)
+    }
+
+    /** First launch only: store-alerts opt-in between sign-in and the tab bar. */
+    fun storeAlerts(store: StoreAlertsContract.Store): ComposeScreen = screen { _ ->
+        val state by store.observeState().collectAsStateWithLifecycle()
+        StoreAlertsScreen(dispatch = store::dispatch, state = state)
     }
 
     /** First launch only: sign-in between onboarding and the tab bar. */

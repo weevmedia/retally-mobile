@@ -17,6 +17,7 @@ import com.retally.shared.core.newId
 import com.retally.shared.domain.category.CategorySource
 import com.retally.shared.domain.category.ItemCategorizer
 import com.retally.shared.domain.category.ItemCategory
+import com.retally.shared.domain.auth.AuthRepository
 import com.retally.shared.domain.cloud.ReceiptBackup
 import com.retally.shared.domain.favorites.FavoriteStoresRepository
 import com.retally.shared.domain.receipt.DuplicateMatcher
@@ -63,6 +64,8 @@ interface ScanReviewContract {
         /** True while the Gemini fallback is reading a torn receipt — drives the AI loading copy. */
         val isAiParsing: Boolean = false,
         val savedAt: kotlin.time.Instant? = null,
+        /** Guest tapped the cloud icon: the "sign in to sync" dialog is up. */
+        val showSignInToSync: Boolean = false,
         /** Line the shopper asked to remove; the UI shows a confirmation until this is null. */
         val pendingRemoval: ReceiptItem? = null,
         /** Non-null while the "Edit item" sheet is open (swipe a line item → Edit). */
@@ -161,6 +164,15 @@ interface ScanReviewContract {
     }
 
     sealed class Action : com.retally.shared.core.Action {
+        /**
+         * The cloud icon in the top bar. Guests are told they need to sign in (receipts only
+         * sync for accounts); a signed-in user with a receipt that has no cloud copy yet retries the upload.
+         */
+        data object CloudStatusClicked : Action()
+        /** "Sign in" on the sign-in-to-sync dialog: open the sign-in screen. */
+        data object SignInToSyncConfirmed : Action()
+        /** "Not now" on that dialog. */
+        data object SignInToSyncDismissed : Action()
         /** Pencil beside the store name: open the "Edit store" page seeded with the receipt's values. */
         data object EditStoreClicked : Action()
         data class StoreNameChanged(val name: String) : Action()
@@ -220,6 +232,8 @@ interface ScanReviewContract {
         data class SaveToPhotos(val imagePath: String?) : SideEffect()
         data object Closed : SideEffect()
         data class ShowMessage(val message: String) : SideEffect()
+        /** Guest confirmed the sign-in-to-sync dialog: open the sign-in screen. */
+        data object OpenSignIn : SideEffect()
         /**
          * The receipt's store name or address was edited and saved: the host re-arms the
          * nearby-store geofences so the new store/address gets its fence now.
@@ -243,6 +257,8 @@ interface ScanReviewContract {
         private val itemClassifier: ItemCategoryClassifier? = null,
         /** Device region → the currency stamped on every new receipt. */
         private val locale: LocaleInfo = LocaleInfo.US,
+        /** Who is signed in, for the cloud icon's tap; null in tests and previews (treated as guest). */
+        private val auth: AuthRepository? = null,
     ) : com.retally.shared.core.Store<State, Action, SideEffect>() {
 
         private var started = false
@@ -299,6 +315,12 @@ interface ScanReviewContract {
                 Action.ItemEditSaveClicked -> saveItemEdit()
                 Action.ItemEditDismissed -> currentState = currentState.copy(itemEdit = null)
                 Action.FavoriteStoreToggled -> toggleFavoriteStore()
+                Action.CloudStatusClicked -> cloudStatusClicked()
+                Action.SignInToSyncConfirmed -> {
+                    currentState = currentState.copy(showSignInToSync = false)
+                    sideEffect(SideEffect.OpenSignIn)
+                }
+                Action.SignInToSyncDismissed -> currentState = currentState.copy(showSignInToSync = false)
                 Action.ShareClicked -> sideEffect(SideEffect.ShareReceipt(currentState.receipt?.imagePath))
                 Action.SaveToPhotosClicked -> sideEffect(SideEffect.SaveToPhotos(currentState.receipt?.imagePath))
                 Action.CloseClicked -> sideEffect(SideEffect.Closed)
@@ -380,6 +402,22 @@ interface ScanReviewContract {
                 repository.delete(receipt.id)
                 sideEffect(SideEffect.Closed)
             }
+        }
+
+        private fun cloudStatusClicked() {
+            val receipt = currentState.receipt ?: return
+            if (auth == null || auth.isAnonymous) {
+                // Explain first; the dialog's "Sign in" opens the sign-in screen.
+                currentState = currentState.copy(showSignInToSync = true)
+                return
+            }
+            if (receipt.syncedAt != null) {
+                sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.RECEIPT_MSG_IN_CLOUD)))
+                return
+            }
+            // Signed in but not uploaded (offline at save time, or a failed upload): try again.
+            runCatching { backup.backUp(receipt) }
+            sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.RECEIPT_MSG_SYNCING)))
         }
 
         private fun toggleFavoriteStore() {

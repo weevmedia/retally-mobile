@@ -29,7 +29,8 @@ import kotlinx.serialization.json.Json
  *
  * The last config is cached in [Settings] so Home decides instantly and offline, and it is
  * refreshed at most every [REFRESH_MS]. A "Not now" on a soft nudge is remembered per
- * version, so the shopper sees it once per release. Any failure reads as [UpdateStatus.None]:
+ * version for [DISMISS_MS] (7 days), after which the same release is suggested again; a newer
+ * release re-prompts at once. Any failure reads as [UpdateStatus.None]:
  * the update check must never keep the app from opening.
  */
 class FirestoreAppUpdateRepository(
@@ -45,14 +46,20 @@ class FirestoreAppUpdateRepository(
         val fetchedAt = settings.getLongOrNull(KEY_FETCHED_AT) ?: 0L
         val config = if (!force && cached != null && now() - fetchedAt < REFRESH_MS) cached else fetch() ?: cached
         return when (val status = evaluateUpdate(platform.appVersion, config)) {
-            is UpdateStatus.Available ->
-                if (settings.getStringOrNull(KEY_DISMISSED) == status.version) UpdateStatus.None else status
+            is UpdateStatus.Available -> if (recentlyDismissed(status.version)) UpdateStatus.None else status
             else -> status
         }
     }
 
     override fun dismiss(version: String) {
         settings.putString(KEY_DISMISSED, version)
+        settings.putLong(KEY_DISMISSED_AT, now())
+    }
+
+    private fun recentlyDismissed(version: String): Boolean {
+        if (settings.getStringOrNull(KEY_DISMISSED) != version) return false
+        val dismissedAt = settings.getLongOrNull(KEY_DISMISSED_AT) ?: 0L
+        return now() - dismissedAt < DISMISS_MS
     }
 
     // NonCancellable: the splash stops waiting after a short bound and may be torn down, but the
@@ -102,6 +109,8 @@ class FirestoreAppUpdateRepository(
         private const val KEY_CONFIG = "app_update.config.v1"
         private const val KEY_FETCHED_AT = "app_update.fetched_at"
         private const val KEY_DISMISSED = "app_update.dismissed_version"
+        private const val KEY_DISMISSED_AT = "app_update.dismissed_at"
         private const val REFRESH_MS = 6 * 60 * 60 * 1000L
+        private const val DISMISS_MS = 7 * 24 * 60 * 60 * 1000L
     }
 }

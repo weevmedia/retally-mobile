@@ -20,6 +20,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -47,8 +48,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Login
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.rounded.HelpOutline
+import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
@@ -60,11 +63,13 @@ import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.FlagCircle
 import androidx.compose.material.icons.rounded.HealthAndSafety
 import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Vibration
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -139,7 +144,7 @@ fun SettingsScreen(
     /** Ads allowed (consent + SDK ready); the block ad above the footer shows only then. */
     adsEnabled: Boolean = false,
     adUnitId: String = "",
-    /** Debug builds only: "Reset nearby cooldowns" and "Send test crash" rows. */
+    /** Debug builds only: the "Send test crash" row. */
     showDebugActions: Boolean = false,
 ) {
     // Keeps the last draft so the page can slide out after the store clears it.
@@ -200,6 +205,13 @@ fun SettingsScreen(
         }
     }
 
+    if (state.showNearbyDisclosure) {
+        NearbyDisclosureDialog(
+            onConfirm = { dispatch(SettingsContract.Action.NearbyDisclosureConfirmed) },
+            onDismiss = { dispatch(SettingsContract.Action.NearbyDisclosureDismissed) },
+        )
+    }
+
     if (state.showDeleteAllConfirmation) {
         AlertDialog(
             onDismissRequest = { dispatch(SettingsContract.Action.DeleteAllCancelled) },
@@ -247,6 +259,80 @@ fun SettingsScreen(
             },
         )
     }
+}
+
+/**
+ * Same explanation as the onboarding store-alerts step, shown when "Notify me near stores" is
+ * switched on from More, so the background-location disclosure precedes the system prompts
+ * here too.
+ */
+@Composable
+private fun NearbyDisclosureDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val colors = ReTallyTheme.colors
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(colors.primaryTint),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.NotificationsActive,
+                    contentDescription = null,
+                    tint = colors.primaryDark,
+                    modifier = Modifier.size(32.dp),
+                )
+            }
+        },
+        title = {
+            Text(
+                text = str(S.ONBOARDING_ALERTS_TITLE),
+                fontWeight = FontWeight.ExtraBold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = str(S.ONBOARDING_ALERTS_BODY),
+                    fontSize = 15.sp,
+                    lineHeight = 22.sp,
+                    color = colors.ink,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = str(S.ONBOARDING_ALERTS_DISCLOSURE),
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp,
+                    color = colors.muted,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = str(S.ONBOARDING_ALERTS_HINT),
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.ink,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) { Text(str(S.SETTINGS_NEARBY_ALLOW), fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(str(S.UPDATE_LATER)) }
+        },
+    )
 }
 
 @Composable
@@ -327,14 +413,6 @@ private fun MoreContent(
                     onChange = { dispatch(SettingsContract.Action.SetHapticsEnabled(it)) },
                 )
                 if (showDebugActions) {
-                    // Debug builds only: retest geofences without waiting 24h.
-                    HorizontalDivider(Modifier.padding(horizontal = d.lg))
-                    MenuRow(
-                        icon = Icons.Rounded.Refresh,
-                        title = "Reset nearby cooldowns (debug)",
-                        showChevron = false,
-                        onClick = { dispatch(SettingsContract.Action.ResetNearbyCooldownsClicked) },
-                    )
                     // Debug builds only: crash on purpose; reopen the app and the report shows
                     // in Firebase → Crashlytics within a few minutes.
                     HorizontalDivider(Modifier.padding(horizontal = d.lg))
@@ -515,18 +593,21 @@ private fun AccountScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MutedGray,
                 )
-                SurfaceCard {
-                    CenteredActionRow(
-                        label = str(S.MORE_LOG_IN),
-                        color = Emerald,
-                        onClick = { dispatch(SettingsContract.Action.LoginClicked) },
-                    )
-                }
+                // Same full-width primary button as the Smart list and Recalls sign-in.
+                PrimaryButton(
+                    text = str(S.MORE_LOG_IN),
+                    onClick = { dispatch(SettingsContract.Action.LoginClicked) },
+                    icon = Icons.AutoMirrored.Rounded.Login,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             } else {
                 SurfaceCard {
+                    // Neutral: signing out is reversible and keeps every receipt. Red is kept for
+                    // the one destructive, permanent action below.
                     CenteredActionRow(
                         label = str(S.MORE_SIGN_OUT),
-                        color = MaterialTheme.colorScheme.error,
+                        color = ReTallyTheme.colors.ink,
+                        icon = Icons.AutoMirrored.Rounded.Logout,
                         onClick = { dispatch(SettingsContract.Action.LogoutRequested) },
                     )
                 }
@@ -534,6 +615,7 @@ private fun AccountScreen(
                     CenteredActionRow(
                         label = str(S.MORE_DELETE_ACCOUNT),
                         color = MaterialTheme.colorScheme.error,
+                        icon = Icons.Rounded.DeleteForever,
                         onClick = { dispatch(SettingsContract.Action.DeleteAccountRequested) },
                     )
                 }
@@ -574,12 +656,27 @@ private fun ProfileCard(
             // Signed in only: edit first/last name. Guests have no name to edit (they sign in
             // with the Log in button below instead).
             if (!account.isGuest) {
-                TextButton(onClick = { dispatch(SettingsContract.Action.EditNameClicked) }) {
-                    Text(str(S.MORE_EDIT), color = Emerald, style = MaterialTheme.typography.labelLarge)
-                }
+                EditLink(str(S.MORE_EDIT), onClick = { dispatch(SettingsContract.Action.EditNameClicked) })
             }
         }
     }
+}
+
+/**
+ * "Edit" / "Done" link for a card or section header. A plain clickable Text rather than a
+ * TextButton: the button's built-in 16dp content inset and minimum width left the label
+ * floating short of the right edge, so it never lined up with the content beneath it.
+ */
+@Composable
+private fun EditLink(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Text(
+        text,
+        color = Emerald,
+        style = ReTallyTheme.typography.button,
+        modifier = modifier
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
+            .padding(vertical = ReTallyTheme.dimensions.xs),
+    )
 }
 
 @Composable
@@ -604,15 +701,14 @@ private fun FavoritesSection(
     state: SettingsContract.State,
     dispatch: (SettingsContract.Action) -> Unit,
 ) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         SectionHeader(str(S.MORE_FAVORITE_STORES), modifier = Modifier.weight(1f))
-        TextButton(onClick = { dispatch(SettingsContract.Action.EditFavoritesToggled) }) {
-            Text(
-                if (state.favoritesEditMode) str(S.MORE_DONE) else str(S.MORE_EDIT),
-                color = Emerald,
-                style = MaterialTheme.typography.labelLarge,
-            )
-        }
+        EditLink(
+            if (state.favoritesEditMode) str(S.MORE_DONE) else str(S.MORE_EDIT),
+            onClick = { dispatch(SettingsContract.Action.EditFavoritesToggled) },
+            // Inset like the profile card's content, so both Edit links share one right edge.
+            modifier = Modifier.padding(end = ReTallyTheme.dimensions.lg),
+        )
     }
     Box(
         modifier = Modifier.fillMaxWidth().height(FavoritesContentHeight),
@@ -834,6 +930,7 @@ private fun EditNameScreen(
             )
             PrimaryButton(
                 text = str(S.MORE_NAME_SAVE),
+                icon = Icons.Rounded.Check,
                 onClick = { dispatch(SettingsContract.Action.NameSaveClicked) },
                 enabled = edit.canSave,
                 modifier = Modifier.fillMaxWidth(),
@@ -935,6 +1032,7 @@ private fun StorePickerScreen(
         // Save, pinned at the bottom.
         PrimaryButton(
             text = str(S.MORE_SAVE),
+            icon = Icons.Rounded.Check,
             onClick = { dispatch(SettingsContract.Action.StorePickerSaved) },
             modifier = Modifier
                 .fillMaxWidth()
@@ -1164,18 +1262,24 @@ private fun CenteredActionRow(
     label: String,
     color: Color,
     onClick: () -> Unit,
+    icon: ImageVector? = null,
 ) {
     Box(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 15.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            label,
-            color = color,
-            style = MaterialTheme.typography.labelLarge.copy(
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.6.sp,
-            ),
-        )
+        // Same type style as PrimaryButton / SecondaryButton, so More's actions read as buttons.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(label, color = color, style = ReTallyTheme.typography.button)
+        }
     }
 }

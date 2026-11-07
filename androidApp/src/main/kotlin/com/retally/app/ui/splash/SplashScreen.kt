@@ -16,16 +16,9 @@ import com.retally.shared.ui.splash.SplashScreen as SharedSplashScreen
 @Composable
 fun SplashScreen(
     state: State,
-    dispatch: (Action) -> Unit,
+    @Suppress("UNUSED_PARAMETER") dispatch: (Action) -> Unit,
     adsEnabled: Boolean = false,
     bannerAdUnitId: String = "",
 ) {
-    SharedSplashScreen(
-        progress = state.progress,
-        adsEnabled = adsEnabled,
-        bannerAdUnitId = bannerAdUnitId,
-        update = state.update,
-        onUpdate = { dispatch(Action.UpdateClicked) },
-        onUpdateLater = { dispatch(Action.UpdateDismissed) },
-    )
+    SharedSplashScreen(progress = state.progress, adsEnabled = adsEnabled, bannerAdUnitId = bannerAdUnitId)
 }

@@ -65,6 +65,8 @@ struct ReTallyApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     init() {
+        // App Check's provider factory must be set before Firebase is configured.
+        AppCheckSetup.install()
         // Firebase must be configured before any Kotlin code touches Auth/Firestore
         // (GoogleService-Info.plist from the Firebase console lives next to Info.plist).
         FirebaseApp.configure()
@@ -78,6 +80,8 @@ struct ReTallyApp: App {
             cloudBaseUrl: AppConfig.cloudBaseUrl,
             cloudApiKey: nil,
             simulateCloud: false,
+            // The Kotlin callback returns KotlinUnit, so wrap it in a Void-returning closure.
+            appCheckToken: { completion in AppCheckSetup.token { token in _ = completion(token) } },
             adsEnabled: true,
             debug: AppConfig.isDebug
         )

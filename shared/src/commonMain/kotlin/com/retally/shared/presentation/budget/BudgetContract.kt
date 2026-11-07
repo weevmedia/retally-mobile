@@ -106,11 +106,17 @@ interface BudgetContract {
                 return (spentThisMonth / budget).toFloat().coerceIn(0f, 1f)
             }
 
-        /** Save is enabled only when the draft is a valid amount different from the saved budget. */
+        /**
+         * Save is enabled when the draft is a valid amount different from the saved budget.
+         * 0 (or an empty field) counts: it clears an existing budget — but there is nothing to
+         * clear when no budget is set.
+         */
         val canSave: Boolean
             get() {
-                val draft = draftAmount.trim().toDoubleOrNull() ?: return false
-                if (draft <= 0) return false
+                val raw = draftAmount.trim()
+                val draft = if (raw.isEmpty()) 0.0 else raw.toDoubleOrNull() ?: return false
+                if (draft < 0) return false
+                if (draft == 0.0) return budgetAmount != null
                 return draft != budgetAmount
             }
     }
@@ -222,7 +228,7 @@ interface BudgetContract {
                 Action.SaveClicked -> save()
                 Action.CloseClicked -> sideEffect(SideEffect.Closed)
                 Action.TrackAllSpending -> changeScope(currentState.scope.copy(allSpending = true))
-                Action.TrackCategories -> changeScope(BudgetScope.Default) // grocery only
+                Action.TrackCategories -> changeScope(BudgetScope.GroceryOnly)
                 is Action.CategoryToggled -> {
                     val ids = currentState.scope.categoryIds
                     val next = if (action.categoryId in ids) ids - action.categoryId else ids + action.categoryId
@@ -257,22 +263,32 @@ interface BudgetContract {
         }
 
         private fun save() {
-            val amount = currentState.draftAmount.trim().toDoubleOrNull()
-            if (amount == null || amount <= 0) {
+            // An empty field or 0 clears the budget: the tracker hides and the month behaves
+            // as if no budget was set. Anything else must be a positive number.
+            val raw = currentState.draftAmount.trim()
+            val amount = if (raw.isEmpty()) 0.0 else raw.toDoubleOrNull()
+            if (amount == null || amount < 0) {
                 sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.BUDGET_INVALID)))
                 return
             }
             val key = currentState.monthKey
+            val cleared = amount == 0.0
             launch {
                 budgets.setBudget(key, amount)
+                val stored = amount.takeUnless { cleared }
                 updateStateSafely {
                     it.copy(
-                        budgetAmount = amount,
+                        budgetAmount = stored,
                         isEditing = false,
-                        history = it.history.map { m -> if (m.key == key) m.copy(budget = amount) else m },
+                        draftAmount = stored?.let { v -> formatWhole(v) } ?: EMPTY_AMOUNT,
+                        history = it.history.map { m -> if (m.key == key) m.copy(budget = stored) else m },
                     )
                 }
-                sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.BUDGET_SAVED)))
+                sideEffect(
+                    SideEffect.ShowMessage(
+                        strings.getString(if (cleared) StringAssetIdentifiers.BUDGET_CLEARED else StringAssetIdentifiers.BUDGET_SAVED),
+                    ),
+                )
             }
         }
 

@@ -6,6 +6,8 @@ package com.retally.app
 
 import com.retally.shared.core.crash.CrashReporting
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.retally.app.security.AndroidAppCheck
+import com.retally.app.security.AndroidAppCheckTokenProvider
 import android.app.Application
 import com.retally.app.ads.AndroidAdsInitializer
 import com.retally.app.ads.CurrentActivityTracker
@@ -16,7 +18,6 @@ import com.retally.shared.di.androidDatabaseModule
 import com.retally.shared.di.initKoin
 import com.retally.shared.domain.ads.AdsConfig
 import com.retally.shared.domain.cloud.CloudBackend
-import com.retally.shared.domain.location.NearbyTestZone
 import com.retally.shared.domain.cloud.CloudConfig
 import com.retally.shared.platform.AndroidPlatform
 import com.russhwolf.settings.SharedPreferencesSettings
@@ -28,6 +29,8 @@ class ReTallyApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         registerActivityLifecycleCallbacks(CurrentActivityTracker)
+        // Before any Firebase call: Firestore / Storage / our functions all expect the token.
+        AndroidAppCheck.install()
 
         initKoin(
             PlatformDependencies(
@@ -51,6 +54,7 @@ class ReTallyApplication : Application() {
                 ),
                 verboseNetworkLogging = BuildConfig.DEBUG,
                 stringResolver = AndroidStringResolver(this),
+                appCheck = AndroidAppCheckTokenProvider(),
             ),
             extraModules = listOf(viewModelModule, androidDatabaseModule),
         ) {
@@ -64,8 +68,6 @@ class ReTallyApplication : Application() {
         CrashReporting.start()
 
         // Re-register store geofences (no-op when the nearby toggle is off).
-        // TEMP-DEBUG (remove before release): fixed "Home Store" geofence for testing.
-        if (BuildConfig.DEBUG) NearbyTestZone.address = "15 Hazelwood Drive, Hingham, MA 02043"
         NearbyStoreScheduler.refresh(this)
 
     }

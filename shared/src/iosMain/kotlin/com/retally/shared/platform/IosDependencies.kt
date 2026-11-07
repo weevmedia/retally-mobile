@@ -23,6 +23,8 @@ import com.retally.shared.domain.notifications.NotificationInboxRepository
 import com.retally.shared.presentation.shopping.ShoppingListContract
 import com.retally.shared.presentation.splash.SplashContract
 import com.retally.shared.presentation.onboarding.OnboardingContract
+import com.retally.shared.presentation.storealerts.StoreAlertsContract
+import com.retally.shared.presentation.storealerts.StoreAlertsPrompt
 import com.retally.shared.presentation.auth.AuthContract
 import com.retally.shared.presentation.auth.OtpContract
 import org.koin.mp.KoinPlatform
@@ -40,6 +42,9 @@ object IosDependencies {
 
     fun getSplashStore(): SplashContract.Store = KoinPlatform.getKoin().get()
     fun getOnboardingStore(): OnboardingContract.Store = KoinPlatform.getKoin().get()
+    fun getStoreAlertsStore(): StoreAlertsContract.Store = KoinPlatform.getKoin().get()
+    /** Whether the store-alerts opt-in still has to be shown after sign-in (first launch only). */
+    fun isStoreAlertsPromptNeeded(): Boolean = KoinPlatform.getKoin().get<StoreAlertsPrompt>().isNeeded
     fun getAuthStore(): AuthContract.Store = KoinPlatform.getKoin().get()
     fun getOtpStore(): OtpContract.Store = KoinPlatform.getKoin().get()
     fun getMainStore(): MainContract.Store = KoinPlatform.getKoin().get()

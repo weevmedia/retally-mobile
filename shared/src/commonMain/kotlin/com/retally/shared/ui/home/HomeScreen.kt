@@ -8,6 +8,8 @@ import com.retally.shared.domain.budget.BudgetPace
 import com.retally.shared.ui.components.AboveScanFab
 import com.retally.shared.ui.components.BannerGapAboveScanFab
 import com.retally.shared.ui.components.CircleIconButton
+import com.retally.shared.ui.components.SwipeAction
+import com.retally.shared.ui.components.SwipeRevealRow
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.setValue
@@ -69,19 +71,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import com.retally.shared.ui.barcode.BarcodeModal
 import com.retally.shared.ui.barcode.BarcodeGlyph
 import com.retally.shared.ui.components.StoreIcon
+import com.retally.shared.domain.update.UpdateStatus
+import com.retally.shared.ui.update.UpdateAvailableDialog
+import com.retally.shared.ui.update.UpdateRequiredScreen
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.foundation.clickable
@@ -98,6 +100,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.rounded.CloudDone
+import androidx.compose.material.icons.rounded.CloudUpload
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.unit.sp
 import com.retally.shared.domain.ai.Nudge
 import com.retally.shared.domain.ai.NudgeReadStore
@@ -181,38 +187,51 @@ fun HomeScreen(
         snackbarHost = { ReTallySnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
-        // The banner floats over the list at the bottom (above the tab bar); the list reserves
-        // the same height underneath so the last receipt is never hidden behind it.
-        // The 320×50 strip floats just above the scan button with or without receipts, so the
-        // empty Home matches Receipts (it used to sit inline under the call-to-action, which
-        // left a big gap above the button). Not while receipts are still restoring.
-        val showFloatingStrip = adsEnabled && !(state.isEmpty && state.isRestoring)
+        // Where the ad goes depends on the list: with no receipts the 320×50 strip floats just
+        // above the scan button (matching Receipts); once there are receipts it moves inline
+        // (guests: above "Recent receipts"; signed in: after the first receipt), so it reads as
+        // part of the page instead of covering the last row. Not while receipts are still restoring.
+        // Signed in with a single receipt and no budget card the page is short enough that
+        // the strip can float too — an inline ad after the only receipt would just hang at
+        // the bottom of the list.
+        val shortSignedInHome = !state.account.isGuest && state.budgetFraction == null && state.receipts.size == 1
+        val showFloatingStrip = adsEnabled && !state.isRestoring && (state.isEmpty || shortSignedInHome)
         val bannerReserve = if (showFloatingStrip) d.bannerHeight + d.md * 2 else 0.dp
         Box(Modifier.fillMaxSize()) {
-            HomeContent(
-                state = state,
-                contentPadding = PaddingValues(
-                    top = padding.calculateTopPadding(),
-                    // bottomContentInset is host chrome Compose cannot see: on iOS the tab bar
-                    // is a SwiftUI sibling and HomeView ignores the safe area, so the inset
-                    // TabBarView adds never reaches here. Android injects it into the window
-                    // insets instead and passes 0.
-                    bottom = padding.calculateBottomPadding() + bannerReserve + bottomContentInset,
-                ),
-                onScan = { dispatch(HomeContract.Action.ScanClicked) },
-                onReceiptClick = { dispatch(HomeContract.Action.ReceiptClicked(it)) },
-                onBarcodeClick = { barcodeReceipt = it },
-                onDelete = { dispatch(HomeContract.Action.DeleteRequested(it)) },
-                onDuplicatesClick = { dispatch(HomeContract.Action.DuplicatesClicked) },
-                onSpentClick = { dispatch(HomeContract.Action.BudgetClicked) },
-                onNudgeClick = { dispatch(HomeContract.Action.NudgeClicked(it)) },
-                onHowItWorks = { dispatch(HomeContract.Action.HowItWorksClicked) },
-                onSignIn = { dispatch(HomeContract.Action.SignInClicked) },
-                onSeeAll = { dispatch(HomeContract.Action.SeeAllReceiptsClicked) },
-                // The floating strip replaces the empty state's inline banner.
-                adsEnabled = adsEnabled && !showFloatingStrip,
-                bannerAdUnitId = bannerAdUnitId,
-            )
+            val required = state.update as? UpdateStatus.Required
+            if (required != null) {
+                // Below the backend's minimum: Home is replaced until the app is updated.
+                UpdateRequiredScreen(
+                    status = required,
+                    onUpdate = { dispatch(HomeContract.Action.UpdateClicked) },
+                    modifier = Modifier.padding(top = padding.calculateTopPadding()),
+                )
+            } else {
+                HomeContent(
+                    state = state,
+                    contentPadding = PaddingValues(
+                        top = padding.calculateTopPadding(),
+                        // bottomContentInset is host chrome Compose cannot see: on iOS the tab bar
+                        // is a SwiftUI sibling and HomeView ignores the safe area, so the inset
+                        // TabBarView adds never reaches here. Android injects it into the window
+                        // insets instead and passes 0.
+                        bottom = padding.calculateBottomPadding() + bannerReserve + bottomContentInset,
+                    ),
+                    onScan = { dispatch(HomeContract.Action.ScanClicked) },
+                    onReceiptClick = { dispatch(HomeContract.Action.ReceiptClicked(it)) },
+                    onBarcodeClick = { barcodeReceipt = it },
+                    onDelete = { dispatch(HomeContract.Action.DeleteRequested(it)) },
+                    onDuplicatesClick = { dispatch(HomeContract.Action.DuplicatesClicked) },
+                    onSpentClick = { dispatch(HomeContract.Action.BudgetClicked) },
+                    onNudgeClick = { dispatch(HomeContract.Action.NudgeClicked(it)) },
+                    onHowItWorks = { dispatch(HomeContract.Action.HowItWorksClicked) },
+                    onSignIn = { dispatch(HomeContract.Action.SignInClicked) },
+                    onSeeAll = { dispatch(HomeContract.Action.SeeAllReceiptsClicked) },
+                    // Inline (above Recent receipts) whenever the strip isn't floating.
+                    adsEnabled = adsEnabled && !showFloatingStrip,
+                    bannerAdUnitId = bannerAdUnitId,
+                )
+            }
             if (showFloatingStrip) {
                 // Home: the ad sits 2dp above the scan FAB (Android; iOS uses fallbackBottom).
                 // FloatingAdBanner has d.xs of its own vertical padding, so take it off.
@@ -227,6 +246,37 @@ fun HomeScreen(
     }
 
     barcodeReceipt?.let { receipt -> BarcodeModal(receipt = receipt, onDismiss = { barcodeReceipt = null }) }
+
+    (state.update as? UpdateStatus.Available)?.let { available ->
+        UpdateAvailableDialog(
+            status = available,
+            onUpdate = { dispatch(HomeContract.Action.UpdateClicked) },
+            onLater = { dispatch(HomeContract.Action.UpdateDismissed) },
+        )
+    }
+
+    if (state.backingUpCount > 0 || state.backedUpCount > 0) {
+        SyncingReceiptsDialog(syncingCount = state.backingUpCount, syncedCount = state.backedUpCount)
+    }
+
+    if (state.pendingBackupPrompt > 0) {
+        val n = state.pendingBackupPrompt
+        AlertDialog(
+            onDismissRequest = { dispatch(HomeContract.Action.PendingBackupDeclined) },
+            title = { Text(if (n == 1) str(S.HOME_BACKUP_PROMPT_TITLE_ONE) else str(S.HOME_BACKUP_PROMPT_TITLE, n)) },
+            text = { Text(str(if (n == 1) S.HOME_BACKUP_PROMPT_BODY_ONE else S.HOME_BACKUP_PROMPT_BODY, n)) },
+            confirmButton = {
+                TextButton(onClick = { dispatch(HomeContract.Action.PendingBackupConfirmed) }) {
+                    Text(str(S.HOME_BACKUP_PROMPT_CONFIRM))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { dispatch(HomeContract.Action.PendingBackupDeclined) }) {
+                    Text(str(S.HOME_BACKUP_PROMPT_LATER))
+                }
+            },
+        )
+    }
 
     state.pendingDelete?.let { receipt ->
         AlertDialog(
@@ -391,6 +441,9 @@ internal fun HomeContent(
         return
     }
 
+    // The receipt whose Delete action is revealed; opening one closes the rest.
+    var swipedReceiptId by remember { mutableStateOf<String?>(null) }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
@@ -424,22 +477,35 @@ internal fun HomeContent(
             if (state.budgetFraction != null) {
                 item { BudgetProgressCard(state, onClick = onSpentClick) }
             }
+            // Inline 320×50 ad: guests see it above Recent receipts; signed-in users see it
+            // after the first receipt, so their latest scan stays right under the header.
+            val adAboveHeader = adsEnabled && state.account.isGuest
+            val adAfterFirstReceipt = adsEnabled && !state.account.isGuest
+            if (adAboveHeader) {
+                item(key = "ad") { AdBannerSlot(adUnitId = bannerAdUnitId, enabled = true, modifier = Modifier.padding(top = d.sm)) }
+            }
             item {
                 RecentReceiptsHeader(
                     onSeeAll = onSeeAll,
                     modifier = Modifier.padding(top = d.sm),
                 )
             }
-            items(
-                state.recentReceipts.take(HomeContract.State.RECENT_RECEIPT_COUNT),
-                key = { it.id },
-            ) { receipt ->
-                SwipeToDeleteRow(onDelete = { onDelete(receipt.id) }) {
-                    ReceiptRow(
-                        receipt = receipt,
-                        onClick = { onReceiptClick(receipt.id) },
-                        onBarcodeClick = { onBarcodeClick(receipt) },
-                    )
+            state.recentReceipts.take(HomeContract.State.RECENT_RECEIPT_COUNT).forEachIndexed { index, receipt ->
+                item(key = receipt.id) {
+                    SwipeToDeleteRow(
+                        onDelete = { onDelete(receipt.id) },
+                        open = swipedReceiptId == receipt.id,
+                        onOpenChange = { open -> swipedReceiptId = if (open) receipt.id else swipedReceiptId.takeIf { it != receipt.id } },
+                    ) {
+                        ReceiptRow(
+                            receipt = receipt,
+                            onClick = { onReceiptClick(receipt.id) },
+                            onBarcodeClick = { onBarcodeClick(receipt) },
+                        )
+                    }
+                }
+                if (index == 0 && adAfterFirstReceipt) {
+                    item(key = "ad") { AdBannerSlot(adUnitId = bannerAdUnitId, enabled = true) }
                 }
             }
         }
@@ -646,30 +712,22 @@ private fun StatTile(
                 autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 22.sp, stepSize = 0.5.sp),
             )
         }
-        // Tap hint (e.g. Spent tile → budget screen).
+        // Tap hint (e.g. Spent tile → budget screen): one line, shrinking to fit the tile's
+        // width (the three tiles get narrow on small phones), with no trailing chevron.
         if (hint != null) {
             Spacer(Modifier.height(d.xs))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // Full hint text (wraps to a second line if needed); the arrow sits at the far right.
-                Text(
-                    hint,
-                    style = ReTallyTheme.typography.caption.copy(fontSize = 10.sp, lineHeight = 12.sp),
+            BasicText(
+                hint,
+                style = ReTallyTheme.typography.caption.copy(
                     color = c.ink.copy(alpha = 0.7f),
-                    maxLines = 2,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f),
-                )
-                Icon(
-                    Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = c.ink.copy(alpha = 0.7f),
-                    modifier = Modifier.size(14.dp),
-                )
-            }
+                    fontSize = 10.sp,
+                    lineHeight = 12.sp,
+                ),
+                maxLines = 1,
+                autoSize = TextAutoSize.StepBased(minFontSize = 7.sp, maxFontSize = 10.sp, stepSize = 0.5.sp),
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
@@ -958,33 +1016,35 @@ private fun BreadcrumbDots(count: Int, current: Int, modifier: Modifier = Modifi
     }
 }
 
-/** Swipe left to reveal a red delete surface; the host confirms before removing. */
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Swipe left to reveal Delete — the same iOS-style reveal (same red surface and icon) the
+ * receipt page uses on its line items, so the two lists feel alike. Tapping the row opens
+ * the receipt, so there is no Edit action. The host confirms before removing. Pass
+ * [open]/[onOpenChange] from the list so only one row is open at a time.
+ */
 @Composable
-internal fun SwipeToDeleteRow(onDelete: () -> Unit, content: @Composable () -> Unit) {
-    val d = ReTallyTheme.dimensions
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart) onDelete()
-            false // never remove the row here; the store does after confirmation
-        },
-    )
-    SwipeToDismissBox(
-        state = dismissState,
-        enableDismissFromStartToEnd = false,
-        backgroundContent = {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(d.cardRadius))
-                    .background(MaterialTheme.colorScheme.errorContainer)
-                    .padding(horizontal = d.xl),
-                contentAlignment = Alignment.CenterEnd,
-            ) {
-                Icon(Icons.Outlined.Delete, contentDescription = str(S.ACTION_DELETE), tint = MaterialTheme.colorScheme.onErrorContainer)
-            }
-        },
-        content = { content() },
+internal fun SwipeToDeleteRow(
+    onDelete: () -> Unit,
+    open: Boolean,
+    onOpenChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    val c = ReTallyTheme.colors
+    SwipeRevealRow(
+        actions = listOf(
+            SwipeAction(
+                icon = Icons.Outlined.Delete,
+                label = str(S.ACTION_DELETE),
+                tint = c.onPrimary,
+                background = c.danger,
+                onClick = onDelete,
+            ),
+        ),
+        open = open,
+        onOpenChange = onOpenChange,
+        modifier = modifier,
+        content = content,
     )
 }
 
@@ -1035,6 +1095,88 @@ internal fun ReceiptRow(receipt: Receipt, onClick: () -> Unit, onBarcodeClick: (
                     BarcodeGlyph(tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(20.dp))
                 }
             }
+        }
+    }
+}
+
+/**
+ * Sync modal, shown right after "Back up" on the sign-in prompt: a cloud icon that bobs and
+ * pulses while the receipts upload, flipping to a cloud-tick with "N receipts synced" for a
+ * moment when done. Not dismissable — the upload is short and the Home list changes under it.
+ */
+@Composable
+private fun SyncingReceiptsDialog(syncingCount: Int, syncedCount: Int) {
+    val c = ReTallyTheme.colors
+    val d = ReTallyTheme.dimensions
+    val done = syncedCount > 0
+    Dialog(
+        onDismissRequest = {},
+        properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(d.cardRadius))
+                .background(c.surface)
+                .padding(horizontal = d.cardPadding, vertical = d.xl),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            if (done) {
+                Icon(
+                    Icons.Rounded.CloudDone,
+                    contentDescription = null,
+                    tint = c.primary,
+                    modifier = Modifier.size(72.dp),
+                )
+            } else {
+                // "Uploading" motion: a gentle bob plus a soft pulse, looping until done.
+                val transition = rememberInfiniteTransition(label = "sync-cloud")
+                val bob by transition.animateFloat(
+                    initialValue = 0f,
+                    targetValue = -8f,
+                    animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse),
+                    label = "sync-bob",
+                )
+                val pulse by transition.animateFloat(
+                    initialValue = 0.55f,
+                    targetValue = 1f,
+                    animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse),
+                    label = "sync-pulse",
+                )
+                Box(contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        color = c.primary.copy(alpha = 0.25f),
+                        strokeWidth = 3.dp,
+                        modifier = Modifier.size(96.dp),
+                    )
+                    Icon(
+                        Icons.Rounded.CloudUpload,
+                        contentDescription = null,
+                        tint = c.primary,
+                        modifier = Modifier
+                            .size(56.dp)
+                            .graphicsLayer { translationY = bob; alpha = pulse },
+                    )
+                }
+            }
+            Spacer(Modifier.height(d.lg))
+            Text(
+                when {
+                    !done -> str(S.HOME_SYNCING_TITLE)
+                    syncedCount == 1 -> str(S.HOME_SYNCED_TITLE_ONE)
+                    else -> str(S.HOME_SYNCED_TITLE, syncedCount)
+                },
+                style = ReTallyTheme.typography.title,
+                color = c.ink,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+            Spacer(Modifier.height(d.xs))
+            Text(
+                if (done) str(S.HOME_SYNCED_BODY) else str(S.HOME_SYNCING_BODY, syncingCount),
+                style = ReTallyTheme.typography.secondaryBody,
+                color = c.muted,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
         }
     }
 }

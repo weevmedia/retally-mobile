@@ -4,6 +4,7 @@
 
 import Combine
 import Foundation
+import Shared
 
 /// App phase: splash until the ads SDK has reported, then onboarding (first launch only),
 /// then sign-in, then the OTP code entry, then the tab bar.
@@ -22,6 +23,8 @@ final class RootViewModel: ObservableObject {
     @Published private(set) var authShowsGuestOption = true
     /// First launch: the 6-digit email code entry sits between sign-in and the tab bar.
     @Published private(set) var showOtp = false
+    /// First launch: the store-alerts opt-in sits between sign-in and the tab bar (once).
+    @Published private(set) var showStoreAlerts = false
     /// The validated email the OTP screen is verifying.
     @Published private(set) var otpEmail = ""
     /// "First Last" from the auth name form (new users) — travels to verifyOtp.
@@ -33,6 +36,12 @@ final class RootViewModel: ObservableObject {
     @Published private(set) var otpAccountFirstName: String?
     /// The auth screen already sent the code via requestOtp — don't re-send on entry.
     @Published private(set) var otpCodeAlreadySent = false
+
+    /// True while the first-launch screens (onboarding → sign-in → code) own the window.
+    /// Sign-in opened from the More tab is not part of it: the tab bar stays underneath.
+    var firstLaunchFlowActive: Bool {
+        showOnboarding || showStoreAlerts || (!authFromSettings && (showAuth || showOtp))
+    }
 
     func splashFinished(adsReady: Bool, isFirstLaunch: Bool) {
         self.adsReady = adsReady
@@ -47,7 +56,27 @@ final class RootViewModel: ObservableObject {
 
     func authFinished() {
         showAuth = false
+        signInFinished()
+    }
+
+    /// Signed in or continuing as guest: the store-alerts opt-in once, then the tab bar.
+    private func signInFinished() {
+        let fromSettings = authFromSettings
         authFromSettings = false
+        if !fromSettings && IosDependencies.shared.isStoreAlertsPromptNeeded() {
+            showStoreAlerts = true
+        }
+    }
+
+    func storeAlertsFinished() {
+        showStoreAlerts = false
+    }
+
+    /// Back chevron on the opt-in: return to the first-launch sign-in screen.
+    func storeAlertsBack() {
+        showStoreAlerts = false
+        authShowsGuestOption = true
+        showAuth = true
     }
 
     /// More tab → guest Log in: show the sign-in overlay over the tab bar.
@@ -83,7 +112,7 @@ final class RootViewModel: ObservableObject {
     func otpFinished() {
         showOtp = false
         showAuth = false
-        authFromSettings = false
+        signInFinished()
     }
 
     func otpBack() {

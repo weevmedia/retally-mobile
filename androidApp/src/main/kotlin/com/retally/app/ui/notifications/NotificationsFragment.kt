@@ -27,7 +27,7 @@ class NotificationsFragment : BaseComposeFragment<State, Action, SideEffect, Not
 
     override suspend fun onViewEffect(effect: SideEffect) {
         when (effect) {
-            SideEffect.Closed -> findNavController().popBackStack()
+            SideEffect.Closed -> popBack()
             // The store already queued the store name on ShoppingListRepository; switch tabs
             // the same way MainActivity does for a tapped system notification.
             SideEffect.OpenShoppingList -> {

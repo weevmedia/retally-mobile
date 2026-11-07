@@ -21,6 +21,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.retally.shared.core.Action
+import com.retally.shared.core.crash.CrashReporting
 import com.retally.shared.core.Effect
 import com.retally.shared.core.State
 import com.retally.shared.core.ViewModel
@@ -77,8 +78,42 @@ abstract class BaseComposeFragment<S : State, A : Action, E : Effect, VM : ViewM
     /** Forward a UI intent to the Store (Sidearm naming). */
     protected fun dispatchViewAction(action: A) = viewModel.dispatch(action)
 
-    /** Navigate with Safe Args directions. */
-    protected fun navigate(directions: NavDirections) = findNavController().navigate(directions)
+    /**
+     * Navigate with Safe Args directions — only while this screen is the current destination.
+     * A one-shot effect can arrive a frame after the screen was popped (its view is still
+     * STARTED); navigating then throws "action cannot be found from the current destination",
+     * so such a late effect is dropped and recorded instead of crashing.
+     */
+    protected fun navigate(directions: NavDirections) {
+        val nav = findNavController()
+        val current = nav.currentDestination
+        if (current == null || current.getAction(directions.actionId) == null) {
+            android.util.Log.w(
+                "ReTallyNav",
+                "Dropped navigation ${resources.getResourceEntryName(directions.actionId)} from ${this::class.simpleName}: " +
+                    "current destination is ${current?.displayName ?: "none"}",
+            )
+            CrashReporting.record(
+                IllegalStateException(
+                    "Dropped navigation ${directions.actionId} from ${this::class.simpleName}: " +
+                        "current destination is ${current?.displayName ?: "none (empty back stack)"}",
+                ),
+            )
+            return
+        }
+        nav.navigate(directions)
+    }
+
+    /**
+     * Pop this screen — only if it is still the current destination and something is beneath
+     * it. A Close effect delivered twice (or after the screen already left) would otherwise
+     * pop the screen underneath too, leaving the app on an empty back stack.
+     */
+    protected fun popBack(): Boolean {
+        val nav = findNavController()
+        if (nav.previousBackStackEntry == null) return false
+        return nav.popBackStack()
+    }
 
     /** Render [state]. Must be side-effect free — call the shared stateless screen. */
     @Composable

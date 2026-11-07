@@ -27,7 +27,7 @@ class BudgetFragment : BaseComposeFragment<State, Action, SideEffect, BudgetView
 
     override suspend fun onViewEffect(effect: SideEffect) {
         when (effect) {
-            Closed -> findNavController().popBackStack()
+            Closed -> popBack()
             is ShowMessage -> snackbarHostState.showSnackbar(effect.message)
         }
     }

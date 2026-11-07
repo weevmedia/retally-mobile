@@ -9,12 +9,18 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
-            if let adsReady = viewModel.adsReady {
+            if viewModel.adsReady == nil {
+                SplashView(onFinished: viewModel.splashFinished)
+                    .transition(.opacity)
+            } else if let adsReady = viewModel.adsReady, !viewModel.firstLaunchFlowActive {
                 TabBarView(adsReady: adsReady)
                     .transition(.opacity)
             } else {
-                SplashView(onFinished: viewModel.splashFinished)
-                    .transition(.opacity)
+                // First launch: nothing under onboarding / sign-in. Mounting the tab bar here
+                // would start Home early, and Home's update check puts its dialog on top of
+                // the onboarding pager (Compose dialogs present above every SwiftUI layer).
+                Color(.systemBackground)
+                    .ignoresSafeArea()
             }
             if viewModel.showOnboarding {
                 OnboardingView(onFinished: { viewModel.onboardingFinished(showGuestOption: $0) })
@@ -28,6 +34,12 @@ struct RootView: View {
                     .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .opacity))
                     .zIndex(1)
             }
+            if viewModel.showStoreAlerts {
+                StoreAlertsView(onFinished: viewModel.storeAlertsFinished, onBack: viewModel.storeAlertsBack)
+                    // Fades in over the sign-in screen's exit; fades away into the tab bar.
+                    .transition(.opacity)
+                    .zIndex(3)
+            }
             if viewModel.showOtp {
                 OtpView(email: viewModel.otpEmail, displayName: viewModel.otpDisplayName, isNewUser: viewModel.otpIsNewUser, accountFirstName: viewModel.otpAccountFirstName, codeAlreadySent: viewModel.otpCodeAlreadySent, onFinished: viewModel.otpFinished, onBack: viewModel.otpBack)
                     .transition(.opacity)
@@ -36,9 +48,11 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: viewModel.adsReady == nil)
+        .animation(.easeInOut(duration: 0.25), value: viewModel.firstLaunchFlowActive)
         .animation(.easeInOut(duration: 0.25), value: viewModel.showOnboarding)
         .animation(.easeInOut(duration: 0.25), value: viewModel.showAuth)
         .animation(.easeInOut(duration: 0.25), value: viewModel.showOtp)
+        .animation(.easeInOut(duration: 0.25), value: viewModel.showStoreAlerts)
         .onReceive(NotificationCenter.default.publisher(for: .retallyShowAuth)) { _ in
             viewModel.showAuthFromSettings()
         }

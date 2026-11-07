@@ -78,6 +78,6 @@ interface AppUpdateRepository {
      */
     suspend fun check(force: Boolean = false): UpdateStatus
 
-    /** "Not now" on an [UpdateStatus.Available] nudge: hides it until a newer version appears. */
+    /** "Not now" on an [UpdateStatus.Available] nudge: hides it for 7 days, or until a newer version appears. */
     fun dismiss(version: String)
 }

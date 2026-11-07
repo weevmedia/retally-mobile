@@ -36,11 +36,14 @@ class BudgetRepository(
     /** [month]'s budget, re-emitted whenever a budget is saved; null while none is set. */
     fun observeBudget(month: String): Flow<Double?> = changes.map { getBudget(month) }
 
-    /** This month's budget amount, or null when the user hasn't set one yet. */
+    /**
+     * This month's budget amount, or null when the user hasn't set one yet. A saved 0 is how
+     * the user clears a budget, so it reads as "not set" too.
+     */
     fun getBudget(month: String): Double? =
-        database.budgetQueries.selectByMonth(month).executeAsOneOrNull()?.amount
+        database.budgetQueries.selectByMonth(month).executeAsOneOrNull()?.amount?.takeIf { it > 0 }
 
-    /** Creates or replaces this month's budget. */
+    /** Creates or replaces this month's budget; 0 clears it (the tracker hides). */
     fun setBudget(month: String, amount: Double) {
         database.budgetQueries.insertOrReplace(
             month = month,
@@ -60,7 +63,7 @@ class BudgetRepository(
         val saved = raw?.let { runCatching { json.decodeFromString(BudgetScope.serializer(), it) }.getOrNull() }
             ?: return BudgetScope.Default
         // Only "All spending" and "Grocery only" are offered: older multi-category picks read as grocery.
-        return if (saved.allSpending) saved else BudgetScope.Default
+        return if (saved.allSpending) saved else BudgetScope.GroceryOnly
     }
 
     /** Saves what [month]'s budget tracks (and remembers it for next month). */
@@ -84,9 +87,9 @@ class BudgetRepository(
 
     /** Newest first — feeds future AI (habits, savings predictions). */
     fun history(): List<BudgetMonth> =
-        database.budgetQueries.selectAll().executeAsList().map {
-            BudgetMonth(month = it.month, amount = it.amount)
-        }
+        database.budgetQueries.selectAll().executeAsList()
+            .filter { it.amount > 0 } // a cleared (0) month has no budget
+            .map { BudgetMonth(month = it.month, amount = it.amount) }
 }
 
 data class BudgetMonth(val month: String, val amount: Double)

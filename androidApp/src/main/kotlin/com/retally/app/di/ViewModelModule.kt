@@ -19,6 +19,7 @@ import com.retally.app.ui.alerts.AlertsViewModel
 import com.retally.app.ui.notifications.NotificationsViewModel
 import com.retally.app.ui.splash.SplashViewModel
 import com.retally.app.ui.onboarding.OnboardingViewModel
+import com.retally.app.ui.storealerts.StoreAlertsViewModel
 import com.retally.app.ui.auth.AuthViewModel
 import com.retally.app.ui.auth.OtpViewModel
 import org.koin.android.ext.koin.androidApplication
@@ -36,6 +37,7 @@ val viewModelModule = module {
     viewModel { SplashViewModel(store = get()) }
     viewModel { HowItWorksViewModel(store = get()) }
     viewModel { OnboardingViewModel(store = get()) }
+    viewModel { StoreAlertsViewModel(store = get()) }
     viewModel { AuthViewModel(store = get()) }
     viewModel { OtpViewModel(store = get()) }
     viewModel { MainViewModel(store = get(), adsConfig = get()) }

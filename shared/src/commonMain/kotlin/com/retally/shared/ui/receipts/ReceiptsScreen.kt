@@ -246,6 +246,9 @@ private fun ReceiptsList(
             .collect { if (it) dispatch(ReceiptsContract.Action.LoadMore) }
     }
 
+    // The receipt whose Delete action is revealed; opening one closes the rest.
+    var swipedReceiptId by remember { mutableStateOf<String?>(null) }
+
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
@@ -270,7 +273,11 @@ private fun ReceiptsList(
                 }
                 receipts.forEach { receipt ->
                     item(key = receipt.id) {
-                        SwipeToDeleteRow(onDelete = { dispatch(ReceiptsContract.Action.DeleteRequested(receipt.id)) }) {
+                        SwipeToDeleteRow(
+                            onDelete = { dispatch(ReceiptsContract.Action.DeleteRequested(receipt.id)) },
+                            open = swipedReceiptId == receipt.id,
+                            onOpenChange = { open -> swipedReceiptId = if (open) receipt.id else swipedReceiptId.takeIf { it != receipt.id } },
+                        ) {
                             ReceiptRow(
                                 receipt = receipt,
                                 onClick = { dispatch(ReceiptsContract.Action.ReceiptClicked(receipt.id)) },

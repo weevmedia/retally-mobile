@@ -28,7 +28,7 @@ class DuplicatesFragment : BaseComposeFragment<State, Action, SideEffect, Duplic
 
     override suspend fun onViewEffect(effect: SideEffect) {
         when (effect) {
-            Closed -> findNavController().popBackStack()
+            Closed -> popBack()
             is OpenReceipt -> findNavController().navigate(DuplicatesFragmentDirections.actionDuplicatesToScanReview(receiptId = effect.id))
             is ShowMessage -> snackbarHostState.showSnackbar(effect.message)
         }

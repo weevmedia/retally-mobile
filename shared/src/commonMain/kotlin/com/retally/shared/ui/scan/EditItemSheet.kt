@@ -190,6 +190,7 @@ internal fun EditItemSheet(
             Spacer(Modifier.height(d.xs))
             PrimaryButton(
                 text = str(S.RECEIPT_STORE_SAVE),
+                icon = Icons.Rounded.Check,
                 onClick = { dispatch(Action.ItemEditSaveClicked) },
                 enabled = edit.canSave,
                 modifier = Modifier.fillMaxWidth(),

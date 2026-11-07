@@ -45,6 +45,9 @@ final class ScanReviewViewModel: ObservableObject {
                 onFinished(fromScan, saved)
             case let message as ScanReviewContractSideEffect.ShowMessage:
                 self?.screen.showMessage(message: message.message)
+            case is ScanReviewContractSideEffect.OpenSignIn:
+                // Guest tapped the cloud icon: the sign-in overlay, same route the More tab uses.
+                NotificationCenter.default.post(name: .retallyShowAuth, object: nil)
             case let share as ScanReviewContractSideEffect.ShareReceipt:
                 self?.shareReceipt(imagePath: share.imagePath)
             case let save as ScanReviewContractSideEffect.SaveToPhotos:

@@ -227,23 +227,23 @@
     <string name="more_name_update_failed">Couldn\'t update your name. Try again.</string>
     <string name="more_favorites_empty">Tap EDIT to add your favorite stores.</string>
     <string name="more_add_favorites_title">Add favorite stores</string>
-    <string name="more_sign_out">SIGN OUT</string>
-    <string name="more_delete_account">DELETE MY ACCOUNT</string>
-    <string name="more_log_in">LOG IN</string>
+    <string name="more_sign_out">Sign Out</string>
+    <string name="more_delete_account">Delete My Account</string>
+    <string name="more_log_in">Sign In</string>
     <string name="more_account_title">Account</string>
-    <string name="more_account_login">Log in / Sign up</string>
+    <string name="more_account_login">Sign in / Sign up</string>
     <string name="more_account_login_sub">Sync receipts across devices</string>
-    <string name="more_account_guest_body">You\'re browsing as a guest. Log in to back up receipts and sync them across devices.</string>
-    <string name="more_account_logout">Log out</string>
-    <string name="more_account_logout_title">Log out?</string>
-    <string name="more_account_logout_body">You\'ll be logged out on this device. Your receipts stay saved here.</string>
-    <string name="more_account_delete">Delete my account</string>
+    <string name="more_account_guest_body">You\'re browsing as a guest. Sign in to back up receipts and sync them across devices.</string>
+    <string name="more_account_logout">Sign Out</string>
+    <string name="more_account_logout_title">Sign out?</string>
+    <string name="more_account_logout_body">You\'ll be signed out on this device. Your receipts stay saved here.</string>
+    <string name="more_account_delete">Delete My Account</string>
     <string name="more_account_delete_title">Delete account?</string>
     <string name="more_account_delete_body">This permanently deletes your account, receipts and favorites. This can\'t be undone.</string>
     <string name="more_account_deleted">Account deleted</string>
     <string name="more_account_delete_failed">Couldn\'t delete the account — please try again.</string>
-    <string name="more_logged_out">Logged out</string>
-    <string name="more_logged_out_failed">Couldn\'t log out — please try again.</string>
+    <string name="more_logged_out">Signed out</string>
+    <string name="more_logged_out_failed">Couldn\'t sign out — please try again.</string>
     <string name="more_favorite_added">%1$s added to favorites</string>
     <string name="more_favorite_removed">%1$s removed from favorites</string>
     <string name="more_done">DONE</string>
@@ -286,12 +286,17 @@
     <string name="onboarding_have_account">I already have an account</string>
     <string name="onboarding_have_account_prefix">Already have an account? </string>
     <string name="onboarding_sign_in">Sign In</string>
+    <string name="onboarding_alerts_title">Know when you\u2019re at the store</string>
+    <string name="onboarding_alerts_body">ReTally can remind you what you usually buy the moment you walk into a store you shop at.</string>
+    <string name="onboarding_alerts_disclosure">To do this, ReTally uses your location in the background to notice when you arrive at a store, even when the app is closed, and sends you a notification. Nothing is tracked between visits.</string>
+    <string name="onboarding_alerts_hint">When asked, choose \u201cAllow all the time\u201d so alerts work while the app is closed.</string>
 
     <!-- Nearby store alerts -->
     <string name="settings_section_notifications">Notifications</string>
     <string name="settings_nearby_title">Notify me near stores</string>
     <string name="settings_nearby_sub">Get a reminder when you\'re near a store you\'ve shopped at</string>
     <string name="settings_msg_nearby_denied">Location permission is needed for nearby-store reminders.</string>
+    <string name="settings_nearby_allow">Turn on</string>
     <string name="nearby_notify_title">You\'re near %1$s</string>
     <string name="nearby_notify_body">Open ReTally to check your list before you shop.</string>
 
@@ -343,6 +348,7 @@
     <string name="otp_accessibility">6-digit verification code</string>
     <string name="nav_auth">Sign in</string>
     <string name="nav_otp">Enter code</string>
+    <string name="nav_store_alerts">Store alerts</string>
     <string name="nav_budget">Monthly Budget</string>
 
     <!-- Budget -->

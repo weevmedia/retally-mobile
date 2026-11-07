@@ -75,7 +75,7 @@ class ScanReviewFragment : BaseComposeFragment<State, Action, SideEffect, ScanRe
         when (effect) {
             // A fresh scan lands on the Receipts list (with the new receipt on top); opening an
             // existing receipt just goes back to where it was opened from.
-            Closed -> if (args.recognizedText != null) openReceiptsTab() else findNavController().popBackStack()
+            Closed -> if (args.recognizedText != null) openReceiptsTab() else popBack()
             is Saved, SideEffect.StoreLocationChanged -> {
                 // A new or edited store — rebuild the geofence list (no-op if toggle is off).
                 NearbyStoreScheduler.refresh(requireContext())
@@ -83,6 +83,8 @@ class ScanReviewFragment : BaseComposeFragment<State, Action, SideEffect, ScanRe
             is ShareReceipt -> shareReceipt(effect.imagePath)
             is SaveToPhotos -> saveToPhotos(effect.imagePath)
             is ShowMessage -> snackbarHostState.showSnackbar(effect.message)
+            // Guest tapped the cloud icon: the sign-in screen over this one; Back returns here.
+            SideEffect.OpenSignIn -> navigate(ScanReviewFragmentDirections.actionScanReviewToAuth())
         }
     }
 

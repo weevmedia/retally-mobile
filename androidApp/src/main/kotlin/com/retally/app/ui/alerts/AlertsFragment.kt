@@ -41,7 +41,7 @@ class AlertsFragment : BaseComposeFragment<State, Action, SideEffect, AlertsView
 
     override suspend fun onViewEffect(effect: SideEffect) {
         when (effect) {
-            SideEffect.Closed -> findNavController().popBackStack()
+            SideEffect.Closed -> popBack()
             SideEffect.OpenSignIn -> findNavController().navigate(R.id.action_alerts_to_auth)
             is SideEffect.ShowMessage -> snackbarHostState.showSnackbar(effect.message)
         }

@@ -94,7 +94,9 @@ class FirebaseCloudSyncService(
             val from = receiptWindowStart().let { Timestamp(seconds = it.epochSeconds, nanoseconds = it.nanosecondsOfSecond) }
             val recent = receiptsRef.where { "purchaseDate" greaterThanOrEqualTo from }
             val restored = mutableListOf<Receipt>()
-            for (doc in recent.get().documents) {
+            val docs = recent.get().documents
+            println("[ReTallyRestore] uid=$uid cloud=${docs.size} alreadyLocal=${docs.count { it.id in skipIds }}")
+            for (doc in docs) {
                 if (doc.id in skipIds) continue
                 if (doc.opt<Timestamp>("deletedAt") != null) continue
                 // Line items are read only for receipts the device doesn't have yet.

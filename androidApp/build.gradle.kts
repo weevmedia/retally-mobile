@@ -45,6 +45,38 @@ if (keystoreFile.exists()) {
     keystoreProperties.load(FileInputStream(keystoreFile))
 }
 
+// App version lives in version.properties (shared with iOS via iosApp/Version.xcconfig).
+// CI can pin the code without touching source: ./gradlew ... -Pretally.versionCode=123
+val appVersion = Properties().apply {
+    rootProject.file("version.properties").inputStream().use { load(it) }
+}
+val appVersionName: String = appVersion.getProperty("versionName").trim()
+val appVersionCode: Int = (findProperty("retally.versionCode") as String?)?.toInt()
+    ?: appVersion.getProperty("versionCode").trim().toInt()
+
+// Keep iosApp/Version.xcconfig in step with version.properties. Wired into preBuild so an
+// Android build can never ship a version iOS doesn't also see.
+val syncIosVersion by tasks.registering {
+    description = "Writes iosApp/Version.xcconfig from version.properties"
+    val source = rootProject.file("version.properties")
+    val target = rootProject.file("iosApp/Version.xcconfig")
+    // Plain values only, so the task is configuration-cache friendly.
+    val marketingVersion = appVersionName
+    val projectVersion = appVersion.getProperty("versionCode").trim()
+    inputs.file(source)
+    outputs.file(target)
+    doLast {
+        target.writeText(
+            """
+            |// GENERATED from version.properties by `./gradlew syncIosVersion` — do not edit here.
+            |MARKETING_VERSION = $marketingVersion
+            |CURRENT_PROJECT_VERSION = $projectVersion
+            |""".trimMargin(),
+        )
+    }
+}
+tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(syncIosVersion) }
+
 android {
     namespace = "com.retally.app"
     compileSdk = Versions.androidCompileSdk
@@ -53,8 +85,8 @@ android {
         applicationId = "com.weevmedia.retally"
         minSdk = Versions.androidMinSdk
         targetSdk = Versions.androidTargetSdk
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
 
         // AdMob App ID (the one with the "~"), from apps.admob.com → Apps → ReTally (Android).
         // The real id is fine in every build type: which *ad units* a build requests decides
@@ -152,6 +184,9 @@ dependencies {
 
     implementation(Deps.Koin.android)
     implementation(Deps.Firebase.crashlytics)
+    // App Check: proves to the backend that calls come from this app (see ReTallyApplication).
+    implementation(Deps.Firebase.appCheckPlayIntegrity)
+    debugImplementation(Deps.Firebase.appCheckDebug)
     implementation(Deps.Android.playServicesAds)
     // Unity Ads mediation adapter (AdMob bidding for banners) + the Unity Ads SDK itself.
     // The adapter alone does not bring the Unity classes: without the SDK line, release

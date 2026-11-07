@@ -48,6 +48,12 @@ class SettingsFragment : BaseComposeFragment<State, Action, SideEffect, Settings
     private val backgroundLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) {
+        requestNotificationPermission()
+    }
+
+    private val notificationLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) {
         finishNearbyPermissionFlow()
     }
 
@@ -107,22 +113,14 @@ class SettingsFragment : BaseComposeFragment<State, Action, SideEffect, Settings
         }
     }
 
+    // Same order as the onboarding step: precise location, "all the time", then notifications.
     private fun requestNearbyPermissions() {
-        val missing = buildList {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                !isGranted(Manifest.permission.POST_NOTIFICATIONS)
-            ) {
-                add(Manifest.permission.POST_NOTIFICATIONS)
-            }
-            if (!isGranted(Manifest.permission.ACCESS_FINE_LOCATION)) {
-                add(Manifest.permission.ACCESS_COARSE_LOCATION)
-                add(Manifest.permission.ACCESS_FINE_LOCATION)
-            }
-        }
-        if (missing.isEmpty()) {
+        if (isGranted(Manifest.permission.ACCESS_FINE_LOCATION)) {
             requestBackgroundLocation()
         } else {
-            foregroundLauncher.launch(missing.toTypedArray())
+            foregroundLauncher.launch(
+                arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION),
+            )
         }
     }
 
@@ -131,6 +129,16 @@ class SettingsFragment : BaseComposeFragment<State, Action, SideEffect, Settings
             !isGranted(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         ) {
             backgroundLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        } else {
+            requestNotificationPermission()
+        }
+    }
+
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            !isGranted(Manifest.permission.POST_NOTIFICATIONS)
+        ) {
+            notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         } else {
             finishNearbyPermissionFlow()
         }

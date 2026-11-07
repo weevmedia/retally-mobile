@@ -39,11 +39,13 @@ class FirebaseAuthRepository(
     override fun observeAccount(): Flow<Account> =
         combine(auth.authStateChanged, profileChanges) { user, _ ->
             val current = auth.currentUser?.takeIf { it.uid == user?.uid } ?: user
+            // A user restored from disk (offline launch) reports empty strings for the profile
+            // fields the SDK normally returns as null; the UI keys "guest" copy off null.
             Account(
                 uid = current?.uid,
                 isGuest = current?.isAnonymous ?: true,
-                displayName = current?.displayName,
-                email = current?.email,
+                displayName = current?.displayName?.takeIf { it.isNotBlank() },
+                email = current?.email?.takeIf { it.isNotBlank() },
             )
         }
 

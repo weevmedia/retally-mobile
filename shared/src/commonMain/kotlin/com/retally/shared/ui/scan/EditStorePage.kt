@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -189,6 +190,7 @@ internal fun EditStorePage(
             }
             PrimaryButton(
                 text = str(S.RECEIPT_STORE_SAVE),
+                icon = Icons.Rounded.Check,
                 onClick = { dispatch(Action.StoreEditSaveClicked) },
                 enabled = edit.canSave,
                 modifier = Modifier.fillMaxWidth(),

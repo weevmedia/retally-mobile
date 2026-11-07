@@ -54,6 +54,8 @@ interface SettingsContract {
         val lastSyncedAt: Instant? = null,
         val showDeleteAllConfirmation: Boolean = false,
         val nearbyNotificationsEnabled: Boolean = false,
+        /** The store-alerts explanation (same copy as onboarding) shown before the permission prompts. */
+        val showNearbyDisclosure: Boolean = false,
         val account: Account = Account.Guest,
         val favoriteStores: List<FavoriteStore> = emptyList(),
         /** Remove mode for the favorite-store circles (tap × to remove). */
@@ -87,11 +89,13 @@ interface SettingsContract {
         data class SetHighlightDuplicates(val enabled: Boolean) : Action()
         data class SetHapticsEnabled(val enabled: Boolean) : Action()
         data class SetNearbyNotificationsEnabled(val enabled: Boolean) : Action()
+        /** "Turn on" on the store-alerts explanation: run the permission prompts. */
+        data object NearbyDisclosureConfirmed : Action()
+        /** "Not now" (or outside tap) on the explanation: the toggle stays off. */
+        data object NearbyDisclosureDismissed : Action()
         /** Host finished the location+notification permission prompts. */
         data class NearbyPermissionsResult(val granted: Boolean) : Action()
         data object SyncNowClicked : Action()
-        /** DEBUG-ONLY (remove before release): clears the 24h nearby cooldowns for retesting. */
-        data object ResetNearbyCooldownsClicked : Action()
         /** DEBUG-ONLY: crash on purpose to check Crashlytics end to end. */
         data object CrashTestClicked : Action()
         data object DeleteAllRequested : Action()
@@ -228,13 +232,14 @@ interface SettingsContract {
                 is Action.SetHighlightDuplicates -> preferences.update { it.copy(highlightDuplicates = action.enabled) }
                 is Action.SetHapticsEnabled -> preferences.update { it.copy(hapticsEnabled = action.enabled) }
                 is Action.SetNearbyNotificationsEnabled -> onNearbyToggle(action.enabled)
+                Action.NearbyDisclosureConfirmed -> {
+                    currentState = currentState.copy(showNearbyDisclosure = false)
+                    sideEffect(SideEffect.RequestNearbyPermissions)
+                }
+                Action.NearbyDisclosureDismissed ->
+                    currentState = currentState.copy(showNearbyDisclosure = false)
                 is Action.NearbyPermissionsResult -> onNearbyPermissionsResult(action.granted)
                 Action.SyncNowClicked -> syncNow()
-                Action.ResetNearbyCooldownsClicked -> {
-                    nearbyStores.resetNotificationCooldowns()
-                    // DEBUG-ONLY hardcoded string; remove with the debug row.
-                    sideEffect(SideEffect.ShowMessage("Nearby cooldowns reset — retest now (debug)"))
-                }
                 Action.CrashTestClicked -> settings?.let { CrashReporting.crashForTest(it) }
                 Action.DeleteAllRequested -> currentState = currentState.copy(showDeleteAllConfirmation = true)
                 Action.DeleteAllCancelled -> currentState = currentState.copy(showDeleteAllConfirmation = false)
@@ -456,8 +461,9 @@ interface SettingsContract {
 
         private fun onNearbyToggle(enabled: Boolean) {
             if (enabled) {
-                // The host runs the permission prompts; the toggle flips only on grant.
-                sideEffect(SideEffect.RequestNearbyPermissions)
+                // Explain first (the stores' prominent-disclosure requirement), then the host
+                // runs the permission prompts; the toggle flips only on grant.
+                currentState = currentState.copy(showNearbyDisclosure = true)
             } else {
                 nearbyStores.setEnabled(false)
                 currentState = currentState.copy(nearbyNotificationsEnabled = false)

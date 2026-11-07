@@ -7,6 +7,9 @@ package com.retally.shared.presentation.home
 import com.retally.shared.domain.budget.BudgetScope
 import com.retally.shared.domain.shopping.ShoppingListRepository
 import com.retally.shared.domain.ai.NudgeRepository
+import com.retally.shared.core.Platform
+import com.retally.shared.domain.update.AppUpdateRepository
+import com.retally.shared.domain.update.UpdateStatus
 import com.retally.shared.domain.budget.daysInMonth
 import com.retally.shared.domain.budget.budgetMonthKey
 import com.retally.shared.domain.budget.budgetPace
@@ -24,7 +27,10 @@ import com.retally.shared.core.Effect
 import com.retally.shared.data.category.CategoryRepository
 import com.retally.shared.domain.auth.Account
 import com.retally.shared.domain.auth.AuthRepository
+import com.retally.shared.domain.cloud.BackupOutcome
+import com.retally.shared.domain.cloud.ReceiptBackup
 import com.retally.shared.domain.cloud.ReceiptRestore
+import com.retally.shared.domain.cloud.RestoreOutcome
 import com.retally.shared.domain.notifications.NotificationInboxRepository
 import com.retally.shared.domain.category.ItemCategory
 import com.retally.shared.domain.receipt.CrossReceiptDuplicate
@@ -60,6 +66,9 @@ import kotlinx.coroutines.isActive
  * with [SideEffect.OpenScanReview]. `Action.AddSampleReceipt` exists so the list, duplicate
  * badges and totals can be exercised without a printer.
  */
+/** How long the "N receipts synced" state of the sync modal stays up. */
+private const val BACKUP_DONE_SHOWN_MS = 1_800L
+
 interface HomeContract {
 
     data class State(
@@ -75,6 +84,12 @@ interface HomeContract {
         val categories: List<ItemCategory> = emptyList(),
         /** Downloading the account's receipts after sign-in / reinstall. */
         val isRestoring: Boolean = false,
+        /** Receipts scanned before signing in that are being uploaded right now (0 = idle). */
+        val backingUpCount: Int = 0,
+        /** Just finished: the sync modal shows "N receipts synced" for a moment (0 = hidden). */
+        val backedUpCount: Int = 0,
+        /** Receipts scanned before signing in, awaiting "Back up / Not now" (0 = no dialog). */
+        val pendingBackupPrompt: Int = 0,
         /** Notifications raised in the last 48h and not dismissed — drives the bell's dot. */
         val notificationCount: Int = 0,
         /** Of those, how many arrived since the inbox was last opened — makes the bell shake. */
@@ -88,6 +103,12 @@ interface HomeContract {
          * carousel. Empty means still learning (or a guest, who sees the sign-in banner).
          */
         val nudges: List<Nudge> = emptyList(),
+        /**
+         * Newer build on the store: an "update available" dialog the shopper can dismiss
+         * ([UpdateStatus.Available]) or the full-screen "update required" view
+         * ([UpdateStatus.Required]) when this build is below the backend's minimum.
+         */
+        val update: UpdateStatus = UpdateStatus.None,
     ) : com.retally.shared.core.State {
         // ── This calendar month only (device zone): the tiles reset on the 1st. ──
 
@@ -227,6 +248,14 @@ interface HomeContract {
         data object SignInClicked : Action()
         /** A nudge card was tapped: open what it points at (Smart List, receipt or budget). */
         data class NudgeClicked(val id: String) : Action()
+        /** "Update" on either update view: opens the store page. */
+        data object UpdateClicked : Action()
+        /** "Not now" on the optional update dialog: hidden until a newer version appears. */
+        data object UpdateDismissed : Action()
+        /** "Back up" on the after-sign-in dialog: upload the receipts scanned as a guest. */
+        data object PendingBackupConfirmed : Action()
+        /** "Not now" on that dialog: they stay on this device (Settings → Sync now can still push them). */
+        data object PendingBackupDeclined : Action()
     }
 
     sealed class SideEffect : Effect {
@@ -259,6 +288,7 @@ interface HomeContract {
         authRepository: AuthRepository? = null,
         private val strings: StringResolver = EnglishStringResolver,
         restore: ReceiptRestore? = null,
+        private val backup: ReceiptBackup? = null,
         private val inbox: NotificationInboxRepository? = null,
         private val budgets: BudgetRepository? = null,
         private val nudgeRepository: NudgeRepository? = null,
@@ -267,6 +297,10 @@ interface HomeContract {
         private val budgetReminders: BudgetReminderScheduler? = null,
         /** Files fired budget notifications under the bell; null in tests and previews. */
         private val budgetReminderLog: BudgetReminderLog? = null,
+        /** Store version check; null in tests and previews (no update views). */
+        private val appUpdates: AppUpdateRepository? = null,
+        /** Opens the store page for an update; null in tests and previews. */
+        private val platform: Platform? = null,
     ) : com.retally.shared.core.Store<State, Action, SideEffect>() {
 
         override fun initState() = State()
@@ -282,6 +316,13 @@ interface HomeContract {
             nudgeRepository?.nudges
                 ?.onEach { list -> updateStateSafely { it.copy(nudges = list) } }
                 ?.launchIn(this)
+            // Cached config answers instantly; a network read only when the cache is stale.
+            appUpdates?.let { repo ->
+                launch {
+                    val status = runCatching { repo.check() }.getOrDefault(UpdateStatus.None)
+                    updateStateSafely { it.copy(update = status) }
+                }
+            }
             repository.observeReceipts()
                 .onEach { receipts ->
                     val cross = crossReceiptFinder.find(receipts)
@@ -293,13 +334,53 @@ interface HomeContract {
                 .launchIn(this)
             restore?.let { r ->
                 r.isRestoring
-                    .onEach { restoring ->
-                        val finished = currentState.isRestoring && !restoring
-                        updateStateSafely { it.copy(isRestoring = restoring) }
-                        val n = r.restoredCount.value
-                        if (finished && n > 0) {
-                            sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.HOME_MSG_RESTORED, n)))
+                    .onEach { restoring -> updateStateSafely { it.copy(isRestoring = restoring) } }
+                    .launchIn(this)
+                // Outcome is held until shown: the restore kicked off by sign-in usually
+                // finishes before Home exists, and a failure must never be silent.
+                r.outcome
+                    .onEach { outcome ->
+                        val message = when (outcome) {
+                            null -> return@onEach
+                            is RestoreOutcome.Restored -> when (outcome.count) {
+                                0 -> null
+                                1 -> strings.getString(StringAssetIdentifiers.HOME_MSG_RESTORED_ONE)
+                                else -> strings.getString(StringAssetIdentifiers.HOME_MSG_RESTORED, outcome.count)
+                            }
+                            is RestoreOutcome.Failed ->
+                                strings.getString(StringAssetIdentifiers.HOME_MSG_RESTORE_FAILED, outcome.message)
                         }
+                        r.clearOutcome()
+                        message?.let { sideEffect(SideEffect.ShowMessage(it)) }
+                    }
+                    .launchIn(this)
+            }
+            backup?.let { b ->
+                b.backingUpCount
+                    .onEach { count -> updateStateSafely { it.copy(backingUpCount = count) } }
+                    .launchIn(this)
+                b.pendingPrompt
+                    .onEach { count -> updateStateSafely { it.copy(pendingBackupPrompt = count) } }
+                    .launchIn(this)
+                b.outcome
+                    .onEach { outcome ->
+                        when (outcome) {
+                            null -> return@onEach
+                            is BackupOutcome.BackedUp -> if (outcome.count > 0) {
+                                // The sync modal flips to its "synced" state, then goes away.
+                                updateStateSafely { it.copy(backedUpCount = outcome.count) }
+                                launch {
+                                    delay(BACKUP_DONE_SHOWN_MS)
+                                    updateStateSafely { it.copy(backedUpCount = 0) }
+                                }
+                            }
+                            is BackupOutcome.Failed -> sideEffect(
+                                SideEffect.ShowMessage(
+                                    strings.getString(StringAssetIdentifiers.HOME_MSG_BACKUP_FAILED, outcome.count, outcome.message),
+                                ),
+                            )
+                        }
+                        b.clearOutcome()
                     }
                     .launchIn(this)
             }
@@ -387,10 +468,29 @@ interface HomeContract {
                 // Guest banner "Sign in to enable cloud sync": open the same sign-in flow as More › Log in.
                 Action.SignInClicked -> sideEffect(SideEffect.OpenSignIn)
                 is Action.NudgeClicked -> openNudge(action.id)
+                Action.UpdateClicked -> openStore()
+                Action.PendingBackupConfirmed -> backup?.confirmPendingBackup()
+                Action.PendingBackupDeclined -> backup?.declinePendingBackup()
+                Action.UpdateDismissed -> {
+                    val status = currentState.update as? UpdateStatus.Available ?: return
+                    appUpdates?.dismiss(status.version)
+                    currentState = currentState.copy(update = UpdateStatus.None)
+                }
                 Action.AddSampleReceipt -> launch {
                     repository.upsert(SampleReceipts.make(idFactory = { newId() }))
                     sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.HOME_MSG_SAMPLE_ADDED)))
                 }
+            }
+        }
+
+        private fun openStore() {
+            val url = when (val status = currentState.update) {
+                is UpdateStatus.Available -> status.storeUrl
+                is UpdateStatus.Required -> status.storeUrl
+                UpdateStatus.None -> return
+            }
+            if (platform?.openUrl(url) != true) {
+                sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.UPDATE_STORE_FAILED)))
             }
         }
 

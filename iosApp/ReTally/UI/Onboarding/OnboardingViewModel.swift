@@ -20,8 +20,11 @@ final class OnboardingViewModel: ObservableObject {
         screen = IosScreens.shared.onboarding(store: store)
 
         sideEffects = store.collectSideEffect { effect in
-            if let next = effect as? OnboardingContractSideEffect.NavigateToMain {
+            switch effect {
+            case let next as OnboardingContractSideEffect.NavigateToMain:
                 onFinished(next.showGuestOption) // false for "I already have an account"
+            default:
+                break
             }
         }
     }

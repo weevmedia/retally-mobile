@@ -76,6 +76,12 @@
             app:exitAnim="@android:anim/fade_out"
             app:popUpTo="@id/authFragment"
             app:popUpToInclusive="true" />
+        <!-- Sign-in stays on the stack so Back from the opt-in returns to it. -->
+        <action
+            android:id="@+id/action_auth_to_storeAlerts"
+            app:destination="@id/storeAlertsFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out" />
         <action
             android:id="@+id/action_auth_to_onboarding"
             app:destination="@id/onboardingFragment"
@@ -112,6 +118,28 @@
             android:defaultValue="false" />
         <action
             android:id="@+id/action_otp_to_home"
+            app:destination="@id/homeFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out"
+            app:popUpTo="@id/authFragment"
+            app:popUpToInclusive="true" />
+        <!-- Pops the OTP entry only: Back from the opt-in returns to sign-in. -->
+        <action
+            android:id="@+id/action_otp_to_storeAlerts"
+            app:destination="@id/storeAlertsFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out"
+            app:popUpTo="@id/authFragment"
+            app:popUpToInclusive="false" />
+    </fragment>
+
+    <!-- First launch only: store-alerts opt-in between sign-in and Home, shown once. -->
+    <fragment
+        android:id="@+id/storeAlertsFragment"
+        android:name="com.retally.app.ui.storealerts.StoreAlertsFragment"
+        android:label="@string/nav_store_alerts">
+        <action
+            android:id="@+id/action_storeAlerts_to_home"
             app:destination="@id/homeFragment"
             app:enterAnim="@android:anim/fade_in"
             app:exitAnim="@android:anim/fade_out"
@@ -239,6 +267,11 @@
         android:id="@+id/scanReviewFragment"
         android:name="com.retally.app.ui.scan.ScanReviewFragment"
         android:label="@string/nav_scan_review">
+        <action
+            android:id="@+id/action_scanReview_to_auth"
+            app:destination="@id/authFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out" />
         <argument
             android:name="recognizedText"
             app:argType="string"

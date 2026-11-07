@@ -52,6 +52,9 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.automirrored.rounded.Login
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Warning
 import com.retally.shared.ui.components.PlatformPullToRefreshBox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -70,6 +73,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import com.retally.shared.ui.components.AdFormat
 import com.retally.shared.ui.components.AdBannerSlot
@@ -147,17 +151,19 @@ fun ShoppingListScreen(
                         body = str(S.SHOPPING_GUEST_BODY),
                         iconSize = ReTallyDimensions.emptyStateIconLarge,
                         showIconDisc = false,
-                        action = { PrimaryButton(str(S.SHOPPING_SIGN_IN), onClick = { dispatch(Action.SignInClicked) }) },
+                        // Full width, like the FDA recalls sign-in button.
+                        action = { PrimaryButton(str(S.SHOPPING_SIGN_IN), onClick = { dispatch(Action.SignInClicked) }, modifier = Modifier.fillMaxWidth(), icon = Icons.AutoMirrored.Rounded.Login) },
                     )
                 }
                 state.isPreparing -> PreparingView(state.preparingStep, content)
                 state.loadFailed -> Centered(content) {
                     EmptyState(
-                        icon = ShoppingBasketIcon,
+                        icon = Icons.Rounded.Warning,
                         title = str(S.SHOPPING_FAILED_TITLE),
                         body = str(S.SHOPPING_FAILED_BODY),
+                        iconSize = ReTallyDimensions.emptyStateIconLarge,
                         showIconDisc = false,
-                        action = { PrimaryButton(str(S.SHOPPING_RETRY), onClick = { dispatch(Action.Refresh) }) },
+                        action = { PrimaryButton(str(S.SHOPPING_RETRY), onClick = { dispatch(Action.Refresh) }, icon = Icons.Rounded.Refresh) },
                     )
                 }
                 state.selected == null -> Centered(content) {
@@ -194,8 +200,14 @@ fun ShoppingListScreen(
 
 @Composable
 private fun Centered(modifier: Modifier, content: @Composable () -> Unit) {
-    Box(modifier.padding(horizontal = ReTallyTheme.dimensions.screen), contentAlignment = Alignment.Center) { content() }
+    Box(modifier.padding(horizontal = ReTallyTheme.dimensions.screen), contentAlignment = OpticalCenter) { content() }
 }
+
+/**
+ * A little above the true middle: a block centred exactly reads as sitting low, with the
+ * floating scan button and the tab bar weighing down the bottom of the screen.
+ */
+internal val OpticalCenter = BiasAlignment(horizontalBias = 0f, verticalBias = -0.2f)
 
 // ---------- preparing ----------
 
@@ -510,6 +522,7 @@ private fun ListContent(state: ShoppingListContract.State, dispatch: (Action) ->
             item {
                 PrimaryButton(
                     str(S.SHOPPING_DONE),
+                    icon = Icons.Rounded.Check,
                     onClick = { dispatch(Action.DoneShopping) },
                     enabled = state.checked.isNotEmpty(),
                     modifier = Modifier.fillMaxWidth().padding(top = d.xs),

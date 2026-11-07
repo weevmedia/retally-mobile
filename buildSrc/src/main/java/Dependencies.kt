@@ -72,6 +72,9 @@ object Versions {
     // Crashlytics. The Android SDK is pinned to the line that matches GitLive 2.5.0's Firebase
     // (firebase-common 21.0.0); bump together with gitliveFirebase.
     const val firebaseCrashlytics = "19.4.2"
+    // App Check (Play Integrity in release, the debug provider in debug builds). 18.0.0 sits on
+    // the same firebase-common line as Crashlytics 19.4.x; bump the two together.
+    const val firebaseAppCheck = "18.0.0"
     const val crashlyticsGradlePlugin = "3.0.8"
     // CrashKiOS: Kotlin exceptions → Crashlytics with Kotlin stack traces on iOS. 0.9.0 is built
     // with an older Kotlin than ours (readable); 0.10.x may need a newer compiler.
@@ -182,6 +185,8 @@ object Deps {
         // Root buildscript classpath entry for `id("com.google.firebase.crashlytics")`.
         const val crashlyticsGradlePlugin = "com.google.firebase:firebase-crashlytics-gradle:${Versions.crashlyticsGradlePlugin}"
         const val crashlytics = "com.google.firebase:firebase-crashlytics:${Versions.firebaseCrashlytics}"
+        const val appCheckPlayIntegrity = "com.google.firebase:firebase-appcheck-playintegrity:${Versions.firebaseAppCheck}"
+        const val appCheckDebug = "com.google.firebase:firebase-appcheck-debug:${Versions.firebaseAppCheck}"
         const val crashKiOS = "co.touchlab.crashkios:crashlytics:${Versions.crashKiOS}"
     }
 

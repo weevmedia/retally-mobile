@@ -19,7 +19,7 @@ class OnboardingFragment : BaseComposeFragment<State, Action, SideEffect, Onboar
 
     @Composable
     override fun ScreenContent(state: State) {
-        OnboardingScreen(dispatch = ::dispatchViewAction)
+        OnboardingScreen(state = state, dispatch = ::dispatchViewAction)
     }
 
     override suspend fun onViewEffect(effect: SideEffect) {

@@ -143,10 +143,9 @@ class StoreLocationRepository(
         }
         if (merged.size < plausible.size) nearbyLog("zone merge: ${plausible.size} stores → ${merged.size} distinct places")
 
-        val testZone = testZone()
-        val ranked = (listOfNotNull(testZone) + merged
+        val ranked = merged
             .sortedWith(compareByDescending<Pair<StoreLocation, Int>> { it.second }.thenByDescending { it.first.lastSeenAt })
-            .map { it.first })
+            .map { it.first }
             .take(MAX_GEOFENCES)
         settings[KEY_LOCATIONS] = json.encodeToString(ListSerializer(StoreLocation.serializer()), ranked)
         _locations.value = ranked
@@ -177,9 +176,11 @@ class StoreLocationRepository(
         val last = loadLastNotified()
         val since = last[locationId]?.let { (nowEpochMillis - it) / 60_000 }
         nearbyLog("zone entered: ${locationName(locationId) ?: locationId} (last alert ${since?.let { "$it min ago" } ?: "never"})")
-        // TEMP-TESTING (restore before release): the one-alert-per-store-per-24h limit is off so
-        // every geofence entry notifies. Uncomment the line below to bring the limit back.
-        // if (nowEpochMillis - (last[locationId] ?: 0L) < NOTIFY_COOLDOWN_MS) return false
+        // One alert per store per day.
+        if (nowEpochMillis - (last[locationId] ?: 0L) < NOTIFY_COOLDOWN_MS) {
+            nearbyLog("zone entered within the 24h cooldown — no alert")
+            return false
+        }
         // Always on: the app-start "already inside" check and the OS entry event can report the
         // same arrival a moment apart — alert once.
         if (nowEpochMillis - (last[locationId] ?: 0L) < DUPLICATE_WINDOW_MS) {
@@ -193,13 +194,6 @@ class StoreLocationRepository(
         return true
     }
 
-    /**
-     * DEBUG-ONLY (remove before release): clears the 24h per-store notification
-     * cooldowns so geofence alerts can be re-tested immediately.
-     */
-    fun resetNotificationCooldowns() {
-        settings.remove(KEY_LAST_NOTIFIED)
-    }
 
     /**
      * Coordinates for a store, trying progressively simpler queries: the full name + address,
@@ -233,26 +227,6 @@ class StoreLocationRepository(
         return LatLng(median(stores.map { it.latitude }), median(stores.map { it.longitude }))
     }
 
-    /**
-     * Debug builds only: a fixed test zone ([NearbyTestZone.address]) always registered first,
-     * so alerts can be tested at a known spot without a receipt from there.
-     */
-    private suspend fun testZone(): StoreLocation? {
-        val address = NearbyTestZone.address ?: return null
-        val ll = NearbyTestZone.cached ?: geocodeAddress(address)?.also { NearbyTestZone.cached = it }
-        if (ll == null) {
-            nearbyLog("test zone lookup FAILED for \"$address\"")
-            return null
-        }
-        nearbyLog("test zone: \"$address\" → (${ll.latitude}, ${ll.longitude})")
-        return StoreLocation(
-            id = NearbyTestZone.ID,
-            storeName = NearbyTestZone.NAME,
-            address = address,
-            latitude = ll.latitude,
-            longitude = ll.longitude,
-        )
-    }
 
     fun locationName(locationId: String): String? =
         _locations.value.firstOrNull { it.id == locationId }?.storeName
@@ -389,13 +363,3 @@ internal fun distanceMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Doub
     return 2 * r * asin(sqrt(a))
 }
 
-/**
- * TEMP-TESTING (debug builds only): a fixed address that always gets a nearby-store zone, so
- * alerts can be tested there. Set at app start in debug builds; null in release (no test zone).
- */
-object NearbyTestZone {
-    const val ID = "debug-test-zone"
-    const val NAME = "Home Store"
-    var address: String? = null
-    internal var cached: LatLng? = null
-}

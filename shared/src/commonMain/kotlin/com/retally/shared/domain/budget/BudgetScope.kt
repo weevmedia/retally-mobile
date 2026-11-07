@@ -12,7 +12,8 @@ import kotlinx.serialization.Serializable
  * What a month's budget tracks: every dollar on the receipts ([allSpending], receipt totals,
  * tax included) or grocery items only (item prices; tax and fees aren't items, so they don't
  * count). The UI offers just those two; [categoryIds] stays a set so more could come back later.
- * Defaults to grocery only.
+ * A budget that was never given a scope tracks all spending ([Default]); [GroceryOnly] is the
+ * opt-in.
  */
 @Serializable
 data class BudgetScope(
@@ -45,6 +46,9 @@ data class BudgetScope(
     }
 
     companion object {
-        val Default = BudgetScope()
+        /** All spending — what a budget tracks until the user picks otherwise. */
+        val Default = BudgetScope(allSpending = true)
+        /** Grocery items only. */
+        val GroceryOnly = BudgetScope()
     }
 }

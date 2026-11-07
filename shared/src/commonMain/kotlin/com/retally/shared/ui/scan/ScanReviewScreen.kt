@@ -38,7 +38,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.CloudDone
+import androidx.compose.material.icons.outlined.Cloud
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.rounded.CreditCard
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Favorite
@@ -48,6 +50,7 @@ import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.CircularProgressIndicator
@@ -193,7 +196,7 @@ fun ScanReviewScreen(
                             )
                         }
                     }
-                    SaveStatus(state)
+                    SaveStatus(state, dispatch)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
@@ -210,7 +213,7 @@ fun ScanReviewScreen(
                     body = str(S.RECEIPT_NO_ITEMS_BODY),
                     illustration = { NoItemsIllustration() },
                     action = {
-                        PrimaryButton(text = str(S.RECEIPT_BACK_TO_RECEIPTS), onClick = { dispatch(ScanReviewContract.Action.CloseClicked) })
+                        PrimaryButton(text = str(S.RECEIPT_BACK_TO_RECEIPTS), onClick = { dispatch(ScanReviewContract.Action.CloseClicked) }, icon = Icons.AutoMirrored.Rounded.ArrowBack)
                     },
                 )
             }
@@ -287,6 +290,9 @@ fun ScanReviewScreen(
             )
         }
     }
+    if (state.showSignInToSync) {
+        SignInToSyncDialog(dispatch)
+    }
     } // Close root Box
 }
 
@@ -315,23 +321,81 @@ private fun RemoveOneDialog(item: ReceiptItem, onConfirm: () -> Unit, onDismiss:
     )
 }
 
-/** "Saving…" spinner → "Saved" tick in the top bar; quiet after a moment. */
+/** Guest tapped the cloud icon: say why it has no tick and offer sign-in. */
 @Composable
-private fun SaveStatus(state: ScanReviewContract.State) {
-    val d = ReTallyTheme.dimensions
+private fun SignInToSyncDialog(dispatch: (ScanReviewContract.Action) -> Unit) {
+    val c = ReTallyTheme.colors
+    AlertDialog(
+        onDismissRequest = { dispatch(ScanReviewContract.Action.SignInToSyncDismissed) },
+        shape = RoundedCornerShape(ReTallyTheme.dimensions.cardRadius),
+        containerColor = c.surface,
+        title = { Text(str(S.RECEIPT_SIGN_IN_TO_SYNC_TITLE), style = ReTallyTheme.typography.title, color = c.ink) },
+        text = { Text(str(S.RECEIPT_SIGN_IN_TO_SYNC_BODY), style = ReTallyTheme.typography.body, color = c.muted) },
+        confirmButton = {
+            TextButton(onClick = { dispatch(ScanReviewContract.Action.SignInToSyncConfirmed) }) {
+                Text(str(S.RECEIPT_SIGN_IN_TO_SYNC_CONFIRM), style = ReTallyTheme.typography.button, color = c.primaryDark)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { dispatch(ScanReviewContract.Action.SignInToSyncDismissed) }) {
+                Text(str(S.HOME_BACKUP_PROMPT_LATER), style = ReTallyTheme.typography.button, color = c.ink)
+            }
+        },
+    )
+}
+
+/**
+ * Save status in the top bar, in the same circle as the other actions: a spinner while
+ * saving, then an outlined cloud — with a small green tick badge once a cloud copy exists.
+ * Tapping the badge-less cloud sends a guest to sign in (receipts only sync for accounts) or
+ * retries the upload for a signed-in user; the store decides which.
+ */
+@Composable
+private fun SaveStatus(state: ScanReviewContract.State, dispatch: (ScanReviewContract.Action) -> Unit) {
     when {
-        state.isSaving -> Row(Modifier.padding(end = d.md), verticalAlignment = Alignment.CenterVertically) {
-            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-            Spacer(Modifier.width(d.xs))
-            Text(str(S.RECEIPT_SAVING), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        state.isSaving -> CircleIconButton(onClick = {}, modifier = Modifier.padding(start = 8.dp)) {
+            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
         }
-        state.savedAt != null -> Row(Modifier.padding(end = d.md), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.CloudDone, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(d.xs))
-            Text(str(S.RECEIPT_SAVED), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+        // Any receipt on screen (new or reopened) shows its cloud state, so a guest can tap
+        // through to sign in from an old receipt too.
+        state.receipt != null -> {
+            val inCloud = state.receipt.syncedAt != null
+            CircleIconButton(
+                onClick = { dispatch(ScanReviewContract.Action.CloudStatusClicked) },
+                modifier = Modifier.padding(start = 8.dp),
+            ) {
+                Icon(
+                    Icons.Outlined.Cloud,
+                    contentDescription = str(if (inCloud) S.RECEIPT_SYNCED_A11Y else S.RECEIPT_NOT_SYNCED_A11Y),
+                    tint = MaterialTheme.colorScheme.onSurface,
+                )
+                if (inCloud) {
+                    // Green tick badge at the cloud's corner, ringed in the circle's surface colour.
+                    Box(
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(2.dp)
+                            .size(16.dp)
+                            .background(ReTallyTheme.colors.surface, CircleShape)
+                            .padding(1.5.dp)
+                            .background(SyncedGreen, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Rounded.Check,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(10.dp),
+                        )
+                    }
+                }
+            }
         }
     }
 }
+
+/** Badge green for "synced" — matches the success green used across the receipt page. */
+private val SyncedGreen = Color(0xFF16A34A)
 
 @Composable
 private fun ReceiptBody(
@@ -681,11 +745,13 @@ internal fun LineItemCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(d.sm)) {
                     SecondaryButton(
                         text = str(S.ACTION_KEEP_BOTH),
+                        icon = Icons.Rounded.Check,
                         onClick = onKeepBoth,
                         modifier = Modifier.weight(1f).height(ReTallyDimensions.buttonHeightCompact),
                     )
                     SecondaryButton(
                         text = str(S.ACTION_REMOVE_ONE),
+                        icon = Icons.Outlined.Delete,
                         onClick = onRemoveOne,
                         modifier = Modifier.weight(1f).height(ReTallyDimensions.buttonHeightCompact),
                         contentColor = c.danger,
