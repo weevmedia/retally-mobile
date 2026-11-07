@@ -1,8 +1,15 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.ui.splash
 
 import com.retally.shared.core.strings.StringAssetIdentifiers as S
 import com.retally.shared.core.strings.str
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -36,7 +43,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.rotate
+import kotlin.math.PI
+import kotlin.math.sin
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.luminance
@@ -141,15 +155,21 @@ fun SplashScreen(
                 modifier = Modifier.alpha(fadeIn),
             )
             Spacer(Modifier.height(72.dp))
-            Image(
-                painter = painterResource(Res.drawable.splash_scan_art),
-                contentDescription = null,
+            Box(
                 modifier = Modifier
                     .width(200.dp)
                     .aspectRatio(640f / 504f)
                     .scale(logoScale)
                     .alpha(fadeIn),
-            )
+            ) {
+                Image(
+                    painter = painterResource(Res.drawable.splash_scan_art),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                // AI cue: twinkling sparkles off the receipt's top-right corner.
+                ScanArtSparkles(color = palette.glyph, modifier = Modifier.fillMaxSize())
+            }
             // Keep the group visually centred against the bar + waves below.
             Spacer(Modifier.height(48.dp))
         }
@@ -227,6 +247,91 @@ internal object SplashDefaults {
     val LOGO_SIZE = 150.dp
     /** Max wait for the splash ad request before the progress bar starts anyway. */
     const val AD_SETTLE_TIMEOUT_MS = 2000L
+}
+
+/** One four-point star on the scan art, placed in fractions of the 640×504 artwork. */
+private data class Sparkle(val x: Float, val y: Float, val radius: Float, val phase: Float)
+
+private val ScanArtSparkleSpots = listOf(
+    Sparkle(x = 0.650f, y = 0.245f, radius = 0.062f, phase = 0.00f), // big, just off the top-right corner
+    Sparkle(x = 0.715f, y = 0.385f, radius = 0.032f, phase = 0.30f), // small, below it
+    Sparkle(x = 0.595f, y = 0.135f, radius = 0.022f, phase = 0.55f), // tiny, above
+    Sparkle(x = 0.760f, y = 0.180f, radius = 0.026f, phase = 0.75f), // tiny, far right
+    Sparkle(x = 0.255f, y = 0.250f, radius = 0.020f, phase = 0.40f), // glint by the receipt's stub
+)
+
+/** Where the scan line sits in the artwork (fractions of 640×504). */
+private const val SCAN_LINE_Y = 0.581f
+private const val SCAN_LINE_START = 0.22f
+private const val SCAN_LINE_END = 0.70f
+
+/** One full loop of the animation, like a GIF's frame cycle. */
+private const val SPARKLE_LOOP_MS = 2400
+
+/**
+ * GIF-style animation over the receipt-scan illustration so it reads as AI at work:
+ * - sparkles pop in, spin a quarter turn and pop out, staggered so there's always one
+ *   glinting (the same four-point star the Shopping List's basket icon carries);
+ * - a bright shimmer runs along the scan line, left to right.
+ */
+@Composable
+private fun ScanArtSparkles(color: Color, modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "sparkles")
+    val time by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(durationMillis = SPARKLE_LOOP_MS, easing = LinearEasing)),
+        label = "sparkle-time",
+    )
+    Canvas(modifier) {
+        // Scan-line shimmer: a short bright streak sweeping across, fading at both ends.
+        val lineY = size.height * SCAN_LINE_Y
+        val startX = size.width * SCAN_LINE_START
+        val endX = size.width * SCAN_LINE_END
+        val streak = size.width * 0.14f
+        val headX = startX - streak + (endX - startX + streak * 2) * time
+        val from = maxOf(startX, headX - streak / 2f)
+        val to = minOf(endX, headX + streak / 2f)
+        if (to > from) drawLine(
+            brush = Brush.horizontalGradient(
+                colors = listOf(Color.Transparent, color, Color.Transparent),
+                startX = headX - streak / 2f,
+                endX = headX + streak / 2f,
+            ),
+            start = Offset(from, lineY),
+            end = Offset(to, lineY),
+            strokeWidth = size.height * 0.012f,
+            cap = StrokeCap.Round,
+        )
+
+        // Sparkles: each lives for the first 60% of its own cycle — grow, spin, shrink.
+        ScanArtSparkleSpots.forEach { spot ->
+            val life = (time + spot.phase) % 1f
+            if (life >= 0.6f) return@forEach
+            val pop = sin(PI.toFloat() * life / 0.6f) // 0 → 1 → 0
+            drawSparkle(
+                center = Offset(size.width * spot.x, size.height * spot.y),
+                radius = size.width * spot.radius * pop,
+                rotationDegrees = life / 0.6f * 90f,
+                color = color.copy(alpha = color.alpha * (0.4f + 0.6f * pop)),
+            )
+        }
+    }
+}
+
+/** Four-point star with concave sides (quadratic curves through the centre's pull). */
+private fun DrawScope.drawSparkle(center: Offset, radius: Float, rotationDegrees: Float, color: Color) {
+    if (radius <= 0f) return
+    val pinch = radius * 0.18f
+    val path = Path().apply {
+        moveTo(center.x, center.y - radius)
+        quadraticTo(center.x + pinch, center.y - pinch, center.x + radius, center.y)
+        quadraticTo(center.x + pinch, center.y + pinch, center.x, center.y + radius)
+        quadraticTo(center.x - pinch, center.y + pinch, center.x - radius, center.y)
+        quadraticTo(center.x - pinch, center.y - pinch, center.x, center.y - radius)
+        close()
+    }
+    rotate(degrees = rotationDegrees, pivot = center) { drawPath(path, color) }
 }
 
 /** Two overlapping soft waves anchored to the bottom edge (design: layered mint swells). */

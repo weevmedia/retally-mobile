@@ -1,9 +1,18 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.presentation.main
 
+import com.retally.shared.core.crash.CrashContext
+import com.retally.shared.domain.category.ItemCategoryClassifier
+import com.retally.shared.domain.category.backfillAiCategories
+import com.retally.shared.data.device.DeviceRegistrar
+import kotlinx.coroutines.flow.first
+import com.retally.shared.data.store.StoreIconRepository
 import com.retally.shared.core.Effect
 import com.retally.shared.core.strings.StringAssetIdentifiers
 import com.retally.shared.data.category.CategoryRepository
-import com.retally.shared.data.store.StoreIconRepository
 import com.retally.shared.domain.ads.AdsSession
 import com.retally.shared.domain.category.backfillItemCategories
 import com.retally.shared.domain.receipt.ReceiptRepository
@@ -65,23 +74,39 @@ interface MainContract {
     class Store(
         adsSession: AdsSession,
         private val categories: CategoryRepository,
-        private val storeIcons: StoreIconRepository,
+        private val storeIcons: StoreIconRepository? = null,
         private val receipts: ReceiptRepository,
         private val settings: Settings,
+        /** Server AI categories for the one-time re-tag of stored receipts. Null = skip. */
+        private val itemClassifier: ItemCategoryClassifier? = null,
+        /** Reports this install to the backend's device list on sign-in / daily. Null = skip. */
+        devices: DeviceRegistrar? = null,
+        /** Keeps Crashlytics' custom keys (uid, guest, install id) current. Null = skip. */
+        crashContext: CrashContext? = null,
     ) : com.retally.shared.core.Store<State, Action, SideEffect>() {
         override fun initState() = State()
 
         init {
+            devices?.start()
+            crashContext?.start()
             adsSession.adsEnabled
                 .onEach { enabled -> currentState = currentState.copy(adsEnabled = enabled) }
                 .launchIn(this)
             // Pull the server-pushed category list, then tag any receipts that predate it.
-            // Store icons refresh alongside; the UI falls back to monograms until they land.
+            // Store logos are looked up on demand; at launch, stores marked "no logo" are
+            // re-checked in one request in case logos were added in the console since.
+            storeIcons?.let { icons ->
+                launch {
+                    val names = receipts.observeReceipts().first().map { it.storeName }
+                    runCatching { icons.recheckStores(names) }
+                }
+            }
             launch {
                 val fetched = categories.refresh()
                 backfillItemCategories(receipts, fetched, settings)
+                // Then once per install: re-tag stored receipts with the server's AI categories.
+                itemClassifier?.let { runCatching { backfillAiCategories(receipts, it, fetched, settings) } }
             }
-            launch { storeIcons.refresh() }
         }
 
         override fun dispatch(action: Action) {

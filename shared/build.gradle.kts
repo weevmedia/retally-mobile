@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
@@ -23,6 +27,17 @@ kotlin {
     targets.withType<KotlinNativeTarget>().configureEach {
         binaries.all {
             linkerOpts("-lsqlite3")
+            // CrashKiOS references the Crashlytics Obj-C classes, which only the app links (SPM).
+            // The static framework doesn't care, but test executables link on their own: mark
+            // those symbols as resolved at runtime (CrashKiOS stays a no-op in tests).
+            if (this is org.jetbrains.kotlin.gradle.plugin.mpp.TestExecutable) {
+                linkerOpts(
+                    "-U", "_FIRCLSExceptionRecordNSException",
+                    "-U", "_OBJC_CLASS_\$_FIRStackFrame",
+                    "-U", "_OBJC_CLASS_\$_FIRExceptionModel",
+                    "-U", "_OBJC_CLASS_\$_FIRCrashlytics",
+                )
+            }
         }
     }
 
@@ -80,6 +95,9 @@ kotlin {
             with(Deps.Firebase) {
                 implementation(auth)
                 implementation(firestore)
+                implementation(storage)
+                // Crash reporting from shared code (no-op until CrashReporting.start()).
+                implementation(crashKiOS)
             }
 
             // Local persistence
@@ -93,10 +111,12 @@ kotlin {
             with(Deps.Coil) {
                 implementation(compose)
                 implementation(networkKtor3)
+                implementation(svg)
             }
         }
         androidMain.dependencies {
             implementation(Deps.Kotlinx.coroutinesAndroid)
+            implementation(Deps.Kotlinx.coroutinesPlayServices)
             implementation(Deps.KtorClient.okhttp)
             implementation(Deps.Android.playServicesAds)
             implementation(Deps.Koin.android)
@@ -121,6 +141,8 @@ sqldelight {
     databases {
         create("ReTallyDatabase") {
             packageName.set("com.retally.shared.db")
+            // Schema v2: migrations/1.sqm adds receipt.currency. Keep Receipt.sq and the
+            // .sqm chain in step whenever the schema changes.
         }
     }
 }

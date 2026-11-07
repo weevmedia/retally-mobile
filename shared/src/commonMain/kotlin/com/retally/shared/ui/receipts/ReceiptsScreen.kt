@@ -1,5 +1,10 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.ui.receipts
 
+import com.retally.shared.ui.components.AboveScanFab
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,12 +17,18 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -34,7 +45,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,9 +58,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.retally.shared.core.strings.StringAssetIdentifiers as S
 import com.retally.shared.core.strings.str
+import com.retally.shared.domain.receipt.model.Receipt
 import com.retally.shared.presentation.receipts.ReceiptsContract
+import com.retally.shared.ui.barcode.BarcodeModal
 import com.retally.shared.ui.components.AdBannerSlot
 import com.retally.shared.ui.components.AdFormat
+import com.retally.shared.ui.components.InFeedSquareAd
 import com.retally.shared.ui.components.EmptyState
 import com.retally.shared.ui.components.SectionHeader
 import com.retally.shared.ui.components.ReTallySnackbarHost
@@ -84,6 +100,10 @@ fun ReceiptsScreen(
 ) {
     val d = ReTallyTheme.dimensions
     val c = ReTallyTheme.colors
+    // UI-only, mirroring Home: which receipt's barcode is being shown full-screen.
+    var barcodeReceipt by remember { mutableStateOf<Receipt?>(null) }
+    // Opening the list re-checks stores marked "no logo" (the store throttles repeats).
+    LaunchedEffect(Unit) { dispatch(ReceiptsContract.Action.Appeared) }
 
     Scaffold(
         modifier = modifier,
@@ -97,59 +117,88 @@ fun ReceiptsScreen(
         containerColor = c.background,
     ) { padding ->
         val bottomInset = padding.calculateBottomPadding() + bottomContentInset
+        val topPadding = padding.calculateTopPadding()
         // 5+ receipts: a 300×250 square ad inline after every 5th receipt. No ads while loading.
         val showInFeedAd = adsEnabled && !state.isLoading && state.visible.size >= IN_FEED_AD_MIN_RECEIPTS
+        // Fewer than 5: no in-feed square would ever appear, so pin one 320×50 banner above the
+        // tab bar's scan button instead (the list reserves room for it underneath).
+        val showBannerAd = adsEnabled && !state.isLoading && state.visible.size < IN_FEED_AD_MIN_RECEIPTS
+        val bannerReserve = if (showBannerAd) BANNER_RESERVE else 0.dp
 
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(top = padding.calculateTopPadding()),
-        ) {
-            if (state.months.size > 1) {
-                MonthFilterRow(
-                    months = state.months,
-                    selected = state.selectedMonth,
-                    onSelect = { dispatch(ReceiptsContract.Action.MonthSelected(it)) },
-                )
-            }
-
-            Box(
+        Box(Modifier.fillMaxSize()) {
+            Column(
                 Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
+                    .fillMaxSize()
+                    .padding(top = padding.calculateTopPadding()),
             ) {
-                when {
-                    state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-
-                    state.isEmpty -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        EmptyState(
-                            icon = Icons.AutoMirrored.Rounded.ReceiptLong,
-                            title = str(S.RECEIPTS_EMPTY_TITLE),
-                            body = str(S.RECEIPTS_EMPTY_BODY),
-                        )
-                    }
-
-                    state.isFilteredEmpty -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        EmptyState(
-                            icon = Icons.AutoMirrored.Rounded.ReceiptLong,
-                            title = str(S.RECEIPTS_FILTER_EMPTY_TITLE),
-                            body = str(S.RECEIPTS_FILTER_EMPTY_BODY),
-                        )
-                    }
-
-                    else -> ReceiptsList(
-                        state = state,
-                        dispatch = dispatch,
-                        bottomInset = bottomInset,
-                        showAd = showInFeedAd,
-                        adUnitId = bannerAdUnitId,
+                if (state.months.size > 1) {
+                    MonthFilterRow(
+                        months = state.months,
+                        selected = state.selectedMonth,
+                        onSelect = { dispatch(ReceiptsContract.Action.MonthSelected(it)) },
                     )
+                }
+
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                ) {
+                    when {
+                        state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+
+                        state.isEmpty -> Box(
+                            // Centre on the whole screen, not the area under the top bar: this Box
+                            // starts below the top bar, so shift up by half its height.
+                            Modifier.fillMaxSize().offset(y = -topPadding / 2),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            EmptyState(
+                                icon = Icons.AutoMirrored.Rounded.ReceiptLong,
+                                title = str(S.RECEIPTS_EMPTY_TITLE),
+                                body = str(S.RECEIPTS_EMPTY_BODY),
+                                iconSize = EMPTY_ICON_SIZE,
+                                showIconDisc = false,
+                            )
+                        }
+
+                        state.isFilteredEmpty -> Box(
+                            // Centre on the whole screen, not the area under the top bar: this Box
+                            // starts below the top bar, so shift up by half its height.
+                            Modifier.fillMaxSize().offset(y = -topPadding / 2),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            EmptyState(
+                                icon = Icons.AutoMirrored.Rounded.ReceiptLong,
+                                title = str(S.RECEIPTS_FILTER_EMPTY_TITLE),
+                                body = str(S.RECEIPTS_FILTER_EMPTY_BODY),
+                                iconSize = EMPTY_ICON_SIZE,
+                                showIconDisc = false,
+                            )
+                        }
+
+                        else -> ReceiptsList(
+                            state = state,
+                            dispatch = dispatch,
+                            bottomInset = bottomInset + bannerReserve,
+                            showAd = showInFeedAd,
+                            adUnitId = bannerAdUnitId,
+                            onBarcodeClick = { barcodeReceipt = it },
+                        )
+                    }
+                }
+            }
+            if (showBannerAd) {
+                AboveScanFab(fallbackBottom = bottomInset + d.md) {
+                    ReceiptsBannerAd(adUnitId = bannerAdUnitId, modifier = Modifier.padding(horizontal = d.screen))
                 }
             }
         }
     }
+
+    barcodeReceipt?.let { receipt -> BarcodeModal(receipt = receipt, onDismiss = { barcodeReceipt = null }) }
 
     state.pendingDelete?.let { receipt ->
         AlertDialog(
@@ -179,6 +228,7 @@ private fun ReceiptsList(
     bottomInset: Dp,
     showAd: Boolean,
     adUnitId: String,
+    onBarcodeClick: (Receipt) -> Unit,
 ) {
     val d = ReTallyTheme.dimensions
     val listState = rememberLazyListState()
@@ -196,6 +246,9 @@ private fun ReceiptsList(
             .collect { if (it) dispatch(ReceiptsContract.Action.LoadMore) }
     }
 
+    // The receipt whose Delete action is revealed; opening one closes the rest.
+    var swipedReceiptId by remember { mutableStateOf<String?>(null) }
+
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
@@ -207,6 +260,7 @@ private fun ReceiptsList(
         ),
         verticalArrangement = Arrangement.spacedBy(d.md),
     ) {
+            item(key = "window-note") { WindowNote() }
             // Month headers only when the list spans more than one month; with a
             // filter on, every row is the same month and the chip already says which.
             val grouped = state.visible.groupBy { formatMonthYearShort(it.purchaseDate) }
@@ -219,11 +273,15 @@ private fun ReceiptsList(
                 }
                 receipts.forEach { receipt ->
                     item(key = receipt.id) {
-                        SwipeToDeleteRow(onDelete = { dispatch(ReceiptsContract.Action.DeleteRequested(receipt.id)) }) {
+                        SwipeToDeleteRow(
+                            onDelete = { dispatch(ReceiptsContract.Action.DeleteRequested(receipt.id)) },
+                            open = swipedReceiptId == receipt.id,
+                            onOpenChange = { open -> swipedReceiptId = if (open) receipt.id else swipedReceiptId.takeIf { it != receipt.id } },
+                        ) {
                             ReceiptRow(
                                 receipt = receipt,
                                 onClick = { dispatch(ReceiptsContract.Action.ReceiptClicked(receipt.id)) },
-                                onBarcodeClick = { dispatch(ReceiptsContract.Action.ReceiptClicked(receipt.id)) },
+                                onBarcodeClick = { onBarcodeClick(receipt) },
                             )
                         }
                     }
@@ -246,32 +304,38 @@ private fun ReceiptsList(
         }
 }
 
-/**
- * In-feed 300×250 square ad with an "Advertisement" caption, shown inline after every 5th
- * receipt. It scrolls with the list like any other row.
- */
+/** Tells the user the list only goes back 12 months (older receipts are not shown here). */
 @Composable
-private fun InFeedSquareAd(adUnitId: String, modifier: Modifier = Modifier) {
+private fun WindowNote() {
+    val c = ReTallyTheme.colors
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            Icons.Outlined.Info,
+            contentDescription = null,
+            tint = c.muted,
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(Modifier.width(ReTallyTheme.dimensions.xs))
+        Text(
+            str(S.RECEIPTS_WINDOW_NOTE, ReceiptsContract.State.MONTHS_SHOWN),
+            style = ReTallyTheme.typography.caption,
+            color = c.muted,
+        )
+    }
+}
+
+/** 320×50 banner with a small "Advertisement" caption, transparent on the screen background. */
+@Composable
+private fun ReceiptsBannerAd(adUnitId: String, modifier: Modifier = Modifier) {
     val d = ReTallyTheme.dimensions
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(d.cardRadius),
-        color = Color.Transparent,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = str(S.GENERAL_ADVERTISEMENT),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = d.sm, bottom = d.xs),
-            )
-            AdBannerSlot(
-                adUnitId = adUnitId,
-                enabled = true,
-                format = AdFormat.MEDIUM_RECTANGLE,
-                modifier = Modifier.padding(bottom = d.sm),
-            )
-        }
+    Column(modifier = modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = str(S.GENERAL_ADVERTISEMENT),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = d.xs),
+        )
+        AdBannerSlot(adUnitId = adUnitId, enabled = true, format = AdFormat.BANNER)
     }
 }
 
@@ -323,9 +387,15 @@ private fun MonthChip(label: String, selected: Boolean, onClick: () -> Unit) {
 /** Rows from the end at which the next page is requested. */
 private const val LOAD_MORE_THRESHOLD = 3
 
+/** Bare receipt glyph on the empty state: twice the standard 40dp, no tinted disc. */
+private val EMPTY_ICON_SIZE = 80.dp
+
 /**
  * In-feed square ads repeat after every this many receipts, starting once the visible
  * list holds at least [IN_FEED_AD_MIN_RECEIPTS].
  */
 private const val IN_FEED_AD_MIN_RECEIPTS = 5
 private const val IN_FEED_AD_EVERY = 5
+
+/** Room the list leaves under its last row for the pinned banner (caption + 50dp + gap). */
+private val BANNER_RESERVE = 96.dp

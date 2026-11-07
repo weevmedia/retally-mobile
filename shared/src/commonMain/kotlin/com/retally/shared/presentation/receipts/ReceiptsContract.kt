@@ -1,5 +1,11 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.presentation.receipts
 
+import kotlinx.coroutines.flow.first
+import com.retally.shared.data.store.StoreIconRepository
 import com.retally.shared.core.Effect
 import com.retally.shared.core.strings.EnglishStringResolver
 import com.retally.shared.core.strings.StringAssetIdentifiers
@@ -11,6 +17,8 @@ import com.retally.shared.ui.format.formatMonthYearShort
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import com.retally.shared.domain.receipt.RECEIPT_WINDOW_MONTHS
+import com.retally.shared.domain.receipt.receiptWindowStart
 
 /**
  * Receipts tab: every receipt, newest first, filtered by month and paged in as the list
@@ -32,8 +40,16 @@ interface ReceiptsContract {
         val pendingDelete: Receipt? = null,
     ) : com.retally.shared.core.State {
 
-        /** Newest first; every other derived list builds on this order. */
-        val ordered: List<Receipt> get() = receipts.sortedByDescending { it.purchaseDate }
+        /**
+         * Newest first, limited to the last [MONTHS_SHOWN] calendar months (this month and the
+         * 11 before it, same window as the Budget history). Every other derived list builds on it.
+         */
+        val ordered: List<Receipt>
+            get() {
+                // Restore already skips older receipts; this also hides older ones kept on device.
+                val from = receiptWindowStart()
+                return receipts.filter { it.purchaseDate >= from }.sortedByDescending { it.purchaseDate }
+            }
 
         /**
          * Months that actually have receipts, newest first — the filter chips.
@@ -55,14 +71,17 @@ interface ReceiptsContract {
 
         val canLoadMore: Boolean get() = visibleCount < filtered.size
 
-        val isEmpty: Boolean get() = !isLoading && receipts.isEmpty()
+        val isEmpty: Boolean get() = !isLoading && ordered.isEmpty()
 
         /** True when the filter is on and hides everything — a different empty message. */
-        val isFilteredEmpty: Boolean get() = !isLoading && receipts.isNotEmpty() && filtered.isEmpty()
+        val isFilteredEmpty: Boolean get() = !isLoading && ordered.isNotEmpty() && filtered.isEmpty()
 
         companion object {
             /** Rows added each time the list reaches the end. */
             const val PAGE_SIZE = 20
+
+            /** The Receipts tab shows this many calendar months, including the current one. */
+            const val MONTHS_SHOWN = RECEIPT_WINDOW_MONTHS
         }
     }
 
@@ -71,6 +90,8 @@ interface ReceiptsContract {
         data class MonthSelected(val month: String?) : Action()
         /** The list reached the end of what is rendered. Ignored when nothing is left. */
         data object LoadMore : Action()
+        /** The Receipts list became visible: re-check stores marked "no logo" (throttled). */
+        data object Appeared : Action()
         data class ReceiptClicked(val id: String) : Action()
         data class DeleteRequested(val id: String) : Action()
         data object DeleteConfirmed : Action()
@@ -85,6 +106,7 @@ interface ReceiptsContract {
     class Store(
         private val repository: ReceiptRepository,
         private val strings: StringResolver = EnglishStringResolver,
+        private val storeIcons: StoreIconRepository? = null,
     ) : com.retally.shared.core.Store<State, Action, SideEffect>() {
 
         override fun initState() = State()
@@ -99,6 +121,12 @@ interface ReceiptsContract {
 
         override fun dispatch(action: Action) {
             when (action) {
+                Action.Appeared -> storeIcons?.let { icons ->
+                    launch {
+                        val names = repository.observeReceipts().first().map { it.storeName }
+                        runCatching { icons.recheckStores(names) }
+                    }
+                }
                 is Action.MonthSelected -> currentState = currentState.copy(
                     // Toggle: tapping the active chip clears the filter.
                     selectedMonth = action.month.takeIf { it != currentState.selectedMonth },

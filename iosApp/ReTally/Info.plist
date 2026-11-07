@@ -30,6 +30,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>ReTally uses the camera to scan your receipts and check them for double charges. Images stay on your device.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>ReTally saves receipt photos to your Photo Library when you tap Save.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>ReTally reminds you to check your list when you're near a store you've shopped at, even when the app isn't open.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
@@ -123,6 +125,14 @@
 		<dict><key>SKAdNetworkIdentifier</key><string>zq492l623r.skadnetwork</string></dict>
 		<dict><key>SKAdNetworkIdentifier</key><string>3rd42ekr43.skadnetwork</string></dict>
 		<dict><key>SKAdNetworkIdentifier</key><string>3qcr597p9d.skadnetwork</string></dict>
+		<dict><key>SKAdNetworkIdentifier</key><string>wg4vff78zm.skadnetwork</string></dict>
+		<dict><key>SKAdNetworkIdentifier</key><string>su67r6k2v3.skadnetwork</string></dict>
+		<dict><key>SKAdNetworkIdentifier</key><string>44jx6755aq.skadnetwork</string></dict>
+		<dict><key>SKAdNetworkIdentifier</key><string>k674qkevps.skadnetwork</string></dict>
+		<dict><key>SKAdNetworkIdentifier</key><string>kbmxgpxpgc.skadnetwork</string></dict>
+		<dict><key>SKAdNetworkIdentifier</key><string>tl55sbb4fm.skadnetwork</string></dict>
+		<dict><key>SKAdNetworkIdentifier</key><string>c3frkrj4fj.skadnetwork</string></dict>
+		<dict><key>SKAdNetworkIdentifier</key><string>97r2b46745.skadnetwork</string></dict>
 	</array>
 </dict>
 </plist>

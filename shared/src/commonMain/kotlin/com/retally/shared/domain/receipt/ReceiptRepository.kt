@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.domain.receipt
 
 import com.retally.shared.domain.receipt.model.Receipt
@@ -16,6 +20,11 @@ interface ReceiptRepository {
     suspend fun delete(id: String)
     suspend fun markSynced(ids: Collection<String>, syncedAt: kotlin.time.Instant)
     suspend fun deleteAll()
+    /**
+     * Deletes receipts older than [maxAgeDays]. Returns the image paths of deleted
+     * receipts so the caller can delete the files. Used for guest FIFO retention.
+     */
+    suspend fun pruneOldReceipts(maxAgeDays: Int = 30): List<String> = emptyList()
 }
 
 /**

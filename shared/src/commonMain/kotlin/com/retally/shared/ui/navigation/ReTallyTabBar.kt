@@ -1,8 +1,13 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.ui.navigation
 
 import com.retally.shared.core.strings.StringAssetIdentifiers as S
 import com.retally.shared.core.strings.str
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -16,15 +21,19 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
-import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.DocumentScanner
+import com.retally.shared.ui.components.ShoppingBasketIcon
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,14 +54,18 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.retally.shared.presentation.main.MainTab
 import com.retally.shared.ui.theme.ReTallyDimensions
 import com.retally.shared.ui.theme.ReTallyTheme
 
+/** Opacity of the white pill when [ReTallyTabBar] is drawn translucent. */
+private const val TRANSLUCENT_ALPHA = 0.72f
+
 /** Layout tokens for the tab bar; sizes the hosts must reserve are exposed here. */
 object ReTallyTabBarDefaults {
-    /** Height of the floating pill itself. */
-    val barHeight: Dp = 72.dp
+    /** Height of the floating pill itself — compact, close to the iOS system tab bar (was 72, then 62). */
+    val barHeight: Dp = 56.dp
     /**
      * How far the scan FAB pokes out above the pill.
      *
@@ -64,10 +77,28 @@ object ReTallyTabBarDefaults {
     /** Total height a host should reserve (pill + overhang + float margin), excluding system insets. */
     val totalHeight: Dp get() = barHeight + fabOverhang + bottomMargin
     val horizontalMargin: Dp = 12.dp
-    /** Transparent gap below the pill so it floats with all four corners visible. */
+    /** Gap below the pill when there is no system navigation bar to measure against (iOS shell). */
     val bottomMargin: Dp = 12.dp
+
+    /** Visible gap wanted between the pill and the system navigation controls (Android). */
+    val systemControlsGap: Dp = 12.dp
+
+    /**
+     * Margin to leave above the system navigation-bar inset so the *visible* gap to its controls
+     * is [systemControlsGap]. The inset is taller than what it draws: 3-button icons sit about
+     * 12dp inside their 48dp strip, the gesture handle about 10dp inside its strip — a plain
+     * 12dp margin read as ~24dp on screen.
+     */
+    fun marginAboveSystemBar(navInset: Dp): Dp = when {
+        navInset >= 40.dp -> systemControlsGap - 12.dp // 3-button navigation
+        navInset > 0.dp -> systemControlsGap - 10.dp   // gesture handle
+        else -> systemControlsGap                       // no system bar
+    }.coerceAtLeast(0.dp)
+
+    /** Height a host reserves above the system navigation-bar inset (pill + overhang + margin). */
+    fun totalHeightAbove(navInset: Dp): Dp = barHeight + fabOverhang + marginAboveSystemBar(navInset)
     /** Half the bar height: the bar is a stadium pill like the reference. */
-    val cornerRadius: Dp = 36.dp
+    val cornerRadius: Dp get() = barHeight / 2
     val itemIconSize: Dp = 24.dp
     val fabSize: Dp = ReTallyDimensions.scanFabSize
     val fabIconSize: Dp = 26.dp
@@ -135,7 +166,7 @@ private class NotchedBarShape(
 }
 
 /**
- * tab-bar with scan-fab: a floating rounded surface with Home · Receipts · [Scan] · AI List ·
+ * tab-bar with scan-fab: a floating rounded surface with Home · Receipts · [Scan] · Shopping List ·
  * More. The centre slot is the raised green FAB using the app's scan icon, labelled "Scan"
  * inside the bar. Shared by both platforms so the shell looks identical on iOS and Android.
  *
@@ -148,9 +179,11 @@ fun ReTallyTabBar(
     onScan: () -> Unit,
     modifier: Modifier = Modifier,
     bottomInset: Dp = 0.dp,
+    /** Gap between the pill and [bottomInset]; Android passes [ReTallyTabBarDefaults.marginAboveSystemBar]. */
+    bottomMargin: Dp = ReTallyTabBarDefaults.bottomMargin,
     /**
-     * iOS only: draw the bar translucent so the native glass behind it (Liquid Glass on
-     * iOS 26+, ultra-thin blur on older) shows through. Android keeps the opaque bar.
+     * Draw the pill see-through (white at [TRANSLUCENT_ALPHA]) so content scrolling behind it
+     * shows through, like the iOS glass bar.
      */
     translucentBar: Boolean = false,
 ) {
@@ -159,30 +192,49 @@ fun ReTallyTabBar(
     val barShadow = Color(0x26000000)
     // FAB centre in bar coordinates. The cutout is the collar plus a hairline gap so
     // the notch edge stays visible against the white ring.
-    val notchShape = NotchedBarShape(
-        cornerRadius = t.cornerRadius,
-        notchCenterY = t.notchCenterY,
-        notchRadius = t.notchRadius,
-    )
+    // The scan FAB (and its notch and label) is hidden on the Shopping List tab. The centre
+    // slot keeps its width so the other tabs don't shift under the user's finger.
+    // Android's centre FAB is part of the bar's design (the notch is cut around it), so it is
+    // always shown — unlike iOS, whose floating scan button hides on some screens.
+    val showScan = true
+    val notchShape: Shape = if (showScan) {
+        NotchedBarShape(
+            cornerRadius = t.cornerRadius,
+            notchCenterY = t.notchCenterY,
+            notchRadius = t.notchRadius,
+        )
+    } else {
+        RoundedCornerShape(t.cornerRadius)
+    }
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = t.fabOverhang, bottom = t.bottomMargin), // FAB overhang above; float above the screen edge below
+            // FAB overhang above; below, float the pill clear of the system navigation bar (3-button
+            // bar or gesture handle) like iOS's bar floats above the home indicator — the system
+            // bar area itself stays transparent instead of being part of a tall white pill.
+            .padding(top = t.fabOverhang, bottom = bottomMargin + bottomInset),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = t.horizontalMargin)
-                .shadow(
-                    elevation = 10.dp,
-                    shape = notchShape,
-                    clip = false,
-                    ambientColor = barShadow,
-                    spotColor = barShadow,
+                // Translucent: no elevation shadow (it would show through the see-through
+                // fill as a grey smudge), a hairline outline instead so the pill still reads.
+                .then(
+                    if (translucentBar) {
+                        Modifier.border(1.dp, Color(0x1A000000), notchShape)
+                    } else {
+                        Modifier.shadow(
+                            elevation = 10.dp,
+                            shape = notchShape,
+                            clip = false,
+                            ambientColor = barShadow,
+                            spotColor = barShadow,
+                        )
+                    },
                 )
                 .clip(notchShape)
-                .background(if (translucentBar) TabBarColors.bar.copy(alpha = 0.5f) else TabBarColors.bar)
-                .padding(bottom = bottomInset)
+                .background(if (translucentBar) TabBarColors.bar.copy(alpha = TRANSLUCENT_ALPHA) else TabBarColors.bar)
                 .height(t.barHeight),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -194,18 +246,23 @@ fun ReTallyTabBar(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Bottom,
             ) {
-                Text(str(S.TAB_SCAN), style = ReTallyTheme.typography.caption, color = TabBarColors.unselected)
-                Spacer(Modifier.height(14.dp))
+                if (showScan) {
+                    Text(str(S.TAB_SCAN), style = ReTallyTheme.typography.caption, color = TabBarColors.unselected)
+                    // Lines the "Scan" label up with the other tabs' labels (centred in the bar).
+                    Spacer(Modifier.height(8.dp))
+                }
             }
-            TabItem(MainTab.AI_LIST, Icons.Rounded.AutoAwesome, selected == MainTab.AI_LIST, onSelect, Modifier.weight(1f))
+            TabItem(MainTab.AI_LIST, ShoppingBasketIcon, selected == MainTab.AI_LIST, onSelect, Modifier.weight(1f))
             TabItem(MainTab.MORE, Icons.Rounded.MoreHoriz, selected == MainTab.MORE, onSelect, Modifier.weight(1f))
         }
-        ScanFab(
-            onClick = onScan,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = -t.fabOverhang + 4.dp),
-        )
+        if (showScan) {
+            ScanFab(
+                onClick = onScan,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = -t.fabOverhang + 4.dp),
+            )
+        }
     }
 }
 
@@ -236,14 +293,22 @@ private fun TabItem(
                     if (selected) TabBarColors.highlight else Color.Transparent,
                     CircleShape,
                 )
-                .padding(horizontal = 14.dp, vertical = 6.dp),
+                // Slim side padding so the longest label ("Smart List") fits on one line
+                // in a fifth of a 360dp-wide phone.
+                .padding(horizontal = 6.dp, vertical = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
             val label = str(tab.labelKey)
             Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(ReTallyTabBarDefaults.itemIconSize))
             Spacer(Modifier.height(4.dp))
-            Text(label, style = ReTallyTheme.typography.caption, color = tint)
+            Text(
+                label,
+                style = ReTallyTheme.typography.caption.copy(fontSize = 12.sp),
+                color = tint,
+                maxLines = 1,
+                softWrap = false,
+            )
         }
     }
 }
@@ -263,9 +328,12 @@ private fun TabItem(
 private fun ScanFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val c = ReTallyTheme.colors
     val t = ReTallyTabBarDefaults
+    DisposableEffect(Unit) { onDispose { ScanFabAnchor.topInWindowPx = null } }
     Box(
         modifier = modifier
             .size(t.fabSize + t.fabRingWidth * 2)
+            // Report the FAB's top (incl. the white collar) so screens can sit content above it.
+            .onGloballyPositioned { ScanFabAnchor.topInWindowPx = it.positionInWindow().y }
             .shadow(6.dp, CircleShape, clip = false, ambientColor = c.shadow, spotColor = c.shadow)
             .clip(CircleShape)
             .background(c.surface),

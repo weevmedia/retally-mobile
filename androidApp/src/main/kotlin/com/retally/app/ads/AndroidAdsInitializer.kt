@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.app.ads
 
 import android.app.Activity
@@ -42,7 +46,7 @@ class AndroidAdsInitializer(private val application: Application) : AdsInitializ
          * `Use RequestConfiguration.Builder().setTestDeviceIds(Arrays.asList("<hash>"))` —
          * paste that hash here. Emulators are test devices automatically.
          */
-        val DEBUG_TEST_DEVICE_IDS: List<String> = emptyList()
+        val DEBUG_TEST_DEVICE_IDS: List<String> = listOf("BA740E38050BFBCC215BC3650F72BCA3")
 
         /**
          * Test ads need no consent. Until a UMP privacy message is published in the AdMob
@@ -63,7 +67,7 @@ class AndroidAdsInitializer(private val application: Application) : AdsInitializ
             activity != null -> gatherConsent(activity, consent)
             else -> consent.canRequestAds() || ALLOW_WITHOUT_CONSENT
         }
-        Log.d(TAG, "consent resolved: canRequestAds=$canRequestAds (activity=${activity != null}, debugBypass=$ALLOW_WITHOUT_CONSENT)")
+        if (BuildConfig.DEBUG) Log.d(TAG, "consent resolved: canRequestAds=$canRequestAds (activity=${activity != null}, debugBypass=$ALLOW_WITHOUT_CONSENT)")
         if (!canRequestAds) return AdsReadiness.UNAVAILABLE
 
         if (initialized.compareAndSet(false, true)) {
@@ -76,12 +80,12 @@ class AndroidAdsInitializer(private val application: Application) : AdsInitializ
                             .setTestDeviceIds(listOf(AdRequest.DEVICE_ID_EMULATOR) + DEBUG_TEST_DEVICE_IDS)
                             .build(),
                     )
-                    Log.d(TAG, "test devices: emulator + ${DEBUG_TEST_DEVICE_IDS.size} phone(s); a physical phone logs its hash on the first request — add it to DEBUG_TEST_DEVICE_IDS")
+                    if (BuildConfig.DEBUG) Log.d(TAG, "test devices: emulator + ${DEBUG_TEST_DEVICE_IDS.size} phone(s); a physical phone logs its hash on the first request — add it to DEBUG_TEST_DEVICE_IDS")
                 }
                 suspendCancellableCoroutine { cont -> MobileAds.initialize(application) { cont.resume(Unit) } }
             }
         }
-        Log.d(TAG, "Mobile Ads SDK ready")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Mobile Ads SDK ready")
         return AdsReadiness.READY
     }
 

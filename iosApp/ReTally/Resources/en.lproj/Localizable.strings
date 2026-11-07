@@ -41,7 +41,7 @@
 
 "tab_scan" = "Scan";
 
-"tab_ai_list" = "AI List";
+"tab_ai_list" = "Smart List";
 
 "tab_more" = "More";
 
@@ -50,8 +50,6 @@
 /********** Placeholders **********/
 
 "placeholder_receipts_body" = "Every receipt you scan will be listed here — searchable by store, date and item.";
-
-"placeholder_ai_list_body" = "ReTally will learn what you buy and how often, and draft your next grocery list for you.";
 
 "placeholder_more_body" = "Settings, account, export and help will live here.";
 
@@ -70,6 +68,15 @@
 "home_guest_body" = "Receipts stay on this device only.";
 
 "home_guest_sign_in" = "Sign in to enable cloud sync";
+
+/* App update prompt (splash) */
+"update_title" = "Version %1$s is available";
+"update_body" = "Update from the store to get the latest improvements.";
+"update_action" = "Update";
+"update_later" = "Not now";
+"update_required_title" = "Update required";
+"update_required_body" = "This version of ReTally is no longer supported. Update to version %1$s to keep scanning.";
+"update_store_failed" = "Couldn't open the store. Please update ReTally from the app store.";
 
 "home_empty_title" = "No receipts yet";
 
@@ -114,33 +121,34 @@
 
 "home_msg_deleted" = "Deleted %1$s";
 
-"home_msg_sign_in_soon" = "Sign in is coming soon — your receipts are safe on this device.";
 
-"home_ai_insight_due" = "You buy %1$s every %2$d days — ";
 
-"home_ai_insight_low" = "you are likely running low.";
 
 "home_ai_insight_learning" = "Still learning your habits — your first repurchase nudge will appear here.";
-"home_nudge_running_low_title" = "Running low";
-"home_nudge_running_low_body" = "You buy %1$s every %2$d days — you're likely running low.";
-"home_nudge_price_spike_title" = "Price spike";
-"home_nudge_price_spike_body" = "%1$s cost %2$s, vs your usual %3$s.";
-"home_nudge_grocery_overdue_title" = "Grocery run overdue";
-"home_nudge_grocery_overdue_body" = "%1$d days since your last shop — you usually go every %2$d.";
-"home_nudge_double_bought_title" = "Bought twice?";
-"home_nudge_double_bought_body" = "%1$s showed up on %2$d receipts this week — check the pantry first.";
-"home_nudge_savings_title" = "Spending check";
-"home_nudge_savings_body" = "%1$s so far this month, vs %2$s in a typical month.";
 
 /********** Scan **********/
 
 "scan_source_gallery" = "Upload from gallery";
+
+"scan_align_receipt" = "Align receipt in the frame";
+
+"scan_capture_a11y" = "Capture receipt photo";
+
+"scan_flash_toggle" = "Toggle flash";
+
+"scan_camera_denied_title" = "Camera access needed";
+
+"scan_camera_denied_body" = "Allow camera access in Settings to scan receipts.";
+
+"scan_open_settings" = "Open Settings";
 
 /********** Receipt **********/
 
 "receipt_title" = "Receipt";
 
 "receipt_saving" = "Saving…";
+"receipt_ai_reading_title" = "Using super intelligence…";
+"receipt_ai_reading_body" = "This receipt is a tricky one. Taking a closer look — just a few seconds.";
 
 "receipt_saved" = "Saved";
 
@@ -195,6 +203,31 @@
 "receipt_favorite_a11y" = "Favorite this store";
 
 "receipt_unfavorite_a11y" = "Remove this store from favorites";
+"receipt_edit_store_a11y" = "Edit store and date";
+"receipt_edit_store_title" = "Edit receipt details";
+"receipt_edit_store_hint" = "Fix the store, address or date if the scan misread them. This changes this receipt only.";
+"receipt_store_name_label" = "Store name";
+"receipt_store_address_label" = "Address";
+"receipt_store_street_label" = "Street address";
+"receipt_store_city_label" = "City";
+"receipt_store_state_label" = "State";
+"receipt_store_zip_label" = "ZIP";
+"receipt_store_save" = "Save";
+"receipt_store_updated" = "Receipt details updated";
+"receipt_edit_item_a11y" = "Edit item";
+"receipt_edit_item_title" = "Edit item";
+"receipt_item_name_label" = "Item name";
+"receipt_item_number_label" = "Item number (optional)";
+"receipt_item_price_label" = "Price";
+"receipt_item_price_error" = "Enter a price, e.g. 4.99";
+"receipt_item_category_label" = "Category";
+"receipt_item_updated" = "Item updated";
+"receipt_item_duplicate_toggle" = "Mark as duplicate";
+"receipt_item_duplicate_toggle_sub" = "Flag this line as the same item charged twice";
+"action_edit" = "Edit";
+"receipt_date_label" = "Date";
+"receipt_time_label" = "Time";
+"action_ok" = "OK";
 
 /********** Barcode **********/
 
@@ -213,6 +246,8 @@
 "photo_receipt_a11y" = "Receipt photo";
 
 "photo_missing" = "The photo is no longer on this device.";
+"photo_viewer_title" = "Receipt photo";
+"photo_viewer_hint" = "Pinch to zoom · double-tap to reset";
 
 /********** Duplicates **********/
 
@@ -259,6 +294,7 @@
 "settings_backup_sub_on" = "Encrypted copy of your receipts in the cloud";
 
 "settings_backup_sub_off" = "Available in an upcoming release";
+"settings_backup_sub_guest" = "Sign in to back up your receipts. As a guest they stay on this phone only.";
 
 "settings_backing_up" = "Backing up…";
 
@@ -321,32 +357,39 @@
 "more_favorite_stores" = "FAVORITE STORES";
 
 "more_edit" = "EDIT";
+"more_edit_name_title" = "Edit name";
+"more_edit_name_hint" = "This is the name ReTally greets you with.";
+"more_first_name" = "First name";
+"more_last_name" = "Last name";
+"more_name_save" = "Save";
+"more_name_updated" = "Name updated";
+"more_name_update_failed" = "Couldn't update your name. Try again.";
 
 "more_favorites_empty" = "Tap EDIT to add your favorite stores.";
 
 "more_add_favorites_title" = "Add favorite stores";
 
-"more_sign_out" = "SIGN OUT";
+"more_sign_out" = "Sign Out";
 
-"more_delete_account" = "DELETE MY ACCOUNT";
+"more_delete_account" = "Delete My Account";
 
-"more_log_in" = "LOG IN";
+"more_log_in" = "Sign In";
 
 "more_account_title" = "Account";
 
-"more_account_login" = "Log in / Sign up";
+"more_account_login" = "Sign in / Sign up";
 
 "more_account_login_sub" = "Sync receipts across devices";
 
-"more_account_guest_body" = "You're browsing as a guest. Log in to back up receipts and sync them across devices.";
+"more_account_guest_body" = "You're browsing as a guest. Sign in to back up receipts and sync them across devices.";
 
-"more_account_logout" = "Log out";
+"more_account_logout" = "Sign Out";
 
-"more_account_logout_title" = "Log out?";
+"more_account_logout_title" = "Sign out?";
 
-"more_account_logout_body" = "You'll be logged out on this device. Your receipts stay saved here.";
+"more_account_logout_body" = "You'll be signed out on this device. Your receipts stay saved here.";
 
-"more_account_delete" = "Delete my account";
+"more_account_delete" = "Delete My Account";
 
 "more_account_delete_title" = "Delete account?";
 
@@ -356,9 +399,9 @@
 
 "more_account_delete_failed" = "Couldn't delete the account — please try again.";
 
-"more_logged_out" = "Logged out";
+"more_logged_out" = "Signed out";
 
-"more_logged_out_failed" = "Couldn't log out — please try again.";
+"more_logged_out_failed" = "Couldn't sign out — please try again.";
 
 "more_favorite_added" = "%1$s added to favorites";
 
@@ -375,7 +418,7 @@
 "more_no_stores_match" = "No stores match your search.";
 
 "more_favorites_saved" = "Favorites updated";
-"more_copyright" = "© 2026 Weev Media. All rights reserved.";
+"more_copyright" = "© 2026-2027 Weev Media. All rights reserved.";
 
 /********** Platform hosts **********/
 
@@ -410,6 +453,10 @@
 "onboarding_have_account_prefix" = "Already have an account? ";
 
 "onboarding_sign_in" = "Sign In";
+"onboarding_alerts_title" = "Know when you’re at the store";
+"onboarding_alerts_body" = "ReTally can remind you what you usually buy the moment you walk into a store you shop at.";
+"onboarding_alerts_disclosure" = "To do this, ReTally uses your location in the background to notice when you arrive at a store, even when the app is closed, and sends you a notification. Nothing is tracked between visits.";
+"onboarding_alerts_hint" = "When asked, choose “Always Allow” so alerts work while the app is closed.";
 
 /********** Nearby store alerts **********/
 
@@ -420,6 +467,7 @@
 "settings_nearby_sub" = "Get a reminder when you're near a store you've shopped at";
 
 "settings_msg_nearby_denied" = "Location permission is needed for nearby-store reminders.";
+"settings_nearby_allow" = "Turn on";
 
 "nearby_notify_title" = "You're near %1$s";
 
@@ -456,6 +504,8 @@
 "auth_apple" = "Continue with Apple";
 
 "auth_google" = "Continue with Google";
+"auth_provider_failed" = "Couldn't sign in. Please try again, or use your email.";
+"auth_provider_no_email" = "We need your email to set up your account. Share it when asked, or sign in with your email instead.";
 
 "auth_guest" = "Continue as Guest";
 
@@ -510,3 +560,188 @@
 "otp_error_rate_limited" = "Too many attempts — wait a bit and try again.";
 
 "otp_accessibility" = "6-digit verification code";
+
+/********** Budget **********/
+
+"budget_title" = "Monthly Budget";
+
+"budget_monthly_budget" = "Monthly budget";
+
+"budget_set" = "Set budget";
+
+"budget_set_hint" = "Set a budget to track your pace";
+
+"budget_edit" = "Edit Budget";
+
+"budget_save" = "Save";
+
+"budget_remaining" = "Remaining";
+
+"budget_days_left" = "Left in month";
+
+"budget_days_suffix" = "days";
+
+"budget_spent_suffix" = "spent";
+
+"budget_projected" = "Projected month-end";
+"how_it_works_title" = "How it works";
+"how_it_works_intro" = "Scan a receipt and ReTally reads every line, flags anything the cashier rang up twice, and keeps your budget on track.";
+"how_it_works_demo_reading" = "Reading every line…";
+"how_it_works_demo_checking" = "Checking for double charges…";
+"how_it_works_demo_done" = "Double charge found";
+"how_it_works_demo_sample" = "Sample";
+"how_it_works_step_scan_title" = "Scan your receipt";
+"how_it_works_step_scan_body" = "Tap the scan button and hold your phone over the receipt. ReTally finds the edges for you.";
+"how_it_works_step_read_title" = "Every line is read";
+"how_it_works_step_read_body" = "Store, date, each item and its price are pulled out. You can fix anything before saving.";
+"how_it_works_step_flag_title" = "Double charges are flagged";
+"how_it_works_step_flag_body" = "The same item at the same price showing up twice is marked, so you can ask the store for it back.";
+"how_it_works_step_budget_title" = "Your budget stays on track";
+"how_it_works_step_budget_body" = "Each receipt adds to this month's spending. Home shows where you'll land by month-end.";
+"how_it_works_tips_title" = "Tips for a good scan";
+"how_it_works_tip_flat" = "Lay the receipt flat on a dark surface.";
+"how_it_works_tip_light" = "Use good light and avoid shadows across the text.";
+"how_it_works_tip_frame" = "Fit the whole receipt in the frame.";
+"how_it_works_scan_cta" = "Scan a receipt";
+"home_budget_projected" = "Projected %1$s";
+"budget_reminder_warning_title" = "Budget heads-up";
+"budget_reminder_over_pace_title" = "Spending is well over pace";
+"budget_reminder_pace_body" = "At this pace you'll spend %1$s this month — your budget is %2$s.";
+"budget_reminder_over_title" = "You're over budget";
+"budget_reminder_over_body" = "You're %1$s over your %2$s budget this month.";
+"budget_reminder_channel" = "Budget reminders";
+"budget_summary_under_title" = "Congratulations, you stayed under budget!";
+"budget_summary_under_body" = "You spent %1$s of your %2$s budget this month, with %3$s to spare.";
+"budget_summary_on_title" = "Congratulations, right on budget!";
+"budget_summary_on_body" = "You spent %1$s this month, right at your %2$s budget.";
+"budget_summary_over_title" = "Your month in review";
+"budget_summary_over_body" = "You spent %1$s this month, %2$s more than your %3$s budget. A fresh month starts tomorrow.";
+
+"budget_on_track" = "On track — under budget";
+
+"budget_warning" = "Heading over — slow down";
+
+"budget_over" = "Over pace — cut back";
+
+"budget_reset_note" = "Resets automatically on the 1st of every month";
+
+"budget_saved" = "Budget saved";
+
+"budget_invalid" = "Enter a valid amount";
+
+"budget_amount_hint" = "e.g. 500";
+
+"budget_tap_hint" = "Tap to set budget";
+"budget_spent_so_far" = "Spent so far";
+"budget_badge_on_track" = "On track";
+"budget_badge_near_limit" = "Near limit";
+"budget_badge_over_pace" = "Over pace";
+"budget_over_pace_by" = "Over pace by";
+"budget_title_suffix" = "Budget";
+"budget_track_title" = "What to track";
+"budget_track_all" = "All spending";
+"budget_track_categories" = "Grocery only";
+"budget_track_note_all" = "Receipt totals, tax included.";
+"budget_track_note_categories" = "Grocery items only. Tax and fees aren't included.";
+"budget_uncategorized" = "%1$d items this month aren't categorized yet, so they don't count.";
+"home_budget_title_scoped" = "Budget · %1$s";
+"home_budget_scope_grocery" = "Grocery";
+
+"budget_amount_hint" = "e.g. 500";
+
+/* Shopping list */
+"shopping_preparing_title" = "Preparing your list";
+"shopping_step_1" = "Reading your receipts…";
+"shopping_step_2" = "Matching items across stores…";
+"shopping_step_3" = "Checking what's due…";
+"shopping_step_4" = "Almost ready…";
+"shopping_section_due" = "Due at %1$s";
+"shopping_section_also" = "Grab here too";
+"shopping_section_added" = "Added by you";
+"shopping_section_staples" = "Your staples";
+"shopping_usual_day" = "Usually %1$s";
+"shopping_updated_just_now" = "Updated just now";
+"shopping_updated_minutes" = "Updated %1$d min ago";
+"shopping_updated_hours" = "Updated %1$dh ago";
+"shopping_updated_days" = "Updated %1$dd ago";
+"shopping_usually_from" = "Usually from %1$s";
+"shopping_add_hint" = "Add an item";
+"shopping_add" = "Add";
+"shopping_not_needed" = "Not needed";
+"shopping_done" = "Done shopping";
+"shopping_share" = "Share";
+"shopping_refresh" = "Refresh";
+"shopping_share_title" = "%1$s list";
+"shopping_dismissed" = "%1$s removed for this trip";
+"shopping_refresh_failed" = "Couldn't refresh. Showing your last list.";
+"shopping_guest_title" = "Sign in for your smart list";
+"shopping_guest_body" = "ReTally builds your shopping list from the receipts you scan. Sign in so your receipts sync and we can predict what you need.";
+"shopping_sign_in" = "Sign in";
+"shopping_no_history_title" = "Still learning your habits";
+"shopping_no_history_body" = "Scan a few more receipts and Smart List will start predicting what you need.";
+"shopping_failed_title" = "Couldn't build your list";
+"shopping_failed_body" = "Check your connection and try again.";
+"shopping_retry" = "Try again";
+"shopping_all_set_title" = "You're all set";
+"shopping_all_set_body" = "Nothing is due at %1$s right now.";
+"shopping_learning_title" = "Still learning this store";
+"shopping_learning_body" = "Scan a few more receipts from %1$s and Smart List will start predicting what you need here.";
+
+/* Food recall alerts */
+"alerts_title" = "Food recalls";
+"alerts_section_matched" = "May affect you";
+"alerts_section_latest" = "Latest recalls";
+"alerts_match" = "May match %1$s you bought on %2$s";
+"alerts_match_disclaimer" = "Matched by item name from your receipts. Check the brand, size and lot code in the notice before throwing anything out.";
+"alerts_read_more" = "Read the full notice";
+"alerts_empty_title" = "No recalls right now";
+"alerts_empty_body" = "No FDA or USDA food recalls in the last 60 days.";
+"alerts_failed_title" = "Couldn't load recalls";
+"alerts_failed_body" = "Check your connection and try again.";
+"alerts_refresh_failed" = "Couldn't refresh. Showing your last recalls.";
+"alerts_sign_in_title" = "Check recalls against your purchases";
+"alerts_sign_in_body" = "Sign in and ReTally will flag recalls that mention something you bought recently.";
+"alerts_sources_note" = "Sources: U.S. FDA and USDA Food Safety and Inspection Service public data, last 60 days. It can be incomplete or delayed, so always check the official notice. ReTally isn't affiliated with the FDA or USDA.";
+
+/* Notifications (Home bell) + More > Food recalls */
+"notifications_title" = "Notifications";
+"notifications_clear_all" = "Clear all";
+"notifications_empty_title" = "You're all caught up";
+"notifications_empty_body" = "Notifications from ReTally show up here for 48 hours.";
+"notifications_retention_note" = "Notifications are kept for 48 hours or until you dismiss them.";
+"notifications_dismiss_a11y" = "Dismiss notification";
+"notifications_time_now" = "Just now";
+"notifications_time_minutes" = "%1$d min ago";
+"notifications_time_hours" = "%1$d h ago";
+"notifications_time_yesterday" = "Yesterday";
+"more_section_safety" = "FOOD SAFETY";
+"more_recalls" = "Food recalls";
+"more_recalls_sub" = "FDA and USDA recalls from the last 60 days";
+
+/* Receipt restore */
+"home_restoring_title" = "Restoring your receipts…";
+"home_restoring_body" = "Bringing back the receipts saved to your account.";
+"home_msg_restored" = "Restored %1$d receipts from your account";
+"receipts_filter_all" = "All";
+"receipts_empty_title" = "No receipts yet";
+"receipts_empty_body" = "Receipts you scan will be listed here, newest first.";
+"receipts_window_note" = "Showing receipts from the last %1$d months.";
+"receipts_filter_empty_title" = "Nothing that month";
+"receipts_filter_empty_body" = "Pick another month, or tap All to see everything.";
+"home_stat_spent" = "Spent";
+"home_stat_receipts" = "Receipts";
+"home_stat_duplicates" = "Duplicates";
+"home_expense_overview" = "Expense Overview – %1$s";
+"home_budget_spent_of" = "%1$s of %2$s";
+"home_budget_left" = "%1$s left";
+"home_budget_over" = "%1$s over budget";
+"home_recent_title" = "Recent receipts";
+"home_see_all" = "See all";
+"home_receipt_items" = "%1$d items";
+"home_synced_a11y" = "Synced to cloud";
+"budget_history_title" = "Last 12 months";
+"budget_history_avg" = "Avg %1$s / month";
+"budget_history_budget" = "Budget %1$s";
+"budget_history_no_budget" = "No budget set";
+"budget_history_empty" = "Your monthly totals will build up here as you scan receipts.";
+"nav_alerts" = "Food recalls";

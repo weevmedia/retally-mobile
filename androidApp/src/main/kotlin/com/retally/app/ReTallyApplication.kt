@@ -1,5 +1,14 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.app
 
+import com.retally.shared.core.crash.CrashReporting
+import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.retally.shared.core.log.DebugLog
+import com.retally.app.security.AndroidAppCheck
+import com.retally.app.security.AndroidAppCheckTokenProvider
 import android.app.Application
 import com.retally.app.ads.AndroidAdsInitializer
 import com.retally.app.ads.CurrentActivityTracker
@@ -21,10 +30,16 @@ class ReTallyApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         registerActivityLifecycleCallbacks(CurrentActivityTracker)
+        // Shared-module diagnostics ([Nearby], [ReTallyScan]…) only in debug builds.
+        DebugLog.enabled = BuildConfig.DEBUG
+        // Before any Firebase call: Firestore / Storage / our functions all expect the token.
+        AndroidAppCheck.install()
 
         initKoin(
             PlatformDependencies(
-                platform = AndroidPlatform(context = this, appVersion = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"),
+                // Marketing version only ("1.0.0"): shown in More and registered with the backend; the
+                // build number is a release-pipeline detail the shopper never needs.
+                platform = AndroidPlatform(context = this, appVersion = BuildConfig.VERSION_NAME),
                 settings = SharedPreferencesSettings(getSharedPreferences("retally", MODE_PRIVATE)),
                 adsInitializer = AndroidAdsInitializer(this),
                 adsConfig = AdsConfig(
@@ -42,13 +57,21 @@ class ReTallyApplication : Application() {
                 ),
                 verboseNetworkLogging = BuildConfig.DEBUG,
                 stringResolver = AndroidStringResolver(this),
+                appCheck = AndroidAppCheckTokenProvider(),
             ),
             extraModules = listOf(viewModelModule, androidDatabaseModule),
         ) {
             androidContext(this@ReTallyApplication)
         }
 
+        // Crashlytics: off in debug builds (unless More → "Send test crash" was just used).
+        val settings = SharedPreferencesSettings(getSharedPreferences("retally", MODE_PRIVATE))
+        FirebaseCrashlytics.getInstance().isCrashlyticsCollectionEnabled =
+            CrashReporting.shouldCollect(settings, BuildConfig.DEBUG)
+        CrashReporting.start()
+
         // Re-register store geofences (no-op when the nearby toggle is off).
         NearbyStoreScheduler.refresh(this)
+
     }
 }

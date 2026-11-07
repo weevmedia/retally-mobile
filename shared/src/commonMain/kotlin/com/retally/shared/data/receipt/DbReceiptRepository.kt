@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.data.receipt
 
 import com.retally.shared.db.ReTallyDatabase
@@ -14,6 +18,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 
 /**
@@ -59,6 +65,7 @@ internal class DbReceiptRepository(
             imagePath = receipt.imagePath,
             createdAt = receipt.createdAt.toEpochMilliseconds(),
             syncedAt = receipt.syncedAt?.toEpochMilliseconds(),
+            currency = receipt.currency,
         )
         loadAll()
     }
@@ -87,6 +94,23 @@ internal class DbReceiptRepository(
         loadAll()
     }
 
+    /**
+     * Deletes receipts older than [maxAgeDays] (default 30). Used for guests (anonymous
+     * users) who get local-only storage with FIFO retention. Returns the image paths
+     * of deleted receipts so the caller can delete the files.
+     */
+    override suspend fun pruneOldReceipts(maxAgeDays: Int): List<String> = withContext(ioDispatcher) {
+        ensureMigrated()
+        val cutoff = Clock.System.now() - maxAgeDays.days
+        val cutoffMillis = cutoff.toEpochMilliseconds()
+        val old = database.receiptQueries.selectOlderThan(cutoffMillis).executeAsList()
+        if (old.isEmpty()) return@withContext emptyList()
+        val imagePaths = old.mapNotNull { it.image_path }
+        database.receiptQueries.deleteOlderThan(cutoffMillis)
+        receipts.value = loadAll()
+        imagePaths
+    }
+
     private suspend fun mutate(block: () -> List<Receipt>) {
         receipts.value = withContext(ioDispatcher) { block() }
     }
@@ -96,9 +120,11 @@ internal class DbReceiptRepository(
         return database.receiptQueries.selectAll().executeAsList().map { it.toReceipt() }
     }
 
+    // Store names always display in caps: normalize on read, so every surface (rows,
+    // detail, picker, notifications) shows the same caps without rewriting stored rows.
     private fun ReceiptRow.toReceipt(): Receipt = Receipt(
         id = id,
-        storeName = store_name,
+        storeName = store_name.uppercase(),
         storeAddress = store_address,
         purchaseDate = Instant.fromEpochMilliseconds(purchase_date),
         paymentInfo = payment_info,
@@ -110,6 +136,7 @@ internal class DbReceiptRepository(
         imagePath = image_path,
         createdAt = Instant.fromEpochMilliseconds(created_at),
         syncedAt = synced_at?.let(Instant::fromEpochMilliseconds),
+        currency = currency,
     )
 
     /**
@@ -148,6 +175,7 @@ internal class DbReceiptRepository(
                         imagePath = receipt.imagePath,
                         createdAt = receipt.createdAt.toEpochMilliseconds(),
                         syncedAt = receipt.syncedAt?.toEpochMilliseconds(),
+                        currency = receipt.currency,
                     )
                 }
             }

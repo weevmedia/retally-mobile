@@ -12,6 +12,9 @@
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Custom receipt scanner: CameraX live preview. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application
         android:name=".ReTallyApplication"
@@ -23,6 +26,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ReTally.Splash"
         tools:targetApi="34">
+        <!-- Download the ML Kit OCR model at install time, not on the first scan
+             (otherwise the first scan waits several seconds for the download). -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="ocr" />
 
         <!-- AdMob App ID, injected from androidApp/build.gradle.kts (manifestPlaceholders). -->
         <meta-data
@@ -57,5 +65,21 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
+
+        <!-- Daily "budget is orange / red" reminders (local AlarmManager alarms). -->
+        <receiver
+            android:name=".budget.BudgetReminderReceiver"
+            android:exported="false" />
+
+        <!-- Share receipt image via FileProvider. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 </manifest>

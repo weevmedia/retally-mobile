@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.domain.preferences
 
 import kotlinx.coroutines.flow.Flow
@@ -9,8 +13,11 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK }
 @Serializable
 data class Preferences(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    /** Master switch for the cloud backup feature. Off by default — privacy first. */
-    val cloudBackupEnabled: Boolean = false,
+    /**
+     * Master switch for the cloud backup feature. On by default for signed-in users;
+     * anonymous users are always local-only (enforced at upload, regardless of this flag).
+     */
+    val cloudBackupEnabled: Boolean = true,
     /** When true, receipts are flagged when the same item appears twice. Core feature. */
     val highlightDuplicates: Boolean = true,
     val hapticsEnabled: Boolean = true,

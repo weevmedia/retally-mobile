@@ -1,5 +1,14 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.app.ui.settings
 
+import com.retally.app.BuildConfig
+import org.koin.androidx.viewmodel.ext.android.activityViewModel
+import com.retally.app.ui.main.MainViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.getValue
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -25,6 +34,8 @@ import org.koin.androidx.viewmodel.ext.android.viewModel
 class SettingsFragment : BaseComposeFragment<State, Action, SideEffect, SettingsViewModel>() {
 
     override val viewModel: SettingsViewModel by viewModel()
+
+    private val mainViewModel: MainViewModel by activityViewModel()
     private val platform: Platform by inject()
 
     private val foregroundLauncher = registerForActivityResult(
@@ -37,17 +48,31 @@ class SettingsFragment : BaseComposeFragment<State, Action, SideEffect, Settings
     private val backgroundLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) {
+        requestNotificationPermission()
+    }
+
+    private val notificationLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) {
         finishNearbyPermissionFlow()
     }
 
     @Composable
     override fun ScreenContent(state: State) {
-        SettingsScreen(state = state, dispatch = ::dispatchViewAction, snackbarHostState = snackbarHostState)
+        val shell by mainViewModel.store.observeState().collectAsStateWithLifecycle()
+        SettingsScreen(
+            state = state,
+            dispatch = ::dispatchViewAction,
+            snackbarHostState = snackbarHostState,
+            adsEnabled = shell.adsEnabled,
+            adUnitId = mainViewModel.homeBannerUnitId,
+            showDebugActions = BuildConfig.DEBUG,
+        )
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        // Back from the Account or store-picker page returns to the More menu. Dialogs
+        // Back from the Edit name, Account or store-picker page returns to the More menu. Dialogs
         // register their own (later) callbacks, so they consume back first.
         requireActivity().onBackPressedDispatcher.addCallback(
             viewLifecycleOwner,
@@ -55,6 +80,7 @@ class SettingsFragment : BaseComposeFragment<State, Action, SideEffect, Settings
                 override fun handleOnBackPressed() {
                     val page = viewModel.store.observeState().value
                     when {
+                        page.nameEdit != null -> dispatchViewAction(Action.NameEditDismissed)
                         page.showStorePickerPage -> dispatchViewAction(Action.StorePickerDismissed)
                         page.showAccountPage -> dispatchViewAction(Action.AccountDismissed)
                         else -> {
@@ -70,7 +96,13 @@ class SettingsFragment : BaseComposeFragment<State, Action, SideEffect, Settings
     override suspend fun onViewEffect(effect: SideEffect) {
         when (effect) {
             is OpenUrl -> if (!platform.openUrl(effect.url)) snackbarHostState.showSnackbar(getString(R.string.host_link_open_failed))
+            is SideEffect.OpenWebPage -> findNavController().navigate(
+                com.retally.app.NavGraphDirections.actionGlobalWebPage(title = effect.title, url = effect.url),
+            )
             is ShowMessage -> snackbarHostState.showSnackbar(effect.message)
+            is SideEffect.OpenRecalls -> findNavController().navigate(
+                SettingsFragmentDirections.actionSettingsToAlerts(),
+            )
             is SideEffect.RequestNearbyPermissions -> requestNearbyPermissions()
             is SideEffect.NearbyMonitoringChanged -> NearbyStoreScheduler.refresh(requireContext())
             is SideEffect.OpenAuth -> findNavController().navigate(
@@ -81,22 +113,14 @@ class SettingsFragment : BaseComposeFragment<State, Action, SideEffect, Settings
         }
     }
 
+    // Same order as the onboarding step: precise location, "all the time", then notifications.
     private fun requestNearbyPermissions() {
-        val missing = buildList {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                !isGranted(Manifest.permission.POST_NOTIFICATIONS)
-            ) {
-                add(Manifest.permission.POST_NOTIFICATIONS)
-            }
-            if (!isGranted(Manifest.permission.ACCESS_FINE_LOCATION)) {
-                add(Manifest.permission.ACCESS_COARSE_LOCATION)
-                add(Manifest.permission.ACCESS_FINE_LOCATION)
-            }
-        }
-        if (missing.isEmpty()) {
+        if (isGranted(Manifest.permission.ACCESS_FINE_LOCATION)) {
             requestBackgroundLocation()
         } else {
-            foregroundLauncher.launch(missing.toTypedArray())
+            foregroundLauncher.launch(
+                arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION),
+            )
         }
     }
 
@@ -105,6 +129,16 @@ class SettingsFragment : BaseComposeFragment<State, Action, SideEffect, Settings
             !isGranted(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         ) {
             backgroundLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        } else {
+            requestNotificationPermission()
+        }
+    }
+
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            !isGranted(Manifest.permission.POST_NOTIFICATIONS)
+        ) {
+            notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         } else {
             finishNearbyPermissionFlow()
         }

@@ -42,8 +42,8 @@
         <action
             android:id="@+id/action_onboarding_to_auth"
             app:destination="@id/authFragment"
-            app:enterAnim="@android:anim/fade_in"
-            app:exitAnim="@android:anim/fade_out"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
             app:popUpTo="@id/onboardingFragment"
             app:popUpToInclusive="true" />
     </fragment>
@@ -53,6 +53,17 @@
         android:id="@+id/authFragment"
         android:name="com.retally.app.ui.auth.AuthFragment"
         android:label="@string/nav_auth">
+        <!-- True only on the first-launch path (onboarding → sign-in): shows "Continue as guest"
+             and Back returns to onboarding. Opened from inside the app it stays false. -->
+        <argument
+            android:name="firstLaunch"
+            app:argType="boolean"
+            android:defaultValue="false" />
+        <!-- "Continue as guest": first launch via Get Started only, not "I already have an account". -->
+        <argument
+            android:name="showGuestOption"
+            app:argType="boolean"
+            android:defaultValue="false" />
         <action
             android:id="@+id/action_auth_to_otp"
             app:destination="@id/otpFragment"
@@ -65,11 +76,17 @@
             app:exitAnim="@android:anim/fade_out"
             app:popUpTo="@id/authFragment"
             app:popUpToInclusive="true" />
+        <!-- Sign-in stays on the stack so Back from the opt-in returns to it. -->
+        <action
+            android:id="@+id/action_auth_to_storeAlerts"
+            app:destination="@id/storeAlertsFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out" />
         <action
             android:id="@+id/action_auth_to_onboarding"
             app:destination="@id/onboardingFragment"
-            app:enterAnim="@android:anim/fade_in"
-            app:exitAnim="@android:anim/fade_out"
+            app:enterAnim="@anim/slide_in_left"
+            app:exitAnim="@anim/slide_out_right"
             app:popUpTo="@id/authFragment"
             app:popUpToInclusive="true" />
     </fragment>
@@ -106,6 +123,28 @@
             app:exitAnim="@android:anim/fade_out"
             app:popUpTo="@id/authFragment"
             app:popUpToInclusive="true" />
+        <!-- Pops the OTP entry only: Back from the opt-in returns to sign-in. -->
+        <action
+            android:id="@+id/action_otp_to_storeAlerts"
+            app:destination="@id/storeAlertsFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out"
+            app:popUpTo="@id/authFragment"
+            app:popUpToInclusive="false" />
+    </fragment>
+
+    <!-- First launch only: store-alerts opt-in between sign-in and Home, shown once. -->
+    <fragment
+        android:id="@+id/storeAlertsFragment"
+        android:name="com.retally.app.ui.storealerts.StoreAlertsFragment"
+        android:label="@string/nav_store_alerts">
+        <action
+            android:id="@+id/action_storeAlerts_to_home"
+            app:destination="@id/homeFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out"
+            app:popUpTo="@id/authFragment"
+            app:popUpToInclusive="true" />
     </fragment>
 
     <!-- Top-level tabs. Ids must match the item ids in res/menu/bottom_nav.xml. -->
@@ -121,13 +160,76 @@
             app:popEnterAnim="@anim/nav_default_pop_enter_anim"
             app:popExitAnim="@anim/nav_default_pop_exit_anim" />
         <action
+            android:id="@+id/action_home_to_customScanner"
+            app:destination="@id/customScannerFragment"
+            app:enterAnim="@anim/nav_default_enter_anim"
+            app:exitAnim="@anim/nav_default_exit_anim"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+        <action
             android:id="@+id/action_home_to_duplicates"
             app:destination="@id/duplicatesFragment"
             app:enterAnim="@anim/nav_default_enter_anim"
             app:exitAnim="@anim/nav_default_exit_anim"
             app:popEnterAnim="@anim/nav_default_pop_enter_anim"
             app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+        <action
+            android:id="@+id/action_home_to_auth"
+            app:destination="@id/authFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out" />
+        <action
+            android:id="@+id/action_home_to_budget"
+            app:destination="@id/budgetFragment"
+            app:enterAnim="@anim/nav_default_enter_anim"
+            app:exitAnim="@anim/nav_default_exit_anim"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+        <action
+            android:id="@+id/action_home_to_notifications"
+            app:destination="@id/notificationsFragment"
+            app:enterAnim="@anim/nav_default_enter_anim"
+            app:exitAnim="@anim/nav_default_exit_anim"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+        <action
+            android:id="@+id/action_home_to_howItWorks"
+            app:destination="@id/howItWorksFragment"
+            app:enterAnim="@anim/nav_default_enter_anim"
+            app:exitAnim="@anim/nav_default_exit_anim"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
     </fragment>
+
+    <!-- "See how it works" from the empty Home: demo built from the real receipt screens. -->
+    <fragment
+        android:id="@+id/howItWorksFragment"
+        android:name="com.retally.app.ui.howitworks.HowItWorksFragment"
+        android:label="@string/nav_how_it_works" />
+
+    <!-- Home bell: notifications the app raised in the last 48 hours (until dismissed). -->
+    <fragment
+        android:id="@+id/notificationsFragment"
+        android:name="com.retally.app.ui.notifications.NotificationsFragment"
+        android:label="@string/nav_notifications" />
+
+    <!-- Food recalls (FDA + USDA), opened from More › Food recalls. -->
+    <fragment
+        android:id="@+id/alertsFragment"
+        android:name="com.retally.app.ui.alerts.AlertsFragment"
+        android:label="@string/nav_alerts">
+        <action
+            android:id="@+id/action_alerts_to_auth"
+            app:destination="@id/authFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out" />
+    </fragment>
+
+    <!-- Monthly grocery budget: pace-based 3-color bar, opened from the Home Spent tile. -->
+    <fragment
+        android:id="@+id/budgetFragment"
+        android:name="com.retally.app.ui.budget.BudgetFragment"
+        android:label="@string/nav_budget" />
 
     <!-- "Duplicates found": items repeated across receipts + receipts with unresolved double charges. -->
     <fragment
@@ -143,12 +245,33 @@
             app:popExitAnim="@anim/nav_default_pop_exit_anim" />
     </fragment>
 
+    <!-- ML Kit document scanner: auto edge detection, perspective correction, straight to review. -->
+    <fragment
+        android:id="@+id/customScannerFragment"
+        android:name="com.retally.app.ui.scan.CameraScannerFragment"
+        android:label="@string/nav_custom_scanner">
+        <action
+            android:id="@+id/action_customScanner_to_scanReview"
+            app:destination="@id/scanReviewFragment"
+            app:popUpTo="@id/customScannerFragment"
+            app:popUpToInclusive="true"
+            app:enterAnim="@anim/nav_default_enter_anim"
+            app:exitAnim="@anim/nav_default_exit_anim"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+    </fragment>
+
     <!-- Receipt view (no bottom bar): a fresh scan (auto-saved) or an existing receipt. Exactly
          one of the two arguments is set. -->
     <fragment
         android:id="@+id/scanReviewFragment"
         android:name="com.retally.app.ui.scan.ScanReviewFragment"
         android:label="@string/nav_scan_review">
+        <action
+            android:id="@+id/action_scanReview_to_auth"
+            app:destination="@id/authFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out" />
         <argument
             android:name="recognizedText"
             app:argType="string"
@@ -180,21 +303,55 @@
             app:popExitAnim="@anim/nav_default_pop_exit_anim" />
     </fragment>
 
-    <!-- Placeholder tabs (shell present, feature pending). -->
+    <!-- AI Shopping List tab. -->
     <fragment
         android:id="@+id/aiListFragment"
-        android:name="com.retally.app.ui.placeholder.AiListFragment"
-        android:label="@string/nav_ai_list" />
+        android:name="com.retally.app.ui.shopping.ShoppingListFragment"
+        android:label="@string/nav_ai_list">
+        <action
+            android:id="@+id/action_aiList_to_auth"
+            app:destination="@id/authFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out" />
+    </fragment>
 
     <fragment
         android:id="@+id/settingsFragment"
         android:name="com.retally.app.ui.settings.SettingsFragment"
         android:label="@string/nav_settings">
         <action
+            android:id="@+id/action_settings_to_alerts"
+            app:destination="@id/alertsFragment"
+            app:enterAnim="@anim/nav_default_enter_anim"
+            app:exitAnim="@anim/nav_default_exit_anim"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+        <action
             android:id="@+id/action_settings_to_auth"
             app:destination="@id/authFragment"
             app:enterAnim="@android:anim/fade_in"
             app:exitAnim="@android:anim/fade_out" />
     </fragment>
+
+    <!-- Our own web pages (privacy, terms, support) inside the app: title + URL, no address bar. -->
+    <fragment
+        android:id="@+id/webPageFragment"
+        android:name="com.retally.app.ui.web.WebPageFragment"
+        android:label="{title}">
+        <argument
+            android:name="title"
+            app:argType="string" />
+        <argument
+            android:name="url"
+            app:argType="string" />
+    </fragment>
+
+    <action
+        android:id="@+id/action_global_webPage"
+        app:destination="@id/webPageFragment"
+        app:enterAnim="@anim/nav_default_enter_anim"
+        app:exitAnim="@anim/nav_default_exit_anim"
+        app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+        app:popExitAnim="@anim/nav_default_pop_exit_anim" />
 
 </navigation>

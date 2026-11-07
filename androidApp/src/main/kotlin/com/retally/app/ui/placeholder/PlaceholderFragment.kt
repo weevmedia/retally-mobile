@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.app.ui.placeholder
 
 import android.os.Bundle
@@ -23,4 +27,3 @@ abstract class PlaceholderFragment(private val placeholder: PlaceholderTab) : Fr
         }
 }
 
-class AiListFragment : PlaceholderFragment(PlaceholderTab.AI_LIST)

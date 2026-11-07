@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.data.cloud
 
 import com.retally.shared.domain.receipt.model.Receipt
@@ -29,7 +33,7 @@ class FirestoreReceiptMapperTest {
 
     @Test
     fun `receipt document carries every rules-validated field`() {
-        val doc = mapper.receiptDocument(receipt, currency = "USD", deviceId = "dev-1", appVersion = "1.0 (1)")
+        val doc = mapper.receiptDocument(receipt, currency = "USD", deviceId = "dev-1", appVersion = "1.0 (1)", platform = "ios", osVersion = "18.1")
 
         assertEquals("Green Market #12", doc["storeName"])
         assertEquals("green market 12", doc["merchantNameNormalized"])
@@ -40,6 +44,13 @@ class FirestoreReceiptMapperTest {
         assertEquals("card", doc["paymentMethod"])
         assertEquals("scan", doc["source"])
         assertEquals(1, doc["schemaVersion"])
+
+        @Suppress("UNCHECKED_CAST")
+        val client = doc["client"] as Map<String, Any?>
+        assertEquals("ios", client["platform"])
+        assertEquals("18.1", client["osVersion"])
+        @Suppress("UNCHECKED_CAST")
+        assertEquals("vision", (doc["ocr"] as Map<String, Any?>)["engine"])
 
         @Suppress("UNCHECKED_CAST")
         val analysis = doc["analysis"] as Map<String, Any?>

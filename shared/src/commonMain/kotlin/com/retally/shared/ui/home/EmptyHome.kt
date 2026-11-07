@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.ui.home
 
 import com.retally.shared.core.strings.StringAssetIdentifiers as S
@@ -81,9 +85,7 @@ internal fun EmptyHome(
                 GuestBanner(onSignIn = onSignIn)
             }
             Spacer(Modifier.height(d.lg))
-            ReceiptSearchIllustration(
-                modifier = Modifier.fillMaxWidth().height(d.emptyIllustration),
-            )
+            EmptyIllustration()
             Spacer(Modifier.height(d.lg))
             Text(
                 str(S.HOME_EMPTY_TITLE),
@@ -195,17 +197,15 @@ internal fun greetingKey(clock: Clock = Clock.System, timeZone: TimeZone = TimeZ
 /**
  * Empty-state illustration: the receipt-and-magnifier artwork shipped as a Compose
  * Multiplatform drawable (shared/src/commonMain/composeResources/drawable/empty_receipts.png).
- *
- * Replaces the earlier Canvas line-art. The PNG has a transparent background so it sits on
- * whatever surface hosts it, but unlike the drawn version its colours are fixed and do not
- * follow the theme tokens.
  */
 @Composable
-internal fun ReceiptSearchIllustration(modifier: Modifier = Modifier) {
+internal fun EmptyIllustration(modifier: Modifier = Modifier) {
     Image(
         painter = painterResource(Res.drawable.empty_receipts),
         contentDescription = null,
         contentScale = ContentScale.Fit,
-        modifier = modifier,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(ReTallyTheme.dimensions.emptyIllustration),
     )
 }

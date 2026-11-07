@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.ui.placeholder
 
 import com.retally.shared.core.strings.StringAssetIdentifiers as S
@@ -7,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
-import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
@@ -25,7 +28,6 @@ import com.retally.shared.ui.theme.ReTallyTheme
 /** Copy for the tabs that exist in the shell before their feature ships. */
 enum class PlaceholderTab(val tab: MainTab, val icon: ImageVector, val bodyKey: String) {
     RECEIPTS(MainTab.RECEIPTS, Icons.AutoMirrored.Rounded.ReceiptLong, S.PLACEHOLDER_RECEIPTS_BODY),
-    AI_LIST(MainTab.AI_LIST, Icons.Rounded.AutoAwesome, S.PLACEHOLDER_AI_LIST_BODY),
     MORE(MainTab.MORE, Icons.Rounded.MoreHoriz, S.PLACEHOLDER_MORE_BODY),
 }
 

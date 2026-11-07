@@ -1,3 +1,7 @@
+//
+//  Copyright (c) 2026-2027 Weev Media. All rights reserved.
+//
+
 import SwiftUI
 
 /// First launch only: 6-digit email code entry between sign-in and the tab bar.

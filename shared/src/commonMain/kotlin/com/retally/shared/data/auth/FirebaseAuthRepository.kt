@@ -1,5 +1,11 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.data.auth
 
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.MutableStateFlow
 import com.retally.shared.domain.auth.Account
 import com.retally.shared.domain.auth.AuthRepository
 import dev.gitlive.firebase.Firebase
@@ -27,8 +33,27 @@ class FirebaseAuthRepository(
 
     override fun observeUid(): Flow<String?> = auth.authStateChanged.map { it?.uid }
 
-    override fun observeAccount(): Flow<Account> = auth.authStateChanged.map { user ->
-        Account(uid = user?.uid, isGuest = user?.isAnonymous ?: true, displayName = user?.displayName, email = user?.email)
+    /** Bumped after a profile edit: Firebase's auth-state stream doesn't fire for those. */
+    private val profileChanges = MutableStateFlow(0)
+
+    override fun observeAccount(): Flow<Account> =
+        combine(auth.authStateChanged, profileChanges) { user, _ ->
+            val current = auth.currentUser?.takeIf { it.uid == user?.uid } ?: user
+            // A user restored from disk (offline launch) reports empty strings for the profile
+            // fields the SDK normally returns as null; the UI keys "guest" copy off null.
+            Account(
+                uid = current?.uid,
+                isGuest = current?.isAnonymous ?: true,
+                displayName = current?.displayName?.takeIf { it.isNotBlank() },
+                email = current?.email?.takeIf { it.isNotBlank() },
+            )
+        }
+
+    override suspend fun updateDisplayName(displayName: String) {
+        val user = auth.currentUser ?: error("Not signed in")
+        user.updateProfile(displayName = displayName)
+        runCatching { user.reload() }
+        profileChanges.value++
     }
 
     override suspend fun ensureSignedIn(): String {
@@ -55,5 +80,11 @@ class FirebaseAuthRepository(
         true
     } catch (e: Exception) {
         false
+    }
+
+    override suspend fun getIdToken(forceRefresh: Boolean): String? = try {
+        auth.currentUser?.getIdToken(forceRefresh)
+    } catch (e: Exception) {
+        null
     }
 }

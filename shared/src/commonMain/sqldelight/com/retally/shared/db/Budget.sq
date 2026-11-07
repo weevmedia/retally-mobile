@@ -1,0 +1,25 @@
+-- Monthly grocery budgets. One row per calendar month ("2026-10"); a new month starts
+-- empty and the user sets it from the Budget screen (opened by tapping the Spent tile).
+-- Old months are never deleted here so spending habits and savings predictions can
+-- look back at budget history.
+--
+-- INSERT OR REPLACE (not ON CONFLICT DO UPDATE) so this runs on the oldest
+-- SQLite the app supports (minSdk 26 ships pre-3.24, which lacks upsert syntax).
+CREATE TABLE budget (
+    month TEXT NOT NULL PRIMARY KEY,
+    amount REAL NOT NULL,
+    created_at INTEGER NOT NULL
+);
+
+selectByMonth:
+SELECT * FROM budget WHERE month = :month;
+
+selectAll:
+SELECT * FROM budget ORDER BY month DESC;
+
+insertOrReplace:
+INSERT OR REPLACE INTO budget(month, amount, created_at)
+VALUES (:month, :amount, :createdAt);
+
+deleteAll:
+DELETE FROM budget;

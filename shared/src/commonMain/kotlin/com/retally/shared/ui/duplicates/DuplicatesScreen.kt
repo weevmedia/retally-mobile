@@ -1,5 +1,10 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.ui.duplicates
 
+import com.retally.shared.ui.components.CircleIconButton
 import com.retally.shared.core.strings.StringAssetIdentifiers as S
 import com.retally.shared.core.strings.str
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +29,8 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Receipt
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -75,7 +82,7 @@ fun DuplicatesScreen(
             TopAppBar(
                 title = { Text(str(S.DUPLICATES_TITLE), style = ReTallyTheme.typography.display, color = c.ink) },
                 navigationIcon = {
-                    IconButton(onClick = { dispatch(DuplicatesContract.Action.CloseClicked) }) {
+                    CircleIconButton(onClick = { dispatch(DuplicatesContract.Action.CloseClicked) }) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = str(S.ACTION_BACK), tint = c.ink)
                     }
                 },
@@ -203,11 +210,13 @@ private fun CrossReceiptCard(
             Row(horizontalArrangement = Arrangement.spacedBy(d.sm)) {
                 SecondaryButton(
                     text = str(S.ACTION_KEEP_BOTH),
+                    icon = Icons.Rounded.Check,
                     onClick = onKeepBoth,
                     modifier = Modifier.weight(1f).height(ReTallyDimensions.buttonHeightCompact),
                 )
                 SecondaryButton(
                     text = str(S.ACTION_REMOVE_ONE),
+                    icon = Icons.Outlined.Delete,
                     onClick = onRemoveOne,
                     modifier = Modifier.weight(1f).height(ReTallyDimensions.buttonHeightCompact),
                     contentColor = c.danger,

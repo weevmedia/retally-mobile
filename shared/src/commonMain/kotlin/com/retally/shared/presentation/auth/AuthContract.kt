@@ -1,5 +1,13 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.presentation.auth
 
+import com.retally.shared.domain.preferences.AppPreferences
+import com.retally.shared.domain.auth.platformSignInProviders
+import com.retally.shared.domain.auth.ProviderSignInException
+import com.retally.shared.domain.auth.SignInProvider
 import com.retally.shared.core.Effect
 import com.retally.shared.core.strings.StringAssetIdentifiers as S
 import com.retally.shared.core.strings.StringResolver
@@ -7,6 +15,8 @@ import com.retally.shared.core.strings.getString
 import com.retally.shared.domain.auth.AuthRepository
 import com.retally.shared.domain.auth.OtpService
 import kotlinx.coroutines.launch
+import com.retally.shared.presentation.settings.LegalLinks
+import com.retally.shared.ui.web.inAppPageUrl
 
 /**
  * Email-first sign-in ("Welcome to ReTally"):
@@ -48,7 +58,17 @@ interface AuthContract {
         val isCheckingAccount: Boolean = false,
         /** requestCode in flight (sending the code). */
         val isSendingCode: Boolean = false,
+        /**
+         * "Continue as guest" — only on the first-launch sign-in. Opened later from the app
+         * (Home, More, Smart List, recalls) the user is already a guest, so it's hidden.
+         */
+        val showGuestOption: Boolean = true,
+        /** The Apple / Google sign-in running (platform sheet open, then our backend call). */
+        val providerInProgress: SignInProvider? = null,
+        /** Social sign-ins this device offers: Apple + Google on iOS, Google on Android. */
+        val providers: List<SignInProvider> = platformSignInProviders,
     ) : com.retally.shared.core.State {
+        val isProviderSigningIn: Boolean get() = providerInProgress != null
         val isEmailValid: Boolean
             get() = EMAIL_PATTERN.matches(email.trim())
         val isNameValid: Boolean
@@ -66,13 +86,31 @@ interface AuthContract {
         data object AppleClicked : Action()
         data object GoogleClicked : Action()
         data object GuestClicked : Action()
-        /** Terms / Privacy links — TODO(auth): open the real hosted documents. */
-        data object LegalClicked : Action()
+        /** Footer "Terms & Conditions" link. */
+        data object TermsClicked : Action()
+        /** Footer "Privacy Policy" link. */
+        data object PrivacyClicked : Action()
         /**
          * Back chevron: on the name form returns to the email step;
          * on the email step returns to the onboarding screen.
          */
         data object BackClicked : Action()
+        /** Set by the host when the screen opens: true on first launch, false when opened in-app. */
+        data class GuestOptionVisible(val visible: Boolean) : Action()
+        /**
+         * The host's native sign-in finished: [idToken] from Apple / Google, [nonce] the raw
+         * nonce used for Apple (null for Google), [displayName] Apple's name on first sign-in.
+         */
+        data class ProviderTokenReceived(
+            val provider: SignInProvider,
+            val idToken: String,
+            val nonce: String? = null,
+            val displayName: String? = null,
+        ) : Action()
+        /** The user closed the Apple / Google sheet. */
+        data object ProviderSignInCancelled : Action()
+        /** The native sign-in failed before we got a token (no account, no network…). */
+        data object ProviderSignInFailed : Action()
     }
 
     sealed class SideEffect : Effect {
@@ -95,12 +133,17 @@ interface AuthContract {
         /** Back to the onboarding screen. */
         data object NavigateBack : SideEffect()
         data class ShowMessage(val message: String) : SideEffect()
+        /** Host: show Terms or Privacy in the in-app web page screen. */
+        data class OpenWebPage(val title: String, val url: String) : SideEffect()
+        /** Host: run the platform's sign-in sheet for [provider], then report back with a token. */
+        data class StartProviderSignIn(val provider: SignInProvider) : SideEffect()
     }
 
     class Store(
         private val authRepository: AuthRepository,
         private val otpService: OtpService,
         private val strings: StringResolver,
+        private val preferences: AppPreferences? = null,
     ) : com.retally.shared.core.Store<State, Action, SideEffect>() {
         override fun initState(): State = State()
 
@@ -126,14 +169,24 @@ interface AuthContract {
                     )
                 Action.EmailContinueClicked -> onEmailContinue()
                 Action.NameContinueClicked -> onNameContinue()
-                Action.AppleClicked,
-                Action.GoogleClicked,
-                Action.LegalClicked ->
-                    // TODO(auth): platform OAuth + Firebase linkAccount; hosted legal docs.
-                    // Not wired yet.
-                    sideEffect(SideEffect.ShowMessage(strings.getString(S.GENERAL_COMING_SOON)))
+                Action.AppleClicked -> startProvider(SignInProvider.APPLE)
+                Action.GoogleClicked -> startProvider(SignInProvider.GOOGLE)
+                // Our hosted pages, opened in the app (no browser, no address bar).
+                Action.TermsClicked -> sideEffect(
+                    SideEffect.OpenWebPage(strings.getString(S.SETTINGS_TERMS), inAppPageUrl(LegalLinks().terms)),
+                )
+                Action.PrivacyClicked -> sideEffect(
+                    SideEffect.OpenWebPage(strings.getString(S.SETTINGS_PRIVACY), inAppPageUrl(LegalLinks().privacyPolicy)),
+                )
+                is Action.ProviderTokenReceived -> onProviderToken(action)
+                Action.ProviderSignInCancelled -> currentState = currentState.copy(providerInProgress = null)
+                Action.ProviderSignInFailed -> {
+                    currentState = currentState.copy(providerInProgress = null)
+                    sideEffect(SideEffect.ShowMessage(strings.getString(S.AUTH_PROVIDER_FAILED)))
+                }
                 Action.GuestClicked -> onGuest()
                 Action.BackClicked -> onBack()
+                is Action.GuestOptionVisible -> currentState = currentState.copy(showGuestOption = action.visible)
             }
         }
 
@@ -160,8 +213,6 @@ interface AuthContract {
                         )
                     }
                     .getOrNull() ?: return@launch
-                // TEMP-AUTH-DEBUG: remove before release.
-                println("[auth-debug] lookupAccount email=$email exists=${lookup.exists}")
                 if (lookup.exists) {
                     // Existing account: send the code now, then OTP.
                     currentState = currentState.copy(isCheckingAccount = false, isSendingCode = true)
@@ -210,8 +261,6 @@ interface AuthContract {
             val displayName = "${state.firstName.trim()} ${state.lastName.trim()}".trim()
             currentState = state.copy(isSendingCode = true, showLookupError = false)
             launch {
-                // TEMP-AUTH-DEBUG: remove before release.
-                println("[auth-debug] requestCode (new user) email=$email")
                 runCatching { otpService.requestCode(email) }
                     .onSuccess {
                         currentState = currentState.copy(isSendingCode = false)
@@ -234,6 +283,50 @@ interface AuthContract {
             }
         }
 
+        private fun startProvider(provider: SignInProvider) {
+            val state = currentState
+            if (state.isProviderSigningIn || state.isSubmitting || state.isCheckingAccount || state.isSendingCode) return
+            // Each platform offers only its own providers.
+            if (provider !in state.providers) return
+            currentState = state.copy(providerInProgress = provider)
+            sideEffect(SideEffect.StartProviderSignIn(provider))
+        }
+
+        /**
+         * Token from Apple / Google → our backend (same per-email account as the email code)
+         * → Firebase custom-token sign-in → Home. Returning users get "Welcome back".
+         */
+        private fun onProviderToken(action: Action.ProviderTokenReceived) {
+            currentState = currentState.copy(providerInProgress = action.provider)
+            launch {
+                val result = try {
+                    otpService.signInWithProvider(action.provider, action.idToken, action.nonce, action.displayName)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    currentState = currentState.copy(providerInProgress = null)
+                    val message = if (e is ProviderSignInException.NoEmail) S.AUTH_PROVIDER_NO_EMAIL else S.AUTH_PROVIDER_FAILED
+                    sideEffect(SideEffect.ShowMessage(strings.getString(message)))
+                    return@launch
+                }
+                runCatching { authRepository.signInWithCustomToken(result.customToken) }
+                    .onSuccess {
+                        currentState = currentState.copy(providerInProgress = null)
+                        if (!result.isNewUser) {
+                            val welcomeBack = result.firstName?.let { strings.getString(S.AUTH_WELCOME_BACK_NAME, it) }
+                                ?: strings.getString(S.AUTH_WELCOME_BACK)
+                            sideEffect(SideEffect.ShowMessage(welcomeBack))
+                        }
+                        preferences?.hasLaunchedBefore = true
+                        sideEffect(SideEffect.NavigateToMain)
+                    }
+                    .onFailure {
+                        currentState = currentState.copy(providerInProgress = null)
+                        sideEffect(SideEffect.ShowMessage(strings.getString(S.AUTH_PROVIDER_FAILED)))
+                    }
+            }
+        }
+
         private fun onBack() {
             if (currentState.step == AuthStep.NameForm) {
                 // Back on the name form: return to the email step to fix the email.
@@ -248,7 +341,10 @@ interface AuthContract {
             currentState = currentState.copy(isSubmitting = true)
             launch {
                 runCatching { authRepository.ensureSignedIn() }
-                    .onSuccess { sideEffect(SideEffect.NavigateToMain) }
+                    .onSuccess {
+                        preferences?.hasLaunchedBefore = true
+                        sideEffect(SideEffect.NavigateToMain)
+                    }
                     .onFailure {
                         currentState = currentState.copy(isSubmitting = false)
                         sideEffect(SideEffect.ShowMessage(strings.getString(S.AUTH_ERROR_GUEST)))

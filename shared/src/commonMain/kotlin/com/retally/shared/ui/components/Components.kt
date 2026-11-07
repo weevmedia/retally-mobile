@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.ui.components
 
 import com.retally.shared.core.strings.StringAssetIdentifiers as S
@@ -27,8 +31,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -130,6 +140,22 @@ fun SyncedBadge(modifier: Modifier = Modifier) {
     Pill(text = str(S.BADGE_SYNCED_TO_CLOUD), containerColor = c.primaryTint, contentColor = c.primaryDark, modifier = modifier, icon = Icons.Rounded.CloudDone)
 }
 
+/**
+ * A button's label: always one line. When a narrow button (two side by side, "Keep both" /
+ * "Remove one") can't fit the text at full size, it shrinks a little instead of wrapping.
+ */
+@Composable
+private fun ButtonLabel(text: String) {
+    val style = ReTallyTheme.typography.button
+    BasicText(
+        text,
+        style = style.copy(color = LocalContentColor.current),
+        maxLines = 1,
+        softWrap = false,
+        autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = style.fontSize, stepSize = 0.5.sp),
+    )
+}
+
 /** btn/primary — 52pt, 12pt radius, Primary fill; pressed state darkens to Primary dark. */
 @Composable
 fun PrimaryButton(
@@ -160,7 +186,7 @@ fun PrimaryButton(
             Icon(icon, contentDescription = null, modifier = Modifier.size(ReTallyDimensions.iconMedium))
             Spacer(Modifier.width(ReTallyTheme.dimensions.sm))
         }
-        Text(text, style = ReTallyTheme.typography.button)
+        ButtonLabel(text)
     }
 }
 
@@ -188,7 +214,7 @@ fun SecondaryButton(
             Icon(icon, contentDescription = null, modifier = Modifier.size(ReTallyDimensions.iconMedium))
             Spacer(Modifier.width(ReTallyTheme.dimensions.sm))
         }
-        Text(text, style = ReTallyTheme.typography.button)
+        ButtonLabel(text)
     }
 }
 
@@ -225,32 +251,51 @@ fun EmptyState(
     title: String,
     body: String,
     modifier: Modifier = Modifier,
+    iconSize: Dp = ReTallyDimensions.emptyStateIcon,
     action: (@Composable () -> Unit)? = null,
+    /** False draws the bare icon with no tinted disc behind it. */
+    showIconDisc: Boolean = true,
+    /** Bold supporting copy. */
+    bodyBold: Boolean = false,
+    /** Custom art drawn instead of [icon] (e.g. the Smart List "all set" basket). */
+    illustration: (@Composable () -> Unit)? = null,
 ) {
     Column(
         modifier = modifier.fillMaxWidth().padding(ReTallyTheme.dimensions.xl),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
-            modifier = Modifier
-                .size(ReTallyDimensions.emptyStateDisc)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center,
-        ) {
+        if (illustration != null) {
+            illustration()
+        } else if (showIconDisc) {
+            Box(
+                modifier = Modifier
+                    .size(ReTallyDimensions.emptyStateDisc)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(iconSize),
+                )
+            }
+        } else {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(ReTallyDimensions.emptyStateIcon),
+                tint = ReTallyTheme.colors.ink,
+                modifier = Modifier.size(iconSize),
             )
         }
         Spacer(Modifier.height(ReTallyTheme.dimensions.lg))
-        Text(title, style = ReTallyTheme.typography.title, color = ReTallyTheme.colors.ink)
+        Text(title, style = ReTallyTheme.typography.title, color = ReTallyTheme.colors.ink, textAlign = TextAlign.Center)
         Spacer(Modifier.height(ReTallyTheme.dimensions.sm))
         Text(
             body,
             style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (bodyBold) FontWeight.Bold else null,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )

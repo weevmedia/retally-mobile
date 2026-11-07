@@ -1,16 +1,30 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.platform
 
 import com.retally.shared.domain.ads.AdsConfig
 import com.retally.shared.domain.location.StoreLocationRepository
 import com.retally.shared.domain.preferences.AppPreferences
+import com.retally.shared.domain.shopping.ShoppingListRepository
+import com.retally.shared.domain.shopping.notificationSummary
 import com.retally.shared.presentation.home.HomeContract
 import com.retally.shared.presentation.main.MainContract
 import com.retally.shared.presentation.duplicates.DuplicatesContract
+import com.retally.shared.presentation.howitworks.HowItWorksContract
+import com.retally.shared.presentation.budget.BudgetContract
 import com.retally.shared.presentation.receipts.ReceiptsContract
 import com.retally.shared.presentation.scan.ScanReviewContract
 import com.retally.shared.presentation.settings.SettingsContract
+import com.retally.shared.presentation.recalls.RecallsContract
+import com.retally.shared.presentation.notifications.NotificationsContract
+import com.retally.shared.domain.notifications.NotificationInboxRepository
+import com.retally.shared.presentation.shopping.ShoppingListContract
 import com.retally.shared.presentation.splash.SplashContract
 import com.retally.shared.presentation.onboarding.OnboardingContract
+import com.retally.shared.presentation.storealerts.StoreAlertsContract
+import com.retally.shared.presentation.storealerts.StoreAlertsPrompt
 import com.retally.shared.presentation.auth.AuthContract
 import com.retally.shared.presentation.auth.OtpContract
 import org.koin.mp.KoinPlatform
@@ -28,6 +42,9 @@ object IosDependencies {
 
     fun getSplashStore(): SplashContract.Store = KoinPlatform.getKoin().get()
     fun getOnboardingStore(): OnboardingContract.Store = KoinPlatform.getKoin().get()
+    fun getStoreAlertsStore(): StoreAlertsContract.Store = KoinPlatform.getKoin().get()
+    /** Whether the store-alerts opt-in still has to be shown after sign-in (first launch only). */
+    fun isStoreAlertsPromptNeeded(): Boolean = KoinPlatform.getKoin().get<StoreAlertsPrompt>().isNeeded
     fun getAuthStore(): AuthContract.Store = KoinPlatform.getKoin().get()
     fun getOtpStore(): OtpContract.Store = KoinPlatform.getKoin().get()
     fun getMainStore(): MainContract.Store = KoinPlatform.getKoin().get()
@@ -35,7 +52,22 @@ object IosDependencies {
     fun getSettingsStore(): SettingsContract.Store = KoinPlatform.getKoin().get()
     fun getScanReviewStore(): ScanReviewContract.Store = KoinPlatform.getKoin().get()
     fun getDuplicatesStore(): DuplicatesContract.Store = KoinPlatform.getKoin().get()
+    fun getHowItWorksStore(): HowItWorksContract.Store = KoinPlatform.getKoin().get()
+    fun getBudgetStore(): BudgetContract.Store = KoinPlatform.getKoin().get()
     fun getReceiptsStore(): ReceiptsContract.Store = KoinPlatform.getKoin().get()
+    fun getShoppingListStore(): ShoppingListContract.Store = KoinPlatform.getKoin().get()
+    fun getRecallsStore(): RecallsContract.Store = KoinPlatform.getKoin().get()
+    fun getNotificationsStore(): NotificationsContract.Store = KoinPlatform.getKoin().get()
+    /** Hosts record every notification they post here so the Home bell can list it for 48h. */
+    fun getNotificationInbox(): NotificationInboxRepository = KoinPlatform.getKoin().get()
+    fun getShoppingListRepository(): ShoppingListRepository = KoinPlatform.getKoin().get()
+
+    /** Body for the "you're near {store}" notification from the cached AI list; null keeps the generic copy. */
+    fun shoppingListSummary(storeName: String): String? {
+        val repo: ShoppingListRepository = KoinPlatform.getKoin().get()
+        val list = repo.cachedListFor(storeName) ?: return null
+        return list.notificationSummary(repo.dismissedItems(list.storeKey))
+    }
 
     fun getAdsConfig(): AdsConfig = KoinPlatform.getKoin().get()
     fun getPreferences(): AppPreferences = KoinPlatform.getKoin().get()

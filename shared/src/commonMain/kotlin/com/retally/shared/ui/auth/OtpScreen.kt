@@ -1,5 +1,13 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.ui.auth
 
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.offset
+import com.retally.shared.ui.components.CircleIconButton
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,8 +31,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -90,14 +96,18 @@ fun OtpScreen(
         ) {
             // Back to the sign-in screen (e.g. to fix the email).
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                // Same spot as the back button on other screens (top-app-bar height, 8dp from the edge):
+                // the column has 24dp side padding, so pull the row out by 16dp.
+                modifier = Modifier.fillMaxWidth().height(BackBarHeight).offset(x = (-16).dp),
                 horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = { dispatch(OtpContract.Action.BackClicked) }) {
+                CircleIconButton(onClick = { dispatch(OtpContract.Action.BackClicked) }) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBackIos,
                         contentDescription = str(S.ACTION_BACK),
                         tint = colors.ink,
+                        modifier = Modifier.padding(start = 6.dp).size(20.dp),
                     )
                 }
             }
@@ -125,7 +135,9 @@ fun OtpScreen(
             BasicTextField(
                 value = state.code,
                 onValueChange = { dispatch(OtpContract.Action.CodeChanged(it)) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Done),
+                // Retry path after a network failure: keyboard "Done" re-submits the same code.
+                keyboardActions = KeyboardActions(onDone = { dispatch(OtpContract.Action.VerifyClicked) }),
                 singleLine = true,
                 textStyle = TextStyle(color = colors.ink),
                 modifier = Modifier
@@ -150,38 +162,18 @@ fun OtpScreen(
                 )
             }
 
-            Spacer(Modifier.height(28.dp))
-            Button(
-                onClick = { dispatch(OtpContract.Action.VerifyClicked) },
-                enabled = state.canVerify,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.primary,
-                    contentColor = colors.onPrimary,
-                    disabledContainerColor = colors.primary.copy(alpha = 0.35f),
-                    disabledContentColor = colors.onPrimary.copy(alpha = 0.7f),
-                ),
-                contentPadding = PaddingValues(horizontal = 36.dp, vertical = 0.dp),
-            ) {
+            // No Verify button: the code verifies itself when the sixth digit lands. A spinner
+            // in a fixed-height slot shows progress without shifting the resend row.
+            Spacer(Modifier.height(20.dp))
+            Box(Modifier.fillMaxWidth().height(32.dp), contentAlignment = Alignment.Center) {
                 if (state.isVerifying) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        color = colors.onPrimary,
+                        modifier = Modifier.size(24.dp),
+                        color = colors.primary,
                         strokeWidth = 2.5.dp,
-                    )
-                } else {
-                    Text(
-                        text = str(S.OTP_VERIFY),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        letterSpacing = 1.5.sp,
                     )
                 }
             }
-
             Spacer(Modifier.height(24.dp))
             if (state.canResend) {
                 Row(
@@ -223,6 +215,9 @@ fun OtpScreen(
         Scaffold(
             snackbarHost = { ReTallySnackbarHost(snackbarHostState) },
             containerColor = colors.surface,
+            // The page pads for the status/navigation bars itself; letting the Scaffold add them
+            // too pushed everything (the back button included) a status-bar height too low.
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
         ) { padding ->
             Box(Modifier.padding(padding)) { Content() }
         }

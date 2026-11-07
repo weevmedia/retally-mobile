@@ -1,3 +1,7 @@
+//
+//  Copyright (c) 2026-2027 Weev Media. All rights reserved.
+//
+
 import Combine
 import Foundation
 import Shared
@@ -10,17 +14,16 @@ final class HomeViewModel: ObservableObject {
     let screen: ComposeScreen
 
     @Published var isScannerPresented = false
-    @Published var isGalleryPresented = false
     @Published var isReviewPresented = false
     @Published var isDuplicatesPresented = false
+    @Published var isBudgetPresented = false
+    @Published var isNotificationsPresented = false
+    @Published var isHowItWorksPresented = false
     private(set) var reviewSource: ScanReviewViewModel.Source = .scan(lines: [], imagePath: nil)
     /// Finished-scan payload waiting for the camera cover to finish dismissing.
     /// Dispatching `TextRecognized` (which pushes the review) while the dismissal
     /// animates is dropped by SwiftUI, so the dispatch waits for `scannerCoverDismissed()`.
     private var pendingScan: (lines: [String], imagePath: String?)?
-    /// True when no scanner cover is on screen, so a finished gallery pick can route
-    /// immediately instead of waiting for a dismissal that already happened.
-    private var scannerCoverGone = true
 
     private var sideEffects: Closeable?
 
@@ -61,11 +64,21 @@ final class HomeViewModel: ObservableObject {
             isReviewPresented = true
         case is HomeContractSideEffect.OpenDuplicates:
             isDuplicatesPresented = true
+        case is HomeContractSideEffect.OpenBudget:
+            isBudgetPresented = true
+        case is HomeContractSideEffect.OpenNotifications:
+            isNotificationsPresented = true
         case is HomeContractSideEffect.OpenReceipts:
             // Home lists only the newest few; "See all" hands over to the Receipts tab.
             IosDependencies.shared.getMainStore().dispatch(action: MainContractAction.SelectTab(tab: .receipts))
+        case is HomeContractSideEffect.OpenShoppingList:
+            // A nudge pointing at a store's Smart List (the store is already queued).
+            IosDependencies.shared.getMainStore().dispatch(action: MainContractAction.SelectTab(tab: .aiList))
         case is HomeContractSideEffect.OpenSignIn:
-            break // TODO(sign-in): present the account-linking flow
+            // Guest banner: reopen the sign-in overlay, as More › Log in and the Smart List do.
+            NotificationCenter.default.post(name: .retallyShowAuth, object: nil)
+        case is HomeContractSideEffect.OpenHowItWorks:
+            isHowItWorksPresented = true
         case let message as HomeContractSideEffect.ShowMessage:
             screen.showMessage(message: message.message)
         default:
@@ -75,17 +88,16 @@ final class HomeViewModel: ObservableObject {
 
     // MARK: Scanner
 
-    /// Scan FAB entry point: straight to the document camera.
+    /// Scan FAB entry point: straight to the receipt scanner.
     private func presentScanner() {
-        if DocumentScannerView.isSupported {
-            scannerCoverGone = false
+        if ReceiptScannerView.isSupported {
             isScannerPresented = true
         } else {
-            store.dispatch(action: HomeContractAction.ScanFailed(reason: DocumentScannerView.ScannerError.unsupported.localizedDescription))
+            store.dispatch(action: HomeContractAction.ScanFailed(reason: ReceiptScannerView.ScannerError.cameraUnavailable.localizedDescription))
         }
     }
 
-    func scannerFinished(_ result: DocumentScannerView.Result) {
+    func scannerFinished(_ result: ReceiptScannerView.Result) {
         isScannerPresented = false
         switch result {
         case .cancelled:
@@ -101,35 +113,9 @@ final class HomeViewModel: ObservableObject {
 
     /// The camera cover finished dismissing — now it's safe to route the scan to review.
     func scannerCoverDismissed() {
-        scannerCoverGone = true
         guard let pending = pendingScan else { return }
         pendingScan = nil
         store.dispatch(action: HomeContractAction.TextRecognized(lines: pending.lines, imagePath: pending.imagePath))
-    }
-
-    /// Gallery pick from the scanner screen → same Vision OCR + shared parser as a camera scan.
-    func galleryFinished(_ result: GalleryImagePicker.Result) {
-        isGalleryPresented = false
-        guard case .picked(let image) = result else { return }
-        Task {
-            do {
-                let lines = try await ReceiptTextRecognizer.recognizeLines(in: image)
-                let imagePath = ScanImageFiles.keep(image)
-                await MainActor.run {
-                    pendingScan = (lines, imagePath)
-                    if scannerCoverGone {
-                        scannerCoverDismissed()
-                    } else {
-                        // Dismiss the scanner cover; its onDisappear routes to review.
-                        isScannerPresented = false
-                    }
-                }
-            } catch {
-                await MainActor.run {
-                    store.dispatch(action: HomeContractAction.ScanFailed(reason: error.localizedDescription))
-                }
-            }
-        }
     }
 
     func reviewFinished(fromScan: Bool, saved: Bool) {
@@ -138,5 +124,48 @@ final class HomeViewModel: ObservableObject {
 
     func duplicatesFinished() {
         isDuplicatesPresented = false
+    }
+
+    func budgetFinished() {
+        isBudgetPresented = false
+    }
+
+    func notificationsFinished() {
+        isNotificationsPresented = false
+    }
+
+    /// A budget entry was tapped in the bell: Budget is pushed once the inbox has popped.
+    func openBudgetFromNotifications() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+            self?.isBudgetPresented = true
+        }
+    }
+
+    func howItWorksFinished() {
+        isHowItWorksPresented = false
+    }
+}
+
+/// Owns `HowItWorksContract.Store` for "See how it works". Lives here (not its own file) so no
+/// Xcode project change is needed. "Scan a receipt" pops back; Home then opens the scanner.
+@MainActor
+final class HowItWorksViewModel: ObservableObject {
+    let store: HowItWorksContractStore
+    let screen: ComposeScreen
+    private var sideEffects: Closeable?
+
+    init(onFinished: @escaping () -> Void) {
+        let store = IosDependencies.shared.getHowItWorksStore()
+        self.store = store
+        screen = IosScreens.shared.howItWorks(store: store)
+        sideEffects = store.collectSideEffect { effect in
+            if effect is HowItWorksContractSideEffect.Closed { onFinished() }
+        }
+    }
+
+    deinit {
+        sideEffects?.close()
+        screen.dispose()
+        store.clear()
     }
 }

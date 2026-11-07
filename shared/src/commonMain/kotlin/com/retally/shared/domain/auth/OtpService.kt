@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.domain.auth
 
 /**
@@ -28,6 +32,35 @@ interface OtpService {
      * on mismatch, expiry, lockout, or transport failure.
      */
     suspend fun verifyCode(email: String, code: String, displayName: String): String
+
+    /**
+     * Exchanges a platform ID token (Apple identity token / Google ID token) for a Firebase
+     * custom token. The account is the same per-email one the email code signs in to.
+     * [nonce] is the raw nonce whose SHA-256 went into the Apple request (null for Google);
+     * [displayName] is the name Apple hands the app on first sign-in only.
+     * Throws [ProviderSignInException] on failure.
+     */
+    suspend fun signInWithProvider(
+        provider: SignInProvider,
+        idToken: String,
+        nonce: String?,
+        displayName: String?,
+    ): ProviderSignIn
+}
+
+/** Result of [OtpService.signInWithProvider]. */
+data class ProviderSignIn(
+    val customToken: String,
+    val isNewUser: Boolean,
+    val firstName: String?,
+)
+
+/** Provider sign-in failures the UI tells apart. */
+sealed class ProviderSignInException(message: String) : Exception(message) {
+    /** Apple/Google didn't share an email (or it isn't verified), so there's no account to use. */
+    data object NoEmail : ProviderSignInException("no-email")
+    data object Rejected : ProviderSignInException("invalid-token")
+    data object Failed : ProviderSignInException("failed")
 }
 
 /** Result of [OtpService.requestCode]: the code was sent, plus account info. */

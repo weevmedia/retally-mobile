@@ -1,5 +1,14 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.ui.auth
 
+import androidx.compose.foundation.layout.aspectRatio
+import com.retally.shared.domain.auth.SignInProvider
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.offset
+import com.retally.shared.ui.components.CircleIconButton
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -40,6 +49,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -99,6 +109,9 @@ fun AuthScreen(
         Scaffold(
             snackbarHost = { ReTallySnackbarHost(snackbarHostState) },
             containerColor = colors.surface,
+            // The page pads for the status/navigation bars itself; letting the Scaffold add them
+            // too pushed everything (the back button included) a status-bar height too low.
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
         ) { padding ->
             Box(Modifier.padding(padding)) { Content() }
         }
@@ -117,21 +130,24 @@ private fun EmailStep(
     AuthColumn {
         // Back to the onboarding screen.
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            // Same spot as the back button on other screens (top-app-bar height, 8dp from the edge):
+            // the column has 24dp side padding, so pull the row out by 16dp.
+            modifier = Modifier.fillMaxWidth().height(BackBarHeight).offset(x = (-16).dp),
             horizontalArrangement = Arrangement.Start,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = { dispatch(AuthContract.Action.BackClicked) }) {
+            CircleIconButton(onClick = { dispatch(AuthContract.Action.BackClicked) }) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBackIos,
                     contentDescription = str(S.ACTION_BACK),
                     tint = colors.ink,
+                    modifier = Modifier.padding(start = 6.dp).size(20.dp),
                 )
             }
         }
-        Spacer(Modifier.height(28.dp))
         LogoTitleBlock(title = str(S.AUTH_TITLE), subtitle = str(S.AUTH_SUBTITLE))
 
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(16.dp))
         EmailFieldBlock(
             state = state,
             dispatch = dispatch,
@@ -145,15 +161,20 @@ private fun EmailStep(
             loading = state.isCheckingAccount || state.isSendingCode,
         )
 
-        Spacer(Modifier.height(20.dp))
-        ProviderSection(dispatch)
+        Spacer(Modifier.height(16.dp))
+        ProviderSection(state, dispatch)
 
-        Spacer(Modifier.height(20.dp))
-        GuestSection(state, dispatch)
+        if (state.showGuestOption) {
+            Spacer(Modifier.height(16.dp))
+            GuestSection(state, dispatch)
+        }
 
-        Spacer(Modifier.height(40.dp))
-        LegalFooter(onLegalClick = { dispatch(AuthContract.Action.LegalClicked) })
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(24.dp))
+        LegalFooter(
+            onTermsClick = { dispatch(AuthContract.Action.TermsClicked) },
+            onPrivacyClick = { dispatch(AuthContract.Action.PrivacyClicked) },
+        )
+        Spacer(Modifier.height(12.dp))
     }
 }
 
@@ -171,21 +192,24 @@ private fun NameFormStep(
     AuthColumn {
         // Back to the email step to fix the email.
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            // Same spot as the back button on other screens (top-app-bar height, 8dp from the edge):
+            // the column has 24dp side padding, so pull the row out by 16dp.
+            modifier = Modifier.fillMaxWidth().height(BackBarHeight).offset(x = (-16).dp),
             horizontalArrangement = Arrangement.Start,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = { dispatch(AuthContract.Action.BackClicked) }) {
+            CircleIconButton(onClick = { dispatch(AuthContract.Action.BackClicked) }) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBackIos,
                     contentDescription = str(S.ACTION_BACK),
                     tint = colors.ink,
+                    modifier = Modifier.padding(start = 6.dp).size(20.dp),
                 )
             }
         }
-        Spacer(Modifier.height(28.dp))
         LogoTitleBlock(title = str(S.AUTH_NAME_TITLE), subtitle = str(S.AUTH_NAME_SUBTITLE))
 
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(16.dp))
         FieldLabel(str(S.AUTH_FIRST_NAME))
         AuthField(
             value = state.firstName,
@@ -199,7 +223,7 @@ private fun NameFormStep(
             isError = state.showNameError && state.firstName.isBlank(),
         )
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(10.dp))
         FieldLabel(str(S.AUTH_LAST_NAME))
         AuthField(
             value = state.lastName,
@@ -214,7 +238,7 @@ private fun NameFormStep(
             onNext = { dispatch(AuthContract.Action.NameContinueClicked) },
         )
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(10.dp))
         FieldLabel(str(S.AUTH_EMAIL))
         AuthField(
             value = state.email,
@@ -253,13 +277,13 @@ private fun NameFormStep(
             )
         }
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(16.dp))
         ContinueButton(
             onClick = { dispatch(AuthContract.Action.NameContinueClicked) },
             enabled = !state.isSendingCode,
             loading = state.isSendingCode,
         )
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(12.dp))
     }
 }
 
@@ -291,10 +315,10 @@ private fun LogoTitleBlock(title: String, subtitle: String?) {
     Image(
         painter = painterResource(Res.drawable.onboarding_header_logo),
         contentDescription = null,
-        modifier = Modifier.size(80.dp),
+        modifier = Modifier.size(104.dp),
     )
 
-    Spacer(Modifier.height(28.dp))
+    Spacer(Modifier.height(16.dp))
     Text(
         text = title,
         fontSize = 26.sp,
@@ -398,39 +422,70 @@ private fun ContinueButton(
                 fontSize = 16.sp,
                 letterSpacing = 1.5.sp,
             )
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+            )
         }
     }
 }
 
 @Composable
-private fun ProviderSection(dispatch: (AuthContract.Action) -> Unit) {
+private fun ProviderSection(state: AuthContract.State, dispatch: (AuthContract.Action) -> Unit) {
+    if (state.providers.isEmpty()) return
     DividerRow(str(S.AUTH_OR_CONTINUE_WITH))
     Spacer(Modifier.height(16.dp))
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        val colors = ReTallyTheme.colors
-        ProviderButton(
-            label = str(S.AUTH_APPLE),
-            onClick = { dispatch(AuthContract.Action.AppleClicked) },
-        ) {
-            Icon(
-                imageVector = AuthIcons.apple(),
-                contentDescription = null,
-                tint = colors.ink,
-                modifier = Modifier.size(26.dp),
+    // iOS: Apple, then Google. Android: Google. White with an outline, logo + label — a style both
+    // Apple's and Google's branding guidelines allow.
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        state.providers.forEach { provider ->
+            ProviderButton(
+                provider = provider,
+                loading = state.providerInProgress == provider,
+                enabled = !state.isProviderSigningIn && !state.isSubmitting,
+                onClick = {
+                    dispatch(
+                        when (provider) {
+                            SignInProvider.APPLE -> AuthContract.Action.AppleClicked
+                            SignInProvider.GOOGLE -> AuthContract.Action.GoogleClicked
+                        },
+                    )
+                },
             )
         }
-        ProviderButton(
-            label = str(S.AUTH_GOOGLE),
-            onClick = { dispatch(AuthContract.Action.GoogleClicked) },
-        ) {
+    }
+}
+
+@Composable
+private fun ProviderButton(provider: SignInProvider, loading: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    val colors = ReTallyTheme.colors
+    val isApple = provider == SignInProvider.APPLE
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth().height(56.dp),
+        shape = RoundedCornerShape(28.dp),
+        border = BorderStroke(1.dp, colors.divider),
+        colors = ButtonDefaults.outlinedButtonColors(containerColor = colors.surface, contentColor = colors.ink),
+    ) {
+        if (loading) {
+            CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp, color = colors.ink)
+        } else {
             Icon(
-                imageVector = AuthIcons.google(),
+                imageVector = if (isApple) AuthIcons.apple() else AuthIcons.google(),
                 contentDescription = null,
-                tint = Color.Unspecified,
-                modifier = Modifier.size(26.dp),
+                tint = if (isApple) colors.ink else Color.Unspecified,
+                // The Apple logo is taller than wide (3:4); a square box squashed it sideways.
+                modifier = if (isApple) Modifier.height(22.dp).aspectRatio(APPLE_LOGO_ASPECT) else Modifier.size(22.dp),
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(
+                str(if (isApple) S.AUTH_APPLE else S.AUTH_GOOGLE),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.ink,
             )
         }
     }
@@ -563,42 +618,25 @@ private fun DividerRow(text: String) {
 }
 
 @Composable
-private fun RowScope.ProviderButton(
-    label: String,
-    onClick: () -> Unit,
-    icon: @Composable () -> Unit,
-) {
-    val colors = ReTallyTheme.colors
-    OutlinedButton(
-        onClick = onClick,
-        modifier = Modifier
-            .weight(1f)
-            .height(56.dp)
-            .semantics { contentDescription = label },
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, colors.divider),
-        colors = ButtonDefaults.outlinedButtonColors(containerColor = colors.surface),
-        contentPadding = PaddingValues(0.dp),
-    ) {
-        icon()
-    }
-}
-
-@Composable
-private fun LegalFooter(onLegalClick: () -> Unit) {
+private fun LegalFooter(onTermsClick: () -> Unit, onPrivacyClick: () -> Unit) {
     val colors = ReTallyTheme.colors
     val linkStyle = SpanStyle(
         color = colors.ink,
         textDecoration = TextDecoration.Underline,
     )
+    // Spaces are added here, not taken from the strings: Android trims leading/trailing spaces
+    // in strings.xml, which ran the words together ("agree to ourTerms & ConditionsandPrivacy").
     val annotated = buildAnnotatedString {
-        append(str(S.AUTH_LEGAL_PREFIX))
+        append(str(S.AUTH_LEGAL_PREFIX).trim())
+        append(' ')
         pushStringAnnotation(tag = "legal", annotation = "terms")
-        withStyle(linkStyle) { append(str(S.AUTH_LEGAL_TERMS)) }
+        withStyle(linkStyle) { append(str(S.AUTH_LEGAL_TERMS).trim()) }
         pop()
-        append(str(S.AUTH_LEGAL_AND))
+        append(' ')
+        append(str(S.AUTH_LEGAL_AND).trim())
+        append(' ')
         pushStringAnnotation(tag = "legal", annotation = "privacy")
-        withStyle(linkStyle) { append(str(S.AUTH_LEGAL_PRIVACY)) }
+        withStyle(linkStyle) { append(str(S.AUTH_LEGAL_PRIVACY).trim()) }
         pop()
     }
     ClickableText(
@@ -611,8 +649,16 @@ private fun LegalFooter(onLegalClick: () -> Unit) {
         ),
         modifier = Modifier.padding(horizontal = 24.dp),
         onClick = { offset ->
-            annotated.getStringAnnotations(tag = "legal", start = offset, end = offset)
-                .firstOrNull()?.let { onLegalClick() }
+            when (annotated.getStringAnnotations(tag = "legal", start = offset, end = offset).firstOrNull()?.item) {
+                "terms" -> onTermsClick()
+                "privacy" -> onPrivacyClick()
+            }
         },
     )
 }
+
+/** Height of the back-button row: the same as a top app bar, so Back sits where it does elsewhere. */
+internal val BackBarHeight = 64.dp
+
+/** Width ÷ height of the Apple logo artwork (384×512). */
+private const val APPLE_LOGO_ASPECT = 384f / 512f

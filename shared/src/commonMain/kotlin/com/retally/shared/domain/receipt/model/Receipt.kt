@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.domain.receipt.model
 
 import com.retally.shared.domain.category.ItemCategory
@@ -10,6 +14,27 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlin.time.Instant
+
+/**
+ * How complete the scan data is. COMPLETE = everything read; PARTIAL = total was read
+ * but some fields are missing (torn/faded receipt, user can fill gaps); MANUAL_ENTRY =
+ * no total found, user enters merchant/date/total by hand.
+ */
+@Serializable
+enum class ScanStatus {
+    COMPLETE,
+    PARTIAL,
+    MANUAL_ENTRY,
+}
+
+/** Which engine produced the parsed data. */
+@Serializable
+enum class ParseSource {
+    /** On-device OCR + heuristic parser. */
+    LOCAL,
+    /** Gemini fallback via the parseTornReceipt Cloud Function. */
+    CLOUD_AI,
+}
 
 /**
  * A scanned receipt. Mirrors the SwiftData model of the original iOS app so a future
@@ -39,7 +64,28 @@ data class Receipt(
     /** Set once the receipt has been accepted by the cloud backend. */
     @Serializable(with = InstantIsoSerializer::class)
     val syncedAt: Instant? = null,
+    /** Scan completeness — PARTIAL/MANUAL_ENTRY for torn/faded receipts. */
+    val scanStatus: ScanStatus = ScanStatus.COMPLETE,
+    /** Fields the scanner couldn't read (e.g. "merchant", "date", "items"). */
+    val missingFields: Set<String> = emptySet(),
+    /**
+     * 1.0 = total/date/merchant confirmed by OCR or user; lower for partial scans.
+     * Duplicate matching only compares receipts above the confidence gate.
+     */
+    val confidence: Double = 1.0,
+    /** Which engine produced the parsed data — LOCAL or CLOUD_AI (Gemini). */
+    val parseSource: ParseSource = ParseSource.LOCAL,
+    /**
+     * ISO 4217 code the receipt was paid in, fixed at scan time from the device's region.
+     * Lives on the receipt, not the user, so history stays right if the shopper moves or
+     * travels. Pre-v2 receipts decode as USD (the US-only release).
+     */
+    val currency: String = DEFAULT_CURRENCY,
 ) {
+    companion object {
+        const val DEFAULT_CURRENCY = "USD"
+    }
+
     /** Sum of the printed line prices — a diagnostic, never the receipt total. */
     val itemsTotal: Double get() = items.sumOf { it.price }
 
@@ -87,6 +133,11 @@ data class ReceiptItem(
      * fall back to the default grocery bucket.
      */
     val categoryId: String = ItemCategory.DEFAULT_ID,
+    /**
+     * The shopper picked [categoryId] by hand: automatic tagging (keywords or the server's
+     * AI pass) never changes it again. Synced as `userCorrected`.
+     */
+    val categoryLocked: Boolean = false,
 )
 
 /** ISO-8601 wire format for [kotlin.time.Instant] ("2026-09-13T14:03:00Z"). */

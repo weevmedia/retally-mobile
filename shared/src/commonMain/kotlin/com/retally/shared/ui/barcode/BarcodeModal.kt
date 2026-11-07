@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.ui.barcode
 
 import com.retally.shared.core.strings.StringAssetIdentifiers as S

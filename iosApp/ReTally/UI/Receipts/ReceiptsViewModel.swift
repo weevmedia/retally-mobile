@@ -1,3 +1,7 @@
+//
+//  Copyright (c) 2026-2027 Weev Media. All rights reserved.
+//
+
 import Combine
 import Foundation
 import Shared
@@ -33,6 +37,11 @@ final class ReceiptsViewModel: ObservableObject {
         sideEffects?.close()
         screen.dispose()
         store.clear()
+    }
+
+    /// The tab became visible: lets Kotlin re-check stores marked "no logo" (throttled there).
+    func appeared() {
+        store.dispatch(action: ReceiptsContractAction.Appeared())
     }
 
     private func handle(_ effect: ReceiptsContractSideEffect) {

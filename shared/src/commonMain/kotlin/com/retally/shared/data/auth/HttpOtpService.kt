@@ -1,5 +1,12 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.data.auth
 
+import com.retally.shared.domain.auth.ProviderSignInException
+import com.retally.shared.domain.auth.ProviderSignIn
+import com.retally.shared.domain.auth.SignInProvider
 import com.retally.shared.domain.auth.CodeRequest
 import com.retally.shared.domain.auth.OtpException
 import com.retally.shared.domain.auth.OtpService
@@ -35,6 +42,21 @@ class HttpOtpService(
 
     @Serializable
     private data class VerifyResponse(val customToken: String = "")
+
+    @Serializable
+    private data class ProviderBody(
+        val provider: String,
+        val idToken: String,
+        val nonce: String? = null,
+        val displayName: String? = null,
+    )
+
+    @Serializable
+    private data class ProviderResponse(
+        val customToken: String = "",
+        val isNewUser: Boolean = false,
+        val firstName: String? = null,
+    )
 
     @Serializable
     private data class RequestCodeResponse(
@@ -83,6 +105,34 @@ class HttpOtpService(
             HttpStatusCode.Gone, HttpStatusCode.NotFound -> throw OtpException.CodeExpired
             HttpStatusCode.TooManyRequests -> throw OtpException.TooManyAttempts
             else -> throw OtpException.SendFailed
+        }
+    }
+
+    override suspend fun signInWithProvider(
+        provider: SignInProvider,
+        idToken: String,
+        nonce: String?,
+        displayName: String?,
+    ): ProviderSignIn {
+        val response = try {
+            client.post("$baseUrl/signInWithProvider") {
+                contentType(ContentType.Application.Json)
+                setBody(ProviderBody(provider.wireName, idToken, nonce, displayName?.takeIf { it.isNotBlank() }))
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            throw ProviderSignInException.Failed
+        }
+        return when (response.status) {
+            HttpStatusCode.OK -> {
+                val body = response.body<ProviderResponse>()
+                if (body.customToken.isBlank()) throw ProviderSignInException.Failed
+                ProviderSignIn(body.customToken, body.isNewUser, body.firstName)
+            }
+            HttpStatusCode.UnprocessableEntity -> throw ProviderSignInException.NoEmail
+            HttpStatusCode.Unauthorized -> throw ProviderSignInException.Rejected
+            else -> throw ProviderSignInException.Failed
         }
     }
 

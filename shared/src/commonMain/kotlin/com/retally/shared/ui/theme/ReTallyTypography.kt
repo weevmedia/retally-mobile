@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.ui.theme
 
 import androidx.compose.material3.Typography
@@ -113,7 +117,8 @@ object ReTallyTypography {
     // ── Aliases kept so existing call sites map onto the design-system anchors ────────────
     val largeTitle: TextStyle get() = display
     val screenTitle: TextStyle get() = title
-    val storeName: TextStyle get() = title
+    /** Receipt store name: the title style 1pt larger so the store reads first. */
+    val storeName: TextStyle get() = title.copy(fontSize = 26.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold)
     val label: TextStyle get() = pill
 
     /**

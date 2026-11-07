@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.domain.scan
 
 import com.retally.shared.core.newId
@@ -27,6 +31,11 @@ data class ParsedReceipt(
     val total: Double? = null,
     /** Digits of the barcode printed at the bottom, when found. */
     val barcode: String? = null,
+    /**
+     * Item count printed on the receipt ("ITEMS SOLD: 12"), null when not printed.
+     * Compare against [items].size to detect incomplete scans.
+     */
+    val declaredItemCount: Int? = null,
 ) {
     val duplicateCount: Int get() = items.count { it.isDuplicate }
 }
@@ -65,16 +74,21 @@ class ReceiptParser(
             } else {
                 scannedName to storeIndex + nameLinesConsumed
             }
+        // Store names always display in caps: normalize once here, so every scan and
+        // every surface that reads the parsed receipt agrees.
         return ParsedReceipt(
-            storeName = storeName,
+            storeName = storeName.uppercase(),
             storeAddress = detectStoreAddress(clean, addressStart),
             purchaseDate = detectDate(clean),
             paymentInfo = detectPaymentInfo(clean),
             items = flagDuplicates(detectItems(clean)),
             subtotal = detectAmount(clean, SUBTOTAL),
             tax = detectTax(clean),
-            total = detectAmount(clean, TOTAL, preferLast = true),
+            total = detectBalance(clean)
+                ?: detectAmount(clean, TOTAL, preferLast = true)
+                ?: detectAmount(clean, AMOUNT_LINE),
             barcode = detectBarcode(clean),
+            declaredItemCount = detectItemCount(clean),
         )
     }
 
@@ -200,6 +214,18 @@ class ReceiptParser(
     }
 
     /**
+     * The amount owed on receipts that label it BALANCE instead of TOTAL (Shaw's prints
+     * "**** BALANCE 7.99" while its only "Total" line is the savings total, 1.47).
+     * Checked before TOTAL so a savings "Total" can never beat the amount owed. The first
+     * positive balance wins: a zero balance after tender is a remainder, not a total.
+     */
+    private fun detectBalance(lines: List<String>): Double? =
+        lines.mapIndexedNotNull { index, line ->
+            if (!BALANCE.containsMatchIn(line)) return@mapIndexedNotNull null
+            amountNear(lines, index, line)?.takeIf { it > 0 }
+        }.firstOrNull()
+
+    /**
      * Tax as printed. A "TOTAL TAX" line wins outright; otherwise the "TAX … 1.23" lines between
      * SUBTOTAL and TOTAL are summed (state + local print separately). Tax lines *after* the
      * TOTAL (Costco's "A 6.25% Tax" summary block) repeat the same amounts and are ignored.
@@ -291,6 +317,18 @@ class ReceiptParser(
     }
 
     /**
+     * Declared item count printed on the receipt ("ITEMS SOLD: 12"). Returns null when
+     * the receipt doesn't print a count — absence is not a failure signal.
+     */
+    private fun detectItemCount(lines: List<String>): Int? {
+        for (line in lines) {
+            val m = ITEM_COUNT.find(line) ?: continue
+            return m.groupValues[1].toIntOrNull()
+        }
+        return null
+    }
+
+    /**
      * A line is an item only when it ends in a plain price (no minus sign, so discount and
      * refund lines such as "0000389072 / 2040045 5.00-" are skipped). The item number is
      * whichever the receipt prints, if any:
@@ -304,6 +342,9 @@ class ReceiptParser(
     private fun detectItems(lines: List<String>): List<ParsedItem> = lines.mapNotNull { line ->
         if (NON_ITEM.containsMatchIn(line)) return@mapNotNull null
         if (MASKED_CARD_FRAGMENT.containsMatchIn(line)) return@mapNotNull null
+        // A minus touching the price, before or after ("- 2.00", "-$2.00", "2.00-", "2.00 -F",
+        // "(2.00)", any dash OCR produces), is a discount or refund, never an item.
+        if (NEGATIVE_AMOUNT.containsMatchIn(line)) return@mapNotNull null
         val m = ITEM.find(line) ?: return@mapNotNull null
         val flag = m.groups[1]?.value
         val leading = m.groups[2]?.value
@@ -419,6 +460,15 @@ class ReceiptParser(
          */
         private val ITEM = Regex("""^(?:([A-Z])\s+)?(?:(\d[\d-]*)\s+)?(.+?)\s+\$?(\d{1,4}[.,]\d{2})(?:\s?[A-Za-z*])?$""")
 
+        /**
+         * A line ending in a negative amount: a dash (hyphen, minus sign, en/em dash) right
+         * before the price (spaces and "$" allowed between), right after it (an optional tax
+         * code may follow), or the price in parentheses.
+         */
+        private val NEGATIVE_AMOUNT = Regex(
+            """(?:[-−–—]\s*\$?\s*\d{1,5}[.,]\d{2}\s?[A-Za-z*]?|\d{1,5}[.,]\d{2}\s*[-−–—]\s?[A-Za-z*]?|\d{1,5}[.,]\d{2}\s?[A-Za-z*]?\s*[-−–—]|\(\s*\$?\s*\d{1,5}[.,]\d{2}\s*\)\s?[A-Za-z*]?)\s*$""",
+        )
+
         /** UPC printed after the name (8+ digits, optional tax code letter) — Walmart style. */
         private val TRAILING_ITEM_NUMBER = Regex("""\s(\d{8,})(?:\s[A-Z])?$""")
 
@@ -431,6 +481,15 @@ class ReceiptParser(
         private val SUBTOTAL = Regex("""(?i)\bSUB\s?-?\s?TOTAL\b""")
         /** The grand total line — not "TOTAL TAX", "TOTAL SAVINGS" or "TOTAL NUMBER OF ITEMS". */
         private val TOTAL = Regex("""(?i)^\s*\**\s*TOTAL\b(?!\s*(?:TAX|SAVINGS|DISCOUNT|NUMBER|ITEMS|QTY))""")
+        /** The amount owed on receipts that print it as BALANCE, not TOTAL — never "BALANCE FORWARD". */
+        private val BALANCE = Regex("""(?i)^\s*\**\s*BALANCE\b(?!\s*FORWARD\b)""")
+        /** Fallback when the TOTAL amount isn't readable (e.g., inverted/white-on-black print): "AMOUNT: $265.43" in the payment block. */
+        private val AMOUNT_LINE = Regex("""(?i)^\s*AMOUNT\s*:""")
+        /**
+         * Declared item count: "ITEMS SOLD: 12", "TOTAL ITEMS: 15", "# ITEMS 8".
+         * Null when the receipt doesn't print a count — absence is not a failure.
+         */
+        private val ITEM_COUNT = Regex("""(?i)\b(?:TOTAL\s+)?(?:NUMBER\s+OF\s+)?ITEMS(?:\s+SOLD)?\s*:?\s*(\d{1,4})\b""")
         private val TAX = Regex("""(?i)\bTAX\b""")
         private val TRAILING_PRICE = Regex("""\$?\s?(-?\d{1,5}[.,]\d{2})\s?[A-Za-z*]?\s*$""")
         /** A line holding only a price, e.g. Costco's total amount above "**** TOTAL". */

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.ui.theme
 
 import androidx.compose.ui.unit.Dp
@@ -51,6 +55,8 @@ object ReTallyDimensions {
     val iconBadgeSize: Dp = 40.dp
     val emptyStateDisc: Dp = 88.dp
     val emptyStateIcon: Dp = 40.dp
+    /** Larger empty-state artwork, for the shopping list tab. */
+    val emptyStateIconLarge: Dp = 128.dp
 
     /**
      * Height of the Home empty-state illustration. 150 rather than the original 220: with the

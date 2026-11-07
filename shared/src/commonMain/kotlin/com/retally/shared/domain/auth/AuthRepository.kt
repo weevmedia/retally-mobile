@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.domain.auth
 
 import kotlinx.coroutines.flow.Flow
@@ -39,11 +43,24 @@ interface AuthRepository {
     suspend fun signOut()
 
     /**
+     * Changes the signed-in user's display name ("First Last"). [observeAccount] re-emits
+     * with the new name. Throws when there's no signed-in user or the update fails.
+     */
+    suspend fun updateDisplayName(displayName: String)
+
+    /**
      * Deletes the Firebase user. Returns false when the backend refuses (e.g. the login
      * is too old and Firebase demands a re-authentication first). Callers still wipe
      * local data themselves.
      */
     suspend fun deleteAccount(): Boolean
+
+    /**
+     * Firebase ID token for authenticated backend calls. Null when not signed in.
+     * Used for the Authorization header on Cloud Function calls. [forceRefresh] mints a new
+     * token instead of the cached one (use after the server rejects a token).
+     */
+    suspend fun getIdToken(forceRefresh: Boolean = false): String?
 }
 
 /** Minimal identity for the UI. Guests (anonymous Firebase users) have no name. */

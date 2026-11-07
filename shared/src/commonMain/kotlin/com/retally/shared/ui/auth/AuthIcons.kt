@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.ui.auth
 
 import androidx.compose.runtime.Composable
@@ -18,7 +22,8 @@ internal object AuthIcons {
     fun apple(): ImageVector = remember {
         ImageVector.Builder(
             name = "apple",
-            defaultWidth = 24.dp,
+            // Same 3:4 shape as the 384×512 viewport, so it never draws stretched.
+            defaultWidth = 18.dp,
             defaultHeight = 24.dp,
             viewportWidth = 384f,
             viewportHeight = 512f,

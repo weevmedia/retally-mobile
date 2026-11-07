@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.io.FileInputStream
 import java.util.Properties
@@ -11,6 +15,8 @@ plugins {
     id("androidx.navigation.safeargs.kotlin")
     // Reads androidApp/google-services.json (Firebase console → Project settings → Your apps).
     id("com.google.gms.google-services")
+    // Uploads the R8 mapping file on release builds so Crashlytics stack traces are readable.
+    id("com.google.firebase.crashlytics")
 }
 
 /**
@@ -39,6 +45,53 @@ if (keystoreFile.exists()) {
     keystoreProperties.load(FileInputStream(keystoreFile))
 }
 
+// App version lives in version.properties (shared with iOS via iosApp/Version.xcconfig).
+// CI can pin the code without touching source: ./gradlew ... -Pretally.versionCode=123
+val appVersion = Properties().apply {
+    rootProject.file("version.properties").inputStream().use { load(it) }
+}
+val appVersionName: String = appVersion.getProperty("versionName").trim()
+val appVersionCode: Int = (findProperty("retally.versionCode") as String?)?.toInt()
+    ?: appVersion.getProperty("versionCode").trim().toInt()
+
+// Keep iosApp/Version.xcconfig in step with version.properties. Wired into preBuild so an
+// Android build can never ship a version iOS doesn't also see.
+val syncIosVersion by tasks.registering {
+    description = "Writes iosApp/Version.xcconfig from version.properties"
+    val source = rootProject.file("version.properties")
+    val target = rootProject.file("iosApp/Version.xcconfig")
+    // Plain values only, so the task is configuration-cache friendly.
+    val marketingVersion = appVersionName
+    val projectVersion = appVersion.getProperty("versionCode").trim()
+    inputs.file(source)
+    outputs.file(target)
+    doLast {
+        target.writeText(
+            """
+            |// GENERATED from version.properties by `./gradlew syncIosVersion` — do not edit here.
+            |MARKETING_VERSION = $marketingVersion
+            |CURRENT_PROJECT_VERSION = $projectVersion
+            |""".trimMargin(),
+        )
+    }
+}
+tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(syncIosVersion) }
+
+// Release builds need the upload key. Checked when a release task actually runs (not at
+// configuration), so debug builds and IDE sync work on machines without keystore.properties.
+val hasReleaseKeystore = keystoreProperties.isNotEmpty()
+val requireReleaseKeystore by tasks.registering {
+    doLast {
+        if (!hasReleaseKeystore) {
+            throw GradleException(
+                "Release build needs the upload key: create keystore.properties in the project root " +
+                    "(storeFile, storePassword, keyAlias, keyPassword). Refusing to sign a release with the debug key.",
+            )
+        }
+    }
+}
+tasks.matching { it.name == "preReleaseBuild" }.configureEach { dependsOn(requireReleaseKeystore) }
+
 android {
     namespace = "com.retally.app"
     compileSdk = Versions.androidCompileSdk
@@ -47,13 +100,17 @@ android {
         applicationId = "com.weevmedia.retally"
         minSdk = Versions.androidMinSdk
         targetSdk = Versions.androidTargetSdk
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
 
         // AdMob App ID (the one with the "~"), from apps.admob.com → Apps → ReTally (Android).
         // The real id is fine in every build type: which *ad units* a build requests decides
         // whether real or test creatives are served (see HOME_BANNER_UNIT_ID below).
         manifestPlaceholders["admobAppId"] = AdMob.androidAppId
+
+        // OpenCV ships native code for every CPU type; keep phones (64/32-bit ARM) and the
+        // x86_64 emulator only. Play still splits the download per phone.
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
 
         // Backend for cloud backup. Empty = feature stays in placeholder mode.
         buildConfigField("String", "CLOUD_BASE_URL", "\"\"")
@@ -75,14 +132,11 @@ android {
             applicationIdSuffix = ".debug"
             // NOTE: no versionNameSuffix — the More menu shows a clean version (e.g. 1.0.0),
             // never "1.0.0-debug".
-            // Google's demo unit, not the real one. The AdMob account is still pending approval,
-            // so the real unit answers every request with "Account not approved yet" and no
-            // banner ever renders. Demo units are not tied to the account and always fill.
-            // Once the account is approved, swap this back to AdMob.androidHomeBannerUnitId —
-            // AndroidAdsInitializer already registers the emulator and DEBUG_TEST_DEVICE_IDS as
-            // test devices, so the real unit will serve "Test Ad" creatives without counting
-            // as live impressions.
-            buildConfigField("String", "HOME_BANNER_UNIT_ID", "\"${AdMob.TEST_BANNER_UNIT}\"")
+            // Production unit in debug too (per request) — debug builds now request the real ad unit.
+            // AndroidAdsInitializer registers the emulator and DEBUG_TEST_DEVICE_IDS as test
+            // devices, so the real unit serves "Test Ad" creatives without counting as live
+            // impressions.
+            buildConfigField("String", "HOME_BANNER_UNIT_ID", "\"${AdMob.androidHomeBannerUnitId}\"") 
         }
         release {
             buildConfigField("String", "HOME_BANNER_UNIT_ID", "\"${AdMob.androidHomeBannerUnitId}\"")
@@ -92,11 +146,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            signingConfig = if (keystoreProperties.isNotEmpty()) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
-            }
+            // Always the upload key. No debug-key fallback: a debug-signed "release" is rejected
+            // by Play and fails App Check, so without keystore.properties the release build
+            // stops (see requireReleaseKeystore above) instead of quietly signing with debug.
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
@@ -144,12 +197,38 @@ dependencies {
     implementation(Deps.Compose.Multiplatform.lifecycleRuntimeCompose)
 
     implementation(Deps.Koin.android)
+    implementation(Deps.Firebase.crashlytics)
+    // App Check: proves to the backend that calls come from this app (see ReTallyApplication).
+    implementation(Deps.Firebase.appCheckPlayIntegrity)
+    debugImplementation(Deps.Firebase.appCheckDebug)
     implementation(Deps.Android.playServicesAds)
+    // Unity Ads mediation adapter (AdMob bidding for banners) + the Unity Ads SDK itself.
+    // The adapter alone does not bring the Unity classes: without the SDK line, release
+    // R8 fails on missing com.unity3d.ads.* classes (debug only failed at runtime instead).
+    implementation("com.unity3d.ads:unity-ads:4.21.0")
+    implementation("com.google.ads.mediation:unity:4.21.0.0")
     implementation(Deps.Android.playServicesLocation)
     implementation(Deps.Android.userMessagingPlatform)
 
     // Receipt scanning (ML Kit document scanner UI + on-device text recognition).
     implementation(Deps.Android.mlkitDocumentScanner)
     implementation(Deps.Android.mlkitTextRecognition)
+    // Reads the barcode bars themselves (ReceiptTextRecognizer) — text OCR on the small
+    // digits under a top-of-receipt barcode is what kept dropping Walmart/Shaw's codes.
+    implementation(Deps.Android.mlkitBarcodeScanning)
+    // Sign in with Google.
+    implementation(Deps.Android.credentials)
+    implementation(Deps.Android.credentialsPlayServices)
+    implementation(Deps.Android.googleId)
     implementation(Deps.Kotlinx.coroutinesPlayServices)
+    // Custom scanner UI: CameraX live preview (replaces the ML Kit scanner UI).
+    implementation(Deps.Android.cameraXCore)
+    implementation(Deps.Android.cameraXCamera2)
+    implementation(Deps.Android.cameraXLifecycle)
+    implementation(Deps.Android.cameraXView)
+    implementation(Deps.Android.guava)
+    // Finds the receipt in the photo and straightens it (ReceiptDocumentDetector).
+    implementation(Deps.Android.openCv)
+    // Material icons for the scanner UI (close, flash, gallery buttons).
+    implementation("androidx.compose.material:material-icons-extended:1.7.8")
 }

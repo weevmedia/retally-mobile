@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.ui.maps
 
 /** Apple Maps universal link; iOS routes it to the Maps app. */

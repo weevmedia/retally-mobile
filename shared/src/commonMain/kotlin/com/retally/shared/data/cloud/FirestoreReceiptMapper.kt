@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.data.cloud
 
 import com.retally.shared.domain.receipt.model.Receipt
@@ -30,6 +34,10 @@ class FirestoreReceiptMapper(
         currency: String,
         deviceId: String,
         appVersion: String,
+        imageStoragePath: String? = null,
+        /** "android" / "ios" — lets the dashboard compare OCR quality and flag rates per platform. */
+        platform: String = "unknown",
+        osVersion: String = "unknown",
     ): Map<String, Any?> {
         val duplicates = receipt.duplicates
         val total = (receipt.total ?: receipt.itemsTotal).round2()
@@ -55,12 +63,18 @@ class FirestoreReceiptMapper(
                 "confidence" to 1.0,
             ),
             "categoryTotals" to mapOf("other" to total),
-            "image" to mapOf("storagePath" to null, "thumbnailPath" to null),
+            "image" to mapOf("storagePath" to imageStoragePath, "thumbnailPath" to null),
             "ocr" to mapOf(
                 "rawText" to "",
-                "engine" to "mlkit",
+                // Android reads with ML Kit, iOS with Apple Vision.
+                "engine" to if (platform == "ios") "vision" else "mlkit",
                 "appVersion" to appVersion,
                 "piiScrubbed" to true,
+            ),
+            "client" to mapOf(
+                "platform" to platform,
+                "osVersion" to osVersion,
+                "appVersion" to appVersion,
             ),
             "source" to "scan",
             "deviceId" to deviceId,
@@ -94,7 +108,8 @@ class FirestoreReceiptMapper(
             "itemNumber" to item.itemNumber,
             "normalizedName" to item.name.trim().lowercase(),
             "productId" to null,
-            "category" to "other",
+            // The app's auto-tagged / user-picked category; the shopping-list job uses it per store.
+            "category" to item.categoryId,
             "brand" to null,
             "quantity" to 1.0,
             "unit" to "each",
@@ -105,6 +120,8 @@ class FirestoreReceiptMapper(
             "isDuplicate" to item.isDuplicate,
             "duplicateOfLineId" to duplicateOf,
             "userCorrected" to false,
+            // The shopper set the category by hand (see ReceiptItem.categoryLocked).
+            "categoryCorrected" to item.categoryLocked,
             "currency" to currency,
             "createdAt" to receipt.createdAt.toTimestamp(),
             "updatedAt" to FieldValue.serverTimestamp,

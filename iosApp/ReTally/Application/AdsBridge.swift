@@ -1,3 +1,7 @@
+//
+//  Copyright (c) 2026-2027 Weev Media. All rights reserved.
+//
+
 import Foundation
 import GoogleMobileAds
 import Shared
@@ -17,7 +21,9 @@ final class AdsBridge: NSObject, BannerViewDelegate {
 
     private func log(_ message: String) {
         #if DEBUG
+        #if DEBUG
         print("[ReTallyAds] \(message)")
+        #endif
         #endif
     }
 

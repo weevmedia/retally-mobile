@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026-2027 Weev Media. All rights reserved.
+ */
+
 package com.retally.shared.platform
 
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,16 +15,27 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.ComposeUIViewController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.retally.shared.presentation.duplicates.DuplicatesContract
+import com.retally.shared.presentation.howitworks.HowItWorksContract
+import com.retally.shared.presentation.budget.BudgetContract
 import com.retally.shared.presentation.receipts.ReceiptsContract
 import com.retally.shared.presentation.home.HomeContract
 import com.retally.shared.presentation.main.MainContract
+import com.retally.shared.ui.recalls.RecallsScreen
+import com.retally.shared.presentation.recalls.RecallsContract
+import com.retally.shared.presentation.notifications.NotificationsContract
+import com.retally.shared.ui.notifications.NotificationsScreen
 import com.retally.shared.presentation.scan.ScanReviewContract
 import com.retally.shared.presentation.settings.SettingsContract
+import com.retally.shared.presentation.shopping.ShoppingListContract
 import com.retally.shared.presentation.splash.SplashContract
 import com.retally.shared.presentation.onboarding.OnboardingContract
+import com.retally.shared.presentation.storealerts.StoreAlertsContract
 import com.retally.shared.presentation.auth.AuthContract
 import com.retally.shared.presentation.auth.OtpContract
 import com.retally.shared.ui.duplicates.DuplicatesScreen
+import com.retally.shared.ui.howitworks.HowItWorksScreen
+import com.retally.shared.ui.web.WebPageScreen
+import com.retally.shared.ui.budget.BudgetScreen
 import com.retally.shared.ui.home.HomeScreen
 import com.retally.shared.ui.navigation.ReTallyTabBar
 import com.retally.shared.ui.navigation.ReTallyTabBarDefaults
@@ -29,8 +44,10 @@ import com.retally.shared.ui.receipts.ReceiptsScreen
 import com.retally.shared.ui.placeholder.PlaceholderTab
 import com.retally.shared.ui.scan.ScanReviewScreen
 import com.retally.shared.ui.settings.SettingsScreen
+import com.retally.shared.ui.shopping.ShoppingListScreen
 import com.retally.shared.ui.splash.SplashScreen
 import com.retally.shared.ui.onboarding.OnboardingScreen
+import com.retally.shared.ui.storealerts.StoreAlertsScreen
 import com.retally.shared.ui.auth.AuthScreen
 import com.retally.shared.ui.auth.OtpScreen
 import com.retally.shared.ui.theme.ReTallyTheme
@@ -78,7 +95,14 @@ object IosScreens {
 
     /** First launch only: value-prop pager between splash and the tab bar. */
     fun onboarding(store: OnboardingContract.Store): ComposeScreen = screen { _ ->
-        OnboardingScreen(dispatch = store::dispatch)
+        val state by store.observeState().collectAsStateWithLifecycle()
+        OnboardingScreen(dispatch = store::dispatch, state = state)
+    }
+
+    /** First launch only: store-alerts opt-in between sign-in and the tab bar. */
+    fun storeAlerts(store: StoreAlertsContract.Store): ComposeScreen = screen { _ ->
+        val state by store.observeState().collectAsStateWithLifecycle()
+        StoreAlertsScreen(dispatch = store::dispatch, state = state)
     }
 
     /** First launch only: sign-in between onboarding and the tab bar. */
@@ -106,9 +130,17 @@ object IosScreens {
         )
     }
 
-    fun settings(store: SettingsContract.Store): ComposeScreen = screen { snackbar ->
+    fun settings(store: SettingsContract.Store, mainStore: MainContract.Store): ComposeScreen = screen { snackbar ->
         val state by store.observeState().collectAsStateWithLifecycle()
-        SettingsScreen(state = state, dispatch = store::dispatch, snackbarHostState = snackbar)
+        val shell by mainStore.observeState().collectAsStateWithLifecycle()
+        SettingsScreen(
+            state = state,
+            dispatch = store::dispatch,
+            snackbarHostState = snackbar,
+            adsEnabled = shell.adsEnabled,
+            adUnitId = IosDependencies.getAdsConfig().homeBannerUnitId,
+            showDebugActions = IosDependencies.showDebugActions,
+        )
     }
 
     /** Receipts tab: every receipt, month-filtered and paged. */
@@ -172,6 +204,55 @@ object IosScreens {
     fun duplicates(store: DuplicatesContract.Store): ComposeScreen = screen { snackbar ->
         val state by store.observeState().collectAsStateWithLifecycle()
         DuplicatesScreen(state = state, dispatch = store::dispatch, snackbarHostState = snackbar)
+    }
+
+    /** "See how it works", pushed from the empty Home. */
+    fun howItWorks(store: HowItWorksContract.Store): ComposeScreen = screen { snackbar ->
+        val state by store.observeState().collectAsStateWithLifecycle()
+        HowItWorksScreen(state = state, dispatch = store::dispatch, snackbarHostState = snackbar)
+    }
+
+    /** AI Shopping List tab. */
+    fun shoppingList(store: ShoppingListContract.Store, mainStore: MainContract.Store): ComposeScreen = screen { snackbar ->
+        val state by store.observeState().collectAsStateWithLifecycle()
+        val shell by mainStore.observeState().collectAsStateWithLifecycle()
+        ShoppingListScreen(
+            state = state,
+            dispatch = store::dispatch,
+            snackbarHostState = snackbar,
+            adsEnabled = shell.adsEnabled,
+            bannerAdUnitId = IosDependencies.getAdsConfig().homeBannerUnitId,
+        )
+    }
+
+    /** Food recalls, opened from More › Food recalls. In-feed ad after every 2 recalls. */
+    fun alerts(store: RecallsContract.Store, mainStore: MainContract.Store): ComposeScreen = screen { snackbar ->
+        val state by store.observeState().collectAsStateWithLifecycle()
+        val shell by mainStore.observeState().collectAsStateWithLifecycle()
+        RecallsScreen(
+            state = state,
+            dispatch = store::dispatch,
+            snackbarHostState = snackbar,
+            adsEnabled = shell.adsEnabled,
+            bannerAdUnitId = IosDependencies.getAdsConfig().homeBannerUnitId,
+        )
+    }
+
+    /** Home bell: notifications raised in the last 48 hours. */
+    fun notifications(store: NotificationsContract.Store): ComposeScreen = screen { snackbar ->
+        val state by store.observeState().collectAsStateWithLifecycle()
+        NotificationsScreen(state = state, dispatch = store::dispatch, snackbarHostState = snackbar)
+    }
+
+    /** Monthly grocery budget, opened from Home's Spent tile. */
+    fun budget(store: BudgetContract.Store): ComposeScreen = screen { snackbar ->
+        val state by store.observeState().collectAsStateWithLifecycle()
+        BudgetScreen(state = state, dispatch = store::dispatch, snackbarHostState = snackbar)
+    }
+
+    /** One of our own web pages (privacy, terms, support): top bar + web view, no address bar. */
+    fun webPage(title: String, url: String, onBack: () -> Unit): ComposeScreen = screen { _ ->
+        WebPageScreen(title = title, url = url, onBack = onBack)
     }
 
     fun scanReview(store: ScanReviewContract.Store): ComposeScreen = screen { snackbar ->
