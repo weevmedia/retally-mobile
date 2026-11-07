@@ -79,8 +79,10 @@ tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(syncIosVersio
 
 // Release builds need the upload key. Checked when a release task actually runs (not at
 // configuration), so debug builds and IDE sync work on machines without keystore.properties.
-val hasReleaseKeystore = keystoreProperties.isNotEmpty()
 val requireReleaseKeystore by tasks.registering {
+    // A plain Boolean captured here (not a script-level val) so the configuration cache can
+    // serialize the task.
+    val hasReleaseKeystore = rootProject.file("keystore.properties").exists()
     doLast {
         if (!hasReleaseKeystore) {
             throw GradleException(
