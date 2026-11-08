@@ -4,6 +4,8 @@
 
 package com.retally.shared.presentation.home
 
+import com.retally.shared.domain.config.AppConfigRepository
+import com.retally.shared.ui.web.inAppPageUrl
 import com.retally.shared.domain.budget.BudgetScope
 import com.retally.shared.domain.shopping.ShoppingListRepository
 import com.retally.shared.domain.ai.NudgeRepository
@@ -276,8 +278,11 @@ interface HomeContract {
         data object OpenSignIn : SideEffect()
         /** Host: switch to the Smart List tab (the store is already queued on the repository). */
         data object OpenShoppingList : SideEffect()
-        /** Host: open the "How it works" screen (demo built from the real receipt screens). */
-        data object OpenHowItWorks : SideEffect()
+        /**
+         * Host: open "How it works" — the built-in demo screen, or, when the admin console set
+         * a link, that page in the in-app web view ([title] / [url] non-null).
+         */
+        data class OpenHowItWorks(val title: String? = null, val url: String? = null) : SideEffect()
     }
 
     @OptIn(FlowPreview::class) // debounce
@@ -301,6 +306,8 @@ interface HomeContract {
         private val appUpdates: AppUpdateRepository? = null,
         /** Opens the store page for an update; null in tests and previews. */
         private val platform: Platform? = null,
+        /** How it works link from the admin console; null = built-in screen. */
+        private val appConfig: AppConfigRepository? = null,
     ) : com.retally.shared.core.Store<State, Action, SideEffect>() {
 
         override fun initState() = State()
@@ -462,7 +469,13 @@ interface HomeContract {
                 Action.DuplicatesClicked -> sideEffect(SideEffect.OpenDuplicates)
                 Action.BudgetClicked -> sideEffect(SideEffect.OpenBudget)
                 Action.SeeAllReceiptsClicked -> sideEffect(SideEffect.OpenReceipts)
-                Action.HowItWorksClicked -> sideEffect(SideEffect.OpenHowItWorks)
+                Action.HowItWorksClicked -> {
+                    val url = appConfig?.config?.value?.links?.howItWorks?.takeIf { it.isNotBlank() }
+                    sideEffect(
+                        if (url == null) SideEffect.OpenHowItWorks()
+                        else SideEffect.OpenHowItWorks(strings.getString(StringAssetIdentifiers.HOW_IT_WORKS_TITLE), inAppPageUrl(url)),
+                    )
+                }
                 Action.NotificationsClicked -> sideEffect(SideEffect.OpenNotifications)
                 // Sign-in / account linking is not built yet: say so instead of routing to the host.
                 // Guest banner "Sign in to enable cloud sync": open the same sign-in flow as More › Log in.

@@ -374,15 +374,17 @@ private fun MoreContent(
             }
         }
 
-        SectionHeader(str(S.MORE_SECTION_SAFETY), modifier = Modifier.padding(top = d.sm))
-        SurfaceCard {
-            Column {
-                MenuRow(
-                    icon = Icons.Rounded.HealthAndSafety,
-                    title = str(S.MORE_RECALLS),
-                    subtitle = str(S.MORE_RECALLS_SUB),
-                    onClick = { dispatch(SettingsContract.Action.RecallsClicked) },
-                )
+        if (state.recallsEnabled) {
+            SectionHeader(str(S.MORE_SECTION_SAFETY), modifier = Modifier.padding(top = d.sm))
+            SurfaceCard {
+                Column {
+                    MenuRow(
+                        icon = Icons.Rounded.HealthAndSafety,
+                        title = str(S.MORE_RECALLS),
+                        subtitle = str(S.MORE_RECALLS_SUB),
+                        onClick = { dispatch(SettingsContract.Action.RecallsClicked) },
+                    )
+                }
             }
         }
 

@@ -19,6 +19,8 @@ final class HomeViewModel: ObservableObject {
     @Published var isBudgetPresented = false
     @Published var isNotificationsPresented = false
     @Published var isHowItWorksPresented = false
+    /// Set when the admin console points How it works at a web page instead of the built-in screen.
+    private(set) var howItWorksPage: (title: String, url: String)?
     private(set) var reviewSource: ScanReviewViewModel.Source = .scan(lines: [], imagePath: nil)
     /// Finished-scan payload waiting for the camera cover to finish dismissing.
     /// Dispatching `TextRecognized` (which pushes the review) while the dismissal
@@ -77,7 +79,12 @@ final class HomeViewModel: ObservableObject {
         case is HomeContractSideEffect.OpenSignIn:
             // Guest banner: reopen the sign-in overlay, as More › Log in and the Smart List do.
             NotificationCenter.default.post(name: .retallyShowAuth, object: nil)
-        case is HomeContractSideEffect.OpenHowItWorks:
+        case let open as HomeContractSideEffect.OpenHowItWorks:
+            if let url = open.url {
+                howItWorksPage = (open.title ?? "", url)
+            } else {
+                howItWorksPage = nil
+            }
             isHowItWorksPresented = true
         case let message as HomeContractSideEffect.ShowMessage:
             screen.showMessage(message: message.message)

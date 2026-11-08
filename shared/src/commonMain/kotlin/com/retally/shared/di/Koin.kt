@@ -10,6 +10,8 @@ import com.retally.shared.data.device.DeviceRegistrar
 import com.retally.shared.domain.category.ItemCategoryClassifier
 import com.retally.shared.data.ai.HttpNudgeRepository
 import com.retally.shared.data.update.FirestoreAppUpdateRepository
+import com.retally.shared.data.config.FirestoreAppConfigRepository
+import com.retally.shared.domain.config.AppConfigRepository
 import com.retally.shared.domain.ai.NudgeRepository
 import com.retally.shared.domain.update.AppUpdateRepository
 import com.retally.shared.core.Platform
@@ -133,7 +135,9 @@ private fun platformModule(deps: PlatformDependencies) = module {
     single { deps.settings }
     single { deps.adsInitializer }
     single { deps.adsConfig }
-    single { AdsSession(initializer = get(), config = get()) }
+    // Links + feature switches from the admin console (`config/app`); refreshes from launch.
+    single<AppConfigRepository>(createdAtStart = true) { FirestoreAppConfigRepository(settings = get(), json = get()) }
+    single { AdsSession(initializer = get(), config = get(), appConfig = get()) }
     single { deps.cloudConfig }
     single { deps.stringResolver }
     single { deps.appCheck }
@@ -267,7 +271,7 @@ val storesModule = module {
     // Store-alerts opt-in after the first sign-in; the gate is a single so hosts can ask it.
     single { StoreAlertsPrompt(settings = get(), nearbyStores = get()) }
     factory { StoreAlertsContract.Store(prompt = get()) }
-    factory { AuthContract.Store(authRepository = get(), otpService = get(), strings = get(), preferences = get()) }
+    factory { AuthContract.Store(authRepository = get(), otpService = get(), strings = get(), preferences = get(), appConfig = get()) }
     factory { OtpContract.Store(otpService = get(), authRepository = get(), strings = get(), preferences = get()) }
     single { CategoryRepository(client = get(), settings = get(), json = get()) } bind CategorySource::class
     single { StoreIconRepository(client = get(), settings = get(), json = get()) }
@@ -276,7 +280,7 @@ val storesModule = module {
         HomeContract.Store(
             repository = get(), categories = get(), authRepository = get(), strings = get(), restore = get(),
             backup = get(), inbox = get(), budgets = get(), nudgeRepository = get(), shoppingLists = get(),
-            budgetReminders = getOrNull(), budgetReminderLog = get(), appUpdates = get(), platform = get(),
+            budgetReminders = getOrNull(), budgetReminderLog = get(), appUpdates = get(), platform = get(), appConfig = get(),
         )
     }
     factory { ScanReviewContract.Store(repository = get(), backup = get(), favorites = get(), strings = get(), categories = get(), tornReceiptClient = get(), storeIcons = get(), itemClassifier = get(), locale = get(), auth = get()) }
@@ -299,6 +303,7 @@ val storesModule = module {
             recalls = get(),
             shoppingLists = get(),
             nudges = get(),
+            appConfig = get(),
             strings = get(),
             settings = get(),
         )

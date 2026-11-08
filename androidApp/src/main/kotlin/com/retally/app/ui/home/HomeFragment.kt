@@ -84,7 +84,11 @@ class HomeFragment : BaseComposeFragment<State, Action, SideEffect, HomeViewMode
                     .setPopUpTo(R.id.homeFragment, inclusive = false, saveState = true)
                     .build(),
             )
-            SideEffect.OpenHowItWorks -> navigate(HomeFragmentDirections.actionHomeToHowItWorks())
+            is SideEffect.OpenHowItWorks -> {
+                val url = effect.url
+                if (url == null) navigate(HomeFragmentDirections.actionHomeToHowItWorks())
+                else navigate(com.retally.app.NavGraphDirections.actionGlobalWebPage(title = effect.title.orEmpty(), url = url))
+            }
             is ShowMessage -> effect.userMessage()?.let { snackbarHostState.showSnackbar(it) }
         }
     }

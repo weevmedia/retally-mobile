@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
+import com.retally.shared.domain.config.AppConfigRepository
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -26,6 +29,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 class AdsSession(
     private val initializer: AdsInitializer,
     private val config: AdsConfig,
+    /** Admin console kill switch (`config/app.features.ads`); null = always allowed. */
+    private val appConfig: AppConfigRepository? = null,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var job: Job? = null
@@ -35,8 +40,17 @@ class AdsSession(
     /** `null` until the platform has answered. */
     val readiness: StateFlow<AdsReadiness?> = _readiness.asStateFlow()
 
-    /** True only once the SDK reported ready and ads are switched on in [AdsConfig]. */
-    val adsEnabled: Flow<Boolean> = readiness.map { it == AdsReadiness.READY && config.enabled }
+    /** The admin console has not switched ads off. */
+    val remoteAdsAllowed: Boolean get() = appConfig?.config?.value?.features?.ads ?: true
+
+    /**
+     * True only once the SDK reported ready, ads are switched on in [AdsConfig] and the admin
+     * console has not switched them off (which hides every slot live).
+     */
+    val adsEnabled: Flow<Boolean> = combine(
+        readiness,
+        appConfig?.config?.map { it.features.ads } ?: flowOf(true),
+    ) { ready, allowed -> ready == AdsReadiness.READY && config.enabled && allowed }
 
     /** Idempotent: starts consent + SDK init once per process. */
     fun ensureStarted() {

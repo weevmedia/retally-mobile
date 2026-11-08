@@ -15,6 +15,8 @@ import com.retally.shared.ui.web.inAppPageUrl
 import com.retally.shared.core.Effect
 import com.retally.shared.core.Platform
 import com.retally.shared.domain.recalls.RecallsRepository
+import com.retally.shared.domain.config.AppConfigRepository
+import com.retally.shared.domain.config.AppLinks
 import com.retally.shared.domain.shopping.ShoppingListRepository
 import com.retally.shared.domain.auth.Account
 import com.retally.shared.domain.auth.AuthRepository
@@ -77,6 +79,8 @@ interface SettingsContract {
         val showDeleteAccountConfirm: Boolean = false,
         /** Non-null while the "Edit name" page is open (Edit on the profile card). */
         val nameEdit: NameEdit? = null,
+        /** More › Food recalls is shown (admin console kill switch). */
+        val recallsEnabled: Boolean = true,
     ) : com.retally.shared.core.State
 
     /** Draft for the "Edit name" page. */
@@ -174,7 +178,8 @@ interface SettingsContract {
         private val shoppingLists: ShoppingListRepository? = null,
         /** Home nudges describe the account's purchases too. */
         private val nudges: NudgeRepository? = null,
-        private val links: LegalLinks = LegalLinks(),
+        /** Server-driven links and feature switches (admin console); null = built-in defaults. */
+        private val appConfig: AppConfigRepository? = null,
         private val strings: StringResolver = EnglishStringResolver,
         /** For the debug "Send test crash" (lets a debug build upload that one crash). */
         private val settings: Settings? = null,
@@ -188,9 +193,18 @@ interface SettingsContract {
             cloudConfigured = cloudSync.isConfigured,
             lastSyncedAt = preferences.current.lastSyncedAt,
             nearbyNotificationsEnabled = nearbyStores.isEnabled,
+            recallsEnabled = appConfig?.config?.value?.features?.recalls ?: true,
         )
 
+        private val links: AppLinks get() = appConfig?.config?.value?.links ?: AppLinks()
+
         init {
+            appConfig?.let { repo ->
+                repo.config
+                    .onEach { cfg -> updateStateSafely { it.copy(recallsEnabled = cfg.features.recalls) } }
+                    .launchIn(this)
+                launch { repo.refresh() }
+            }
             combine(
                 preferences.observe(),
                 receipts.observeReceipts(),
@@ -248,7 +262,7 @@ interface SettingsContract {
                 Action.PrivacyPolicyClicked -> openWebPage(StringAssetIdentifiers.SETTINGS_PRIVACY, links.privacyPolicy)
                 Action.TermsClicked -> openWebPage(StringAssetIdentifiers.SETTINGS_TERMS, links.terms)
                 Action.SupportClicked -> openWebPage(StringAssetIdentifiers.SETTINGS_HELP, links.support)
-                Action.RecallsClicked -> sideEffect(SideEffect.OpenRecalls)
+                Action.RecallsClicked -> if (currentState.recallsEnabled) sideEffect(SideEffect.OpenRecalls)
                 Action.DismissSyncMessage -> currentState = currentState.copy(
                     syncMessage = null,
                     syncStatus = SyncStatus.IDLE,
@@ -485,12 +499,3 @@ interface SettingsContract {
         private data class Tuple4<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
     }
 }
-
-/** Store-listing URLs. Replace with your hosted pages before submission. */
-data class LegalLinks(
-    // Firebase Hosting (retally-backend/firestore/hosting). Swap to a custom domain here once
-    // one is connected in Firebase → Hosting.
-    val privacyPolicy: String = "https://retally-c5212.web.app/privacy",
-    val terms: String = "https://retally-c5212.web.app/terms",
-    val support: String = "https://retally-c5212.web.app/support",
-)

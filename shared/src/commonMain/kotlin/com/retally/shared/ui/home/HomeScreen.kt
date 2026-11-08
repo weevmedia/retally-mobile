@@ -134,7 +134,7 @@ fun HomeContract.SideEffect.userMessage(): String? = when (this) {
     HomeContract.SideEffect.OpenShoppingList,
     is HomeContract.SideEffect.OpenScanReview,
     is HomeContract.SideEffect.OpenReceipt,
-    HomeContract.SideEffect.OpenHowItWorks,
+    is HomeContract.SideEffect.OpenHowItWorks,
     -> null
 }
 
