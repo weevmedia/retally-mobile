@@ -1,3 +1,3 @@
 // GENERATED from version.properties by `./gradlew syncIosVersion` — do not edit here.
 MARKETING_VERSION = 1.0.0
-CURRENT_PROJECT_VERSION = 1
+CURRENT_PROJECT_VERSION = 4
