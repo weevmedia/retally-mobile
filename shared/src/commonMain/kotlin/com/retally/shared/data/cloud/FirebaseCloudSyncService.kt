@@ -16,6 +16,7 @@ import com.retally.shared.domain.receipt.model.Receipt
 import com.retally.shared.domain.receipt.model.ReceiptItem
 import com.retally.shared.domain.receipt.receiptWindowStart
 import dev.gitlive.firebase.Firebase
+import dev.gitlive.firebase.firestore.DocumentReference
 import dev.gitlive.firebase.firestore.DocumentSnapshot
 import dev.gitlive.firebase.firestore.FieldValue
 import dev.gitlive.firebase.firestore.FirebaseFirestore
@@ -70,7 +71,16 @@ class FirebaseCloudSyncService(
                 val imageStoragePath = uploadImageIfNeeded(uid, receipt)
                 // The receipt's own currency, not the user's current one: history stays
                 // right after a move or a trip.
-                writeReceipt(uid, receipt, receipt.currency, deviceId, imageStoragePath)
+                try {
+                    writeReceipt(uid, receipt, receipt.currency, deviceId, imageStoragePath)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Throwable) {
+                    // Firestore never says which rule refused a write; list what validReceipt()
+                    // / validLineItem() would reject so the culprit shows up in logcat.
+                    debugLog("ReTallySync") { "upload(${receipt.id}) failed: ${e.message}\n${rulesReport(receipt, receipt.currency)}" }
+                    throw e
+                }
                 synced += receipt.id
             }
             CloudSyncResult.Success(synced, clock.now())
@@ -127,17 +137,25 @@ class FirebaseCloudSyncService(
         val receiptsRef = firestore.collection("users").document(uid).collection("receipts")
         for (id in ids) {
             try {
+                val ref = receiptsRef.document(id)
+                // Never backed up: nothing to soft-delete. Writing anyway creates a bare
+                // {deletedAt, updatedAt} doc, which validReceipt() rejects (PERMISSION_DENIED).
+                // syncedAt can't tell us this: local edits reset it even when a cloud copy exists.
+                if (!ref.get().exists) {
+                    debugLog("ReTallyRestore") { "markDeleted($id) skipped: no cloud copy" }
+                    continue
+                }
                 // Soft delete: rules forbid hard deletes; the purge job removes it after 30 days.
-                // One write per receipt so a never-uploaded one (rejected) doesn't block the rest.
-                receiptsRef.document(id).set(
+                // One write per receipt so one failure doesn't block the rest.
+                ref.set(
                     mapOf("deletedAt" to FieldValue.serverTimestamp, "updatedAt" to FieldValue.serverTimestamp),
                     merge = true,
                 )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
-                // No cloud copy, or offline: the local tombstone still keeps it from being restored.
-                debugLog("ReTallyRestore") { "markDeleted($id) failed: ${e.message}" }
+                // Offline or refused: the local tombstone still keeps it from being restored.
+                debugLog("ReTallySync") { "markDeleted($id) failed: ${e.message}\n${cloudCopyReport(receiptsRef.document(id))}" }
             }
         }
     }
@@ -212,6 +230,13 @@ class FirebaseCloudSyncService(
             .collection("users").document(uid)
             .collection("receipts").document(receipt.id)
         val lineItems = receiptRef.collection("lineItems")
+        // createdAt is immutable in the rules. A re-upload (after an edit) would resend it from
+        // the local DB, which keeps only milliseconds, while the first upload stored micros, so
+        // the update looks like a createdAt change and is refused. Leave it out on updates:
+        // merge keeps the cloud value.
+        val exists = receiptRef.get().exists
+        val receiptDoc = mapper.receiptDocument(receipt, currency, deviceId, platform.appVersion, imageStoragePath, platform.name, platform.osVersion)
+            .let { if (exists) it - "createdAt" else it }
 
         // 1 receipt + N items per batch; split only for absurdly long receipts.
         receipt.items.withIndex().chunked(MAX_ITEMS_PER_BATCH).forEachIndexed { chunkIndex, chunk ->
@@ -219,7 +244,7 @@ class FirebaseCloudSyncService(
             if (chunkIndex == 0) {
                 batch.set(
                     receiptRef,
-                    mapper.receiptDocument(receipt, currency, deviceId, platform.appVersion, imageStoragePath, platform.name, platform.osVersion),
+                    receiptDoc,
                     merge = true,
                 )
             }
@@ -233,7 +258,73 @@ class FirebaseCloudSyncService(
             batch.commit()
         }
         if (receipt.items.isEmpty()) {
-            receiptRef.set(mapper.receiptDocument(receipt, currency, deviceId, platform.appVersion, imageStoragePath, platform.name, platform.osVersion), merge = true)
+            receiptRef.set(receiptDoc, merge = true)
+        }
+    }
+
+    /**
+     * Debug aid: an update is checked against the whole merged document, so when a soft-delete
+     * is refused, a field already stored in the cloud copy breaks validReceipt(). Lists which.
+     */
+    private suspend fun cloudCopyReport(ref: DocumentReference): String {
+        val doc = runCatching { ref.get() }.getOrElse { return "could not read cloud copy: ${it.message}" }
+        if (!doc.exists) return "no cloud copy"
+        val problems = mutableListOf<String>()
+        fun money(field: String) {
+            val v = doc.number(field)
+            if (v == null || v.isNaN() || v < -100_000 || v > 100_000) problems += "$field=$v (must be a number within ±100000)"
+        }
+        val store = doc.opt<String>("storeName")
+        if (store.isNullOrEmpty() || store.length > 120) problems += "storeName='$store' (1–120 chars)"
+        if (doc.opt<String>("merchantNameNormalized") == null) problems += "merchantNameNormalized missing"
+        if (doc.opt<Timestamp>("purchaseDate") == null) problems += "purchaseDate missing / not a timestamp"
+        val local = doc.opt<String>("purchaseDateLocal")
+        if (local == null || !Regex("^[0-9]{4}-[0-9]{2}-[0-9]{2}$").matches(local)) problems += "purchaseDateLocal='$local'"
+        if (doc.opt<String>("currency")?.length != 3) problems += "currency='${doc.opt<String>("currency")}'"
+        money("total"); money("subtotal"); money("tax"); money("analysis.overchargeAmount")
+        val count = doc.opt<Long>("lineItemCount")
+        if (count == null || count !in 0..500) problems += "lineItemCount=$count (int 0..500)"
+        if (doc.opt<String>("paymentMethod") !in listOf("card", "cash", "mobile", "unknown")) problems += "paymentMethod='${doc.opt<String>("paymentMethod")}'"
+        if (doc.opt<Long>("analysis.duplicateCount") == null) problems += "analysis.duplicateCount missing / not an int"
+        if (doc.opt<Boolean>("ocr.piiScrubbed") != true) problems += "ocr.piiScrubbed is not true"
+        val raw = doc.opt<String>("ocr.rawText")
+        if (raw == null || raw.length > 20_000) problems += "ocr.rawText missing or too long"
+        if (doc.opt<String>("source") !in listOf("scan", "manual", "import")) problems += "source='${doc.opt<String>("source")}'"
+        if (doc.opt<Long>("schemaVersion") != 1L) problems += "schemaVersion=${doc.opt<Long>("schemaVersion")}"
+        return if (problems.isEmpty()) {
+            "cloud copy passes the field checks (check auth / App Check)"
+        } else {
+            "cloud copy breaks the rules:\n" + problems.joinToString("\n") { "  - $it" }
+        }
+    }
+
+    /** Debug aid: the fields of [receipt] that firestore.rules would refuse. */
+    private fun rulesReport(receipt: Receipt, currency: String): String {
+        val doc = mapper.receiptDocument(receipt, currency, "-", platform.appVersion)
+        val problems = mutableListOf<String>()
+        fun money(name: String, v: Any?) {
+            val d = (v as? Number)?.toDouble()
+            if (d == null || d.isNaN() || d < -100_000 || d > 100_000) problems += "$name=$v (must be a number within ±100000)"
+        }
+        val store = doc["storeName"] as String
+        if (store.isEmpty()) problems += "storeName is empty"
+        money("total", doc["total"]); money("subtotal", doc["subtotal"]); money("tax", doc["tax"])
+        money("analysis.overchargeAmount", receipt.overchargeAmount)
+        if (receipt.items.size > 500) problems += "lineItemCount=${receipt.items.size} (max 500)"
+        if ((doc["currency"] as String).length != 3) problems += "currency='${doc["currency"]}' (must be 3 letters)"
+        val pan = Regex(".*[0-9]{4}[ -]?[0-9]{4}[ -]?[0-9]{4}[ -]?[0-9]{4}.*")
+        receipt.items.forEachIndexed { i, item ->
+            val name = item.name.take(200)
+            if (name.isEmpty()) problems += "item[$i] name is empty"
+            if (pan.matches(name)) problems += "item[$i] name looks like a card number: '$name'"
+            if (item.price.isNaN() || item.price < -100_000 || item.price > 100_000) problems += "item[$i] price=${item.price} out of range"
+        }
+        val fields = "storeName='$store' total=${doc["total"]} subtotal=${doc["subtotal"]} tax=${doc["tax"]} " +
+            "items=${receipt.items.size} createdAt=${receipt.createdAt} syncedAt=${receipt.syncedAt}"
+        return if (problems.isEmpty()) {
+            "$fields\nNo field problems found: likely an update that changes createdAt (cloud copy differs) or App Check / auth."
+        } else {
+            "$fields\n" + problems.joinToString("\n") { "  - $it" }
         }
     }
 

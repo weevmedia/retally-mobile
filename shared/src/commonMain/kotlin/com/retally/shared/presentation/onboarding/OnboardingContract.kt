@@ -51,6 +51,6 @@ interface OnboardingContract {
         const val PAGE_COUNT = 3
 
         /** Auto-advance interval for the content pager; loops back to the first page. */
-        const val AUTO_ADVANCE_MS = 2_000L
+        const val AUTO_ADVANCE_MS = 4_000L
     }
 }

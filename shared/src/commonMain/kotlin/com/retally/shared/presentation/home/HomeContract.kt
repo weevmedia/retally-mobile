@@ -33,6 +33,7 @@ import com.retally.shared.domain.cloud.BackupOutcome
 import com.retally.shared.domain.cloud.ReceiptBackup
 import com.retally.shared.domain.cloud.ReceiptRestore
 import com.retally.shared.domain.cloud.RestoreOutcome
+import com.retally.shared.domain.cloud.cloudErrorStringId
 import com.retally.shared.domain.notifications.NotificationInboxRepository
 import com.retally.shared.domain.category.ItemCategory
 import com.retally.shared.domain.receipt.CrossReceiptDuplicate
@@ -355,7 +356,7 @@ interface HomeContract {
                                 else -> strings.getString(StringAssetIdentifiers.HOME_MSG_RESTORED, outcome.count)
                             }
                             is RestoreOutcome.Failed ->
-                                strings.getString(StringAssetIdentifiers.HOME_MSG_RESTORE_FAILED, outcome.message)
+                                strings.getString(StringAssetIdentifiers.HOME_MSG_RESTORE_FAILED, strings.getString(cloudErrorStringId(outcome.message)))
                         }
                         r.clearOutcome()
                         message?.let { sideEffect(SideEffect.ShowMessage(it)) }
@@ -383,7 +384,11 @@ interface HomeContract {
                             }
                             is BackupOutcome.Failed -> sideEffect(
                                 SideEffect.ShowMessage(
-                                    strings.getString(StringAssetIdentifiers.HOME_MSG_BACKUP_FAILED, outcome.count, outcome.message),
+                                    strings.getString(
+                                        StringAssetIdentifiers.HOME_MSG_BACKUP_FAILED,
+                                        outcome.count,
+                                        strings.getString(cloudErrorStringId(outcome.message)),
+                                    ),
                                 ),
                             )
                         }

@@ -5,6 +5,7 @@
 package com.retally.shared.ui.auth
 
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.ui.platform.LocalFocusManager
 import com.retally.shared.domain.auth.SignInProvider
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.offset
@@ -107,7 +108,9 @@ fun AuthScreen(
 
     if (snackbarHostState != null) {
         Scaffold(
-            snackbarHost = { ReTallySnackbarHost(snackbarHostState) },
+            // Above the nav bar and the keyboard: with the email field focused, a message at the
+            // bottom (e.g. Google sign-in failed) sat behind the keyboard, unseen.
+            snackbarHost = { ReTallySnackbarHost(snackbarHostState, Modifier.navigationBarsPadding().imePadding()) },
             containerColor = colors.surface,
             // The page pads for the status/navigation bars itself; letting the Scaffold add them
             // too pushed everything (the back button included) a status-bar height too low.
@@ -435,6 +438,9 @@ private fun ContinueButton(
 @Composable
 private fun ProviderSection(state: AuthContract.State, dispatch: (AuthContract.Action) -> Unit) {
     if (state.providers.isEmpty()) return
+    // Close the keyboard when a provider is tapped: its sign-in sheet takes over, and any
+    // failure message then shows in full instead of behind the keyboard.
+    val focusManager = LocalFocusManager.current
     DividerRow(str(S.AUTH_OR_CONTINUE_WITH))
     Spacer(Modifier.height(16.dp))
     // iOS: Apple, then Google. Android: Google. White with an outline, logo + label — a style both
@@ -446,6 +452,7 @@ private fun ProviderSection(state: AuthContract.State, dispatch: (AuthContract.A
                 loading = state.providerInProgress == provider,
                 enabled = !state.isProviderSigningIn && !state.isSubmitting,
                 onClick = {
+                    focusManager.clearFocus()
                     dispatch(
                         when (provider) {
                             SignInProvider.APPLE -> AuthContract.Action.AppleClicked

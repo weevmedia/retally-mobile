@@ -212,7 +212,7 @@ val dataModule = module {
     single { NotificationInboxRepository(settings = get(), json = get()) }
     single { BudgetReminderLog(settings = get(), json = get(), inbox = get()) }
     single<RecallsRepository> { HttpRecallsRepository(http = get(), auth = get(), settings = get(), json = get()) }
-    single<AuthRepository> { FirebaseAuthRepository() }
+    single<AuthRepository> { FirebaseAuthRepository(http = get()) }
     single<OtpService> { HttpOtpService(client = get()) }
     single<FirebaseStorageService> { FirebaseStorageService() }
     single {

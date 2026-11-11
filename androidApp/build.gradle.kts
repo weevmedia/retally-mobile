@@ -152,6 +152,10 @@ android {
             // by Play and fails App Check, so without keystore.properties the release build
             // stops (see requireReleaseKeystore above) instead of quietly signing with debug.
             signingConfig = signingConfigs.getByName("release")
+            // Bundle the native libraries' symbol tables (ML Kit, SQLite, ads…) into the AAB so
+            // Play Console can symbolicate native crashes and ANRs — clears the "no debug
+            // symbols" warning. SYMBOL_TABLE keeps the bundle small; FULL adds line numbers.
+            ndk { debugSymbolLevel = "SYMBOL_TABLE" }
         }
     }
 

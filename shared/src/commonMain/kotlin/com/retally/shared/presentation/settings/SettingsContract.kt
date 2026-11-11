@@ -22,6 +22,7 @@ import com.retally.shared.domain.auth.Account
 import com.retally.shared.domain.auth.AuthRepository
 import com.retally.shared.domain.cloud.CloudSyncResult
 import com.retally.shared.domain.cloud.CloudSyncService
+import com.retally.shared.domain.cloud.cloudErrorStringId
 import com.retally.shared.domain.favorites.FavoriteStore
 import com.retally.shared.domain.favorites.FavoriteStoresRepository
 import com.retally.shared.domain.location.StoreLocationRepository
@@ -450,7 +451,11 @@ interface SettingsContract {
                     }
                     is CloudSyncResult.Failure -> currentState = currentState.copy(
                         syncStatus = SyncStatus.FAILURE,
-                        syncMessage = result.message,
+                        syncMessage = strings.getString(
+                            StringAssetIdentifiers.HOME_MSG_BACKUP_FAILED,
+                            pending.size,
+                            strings.getString(cloudErrorStringId(result.message)),
+                        ),
                     )
                 }
             }

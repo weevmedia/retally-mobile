@@ -13,9 +13,15 @@ import android.os.Build
 import androidx.core.content.ContextCompat
 import com.retally.shared.domain.location.StoreLocationRepository
 import com.retally.shared.domain.location.nearbyLog
+import com.retally.shared.domain.receipt.ReceiptRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.koin.core.context.GlobalContext
 
@@ -64,6 +70,30 @@ object NearbyStoreScheduler {
             NearbyAlerts.checkAlreadyInside(appContext, zones)
         }
     }
+
+    /**
+     * Rebuilds the zones whenever the set of stores on receipts changes — above all after an
+     * existing account signs in and its receipts are restored, which otherwise left the
+     * restored stores unmonitored until the next launch. Call once, from the Application.
+     */
+    @OptIn(FlowPreview::class)
+    fun watchStores(context: Context) {
+        val appContext = context.applicationContext
+        val receipts: ReceiptRepository = GlobalContext.get().get()
+        scope.launch {
+            receipts.observeReceipts()
+                .map { list -> list.map { it.storeName.trim().lowercase() to it.storeAddress.orEmpty().trim() }.toSet() }
+                .distinctUntilChanged()
+                .drop(1) // the launch-time refresh already covers the current receipts
+                .debounce(STORES_CHANGED_DEBOUNCE_MS) // a restore lands many receipts at once
+                .collect {
+                    nearbyLog("android: stores on receipts changed — refreshing zones")
+                    refresh(appContext)
+                }
+        }
+    }
+
+    private const val STORES_CHANGED_DEBOUNCE_MS = 2_000L
 
     /** Background location (API 29+) is required for geofences to fire while the app is dead. */
     fun hasLocationPermission(context: Context): Boolean {

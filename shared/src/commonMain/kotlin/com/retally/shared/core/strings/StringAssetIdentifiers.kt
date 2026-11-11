@@ -515,6 +515,12 @@ object StringAssetIdentifiers {
     const val HOME_MSG_BACKED_UP = "home_msg_backed_up"
     const val HOME_MSG_BACKED_UP_ONE = "home_msg_backed_up_one"
     const val HOME_MSG_BACKUP_FAILED = "home_msg_backup_failed"
+
+    // Cloud errors, shown after "Couldn't back up / restore …:" instead of the raw Firebase text
+    const val CLOUD_ERROR_OFFLINE = "cloud_error_offline"
+    const val CLOUD_ERROR_SIGN_IN = "cloud_error_sign_in"
+    const val CLOUD_ERROR_REJECTED = "cloud_error_rejected"
+    const val CLOUD_ERROR_GENERIC = "cloud_error_generic"
     const val HOME_BACKUP_PROMPT_TITLE = "home_backup_prompt_title"
     const val HOME_BACKUP_PROMPT_TITLE_ONE = "home_backup_prompt_title_one"
     const val HOME_BACKUP_PROMPT_BODY = "home_backup_prompt_body"

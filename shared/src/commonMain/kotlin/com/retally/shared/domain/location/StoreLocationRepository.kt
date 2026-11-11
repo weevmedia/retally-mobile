@@ -4,6 +4,7 @@
 
 package com.retally.shared.domain.location
 
+import com.retally.shared.core.log.DebugLog
 import com.retally.shared.core.log.debugLog
 import com.retally.shared.db.ReTallyDatabase
 import com.retally.shared.domain.receipt.ReceiptRepository
@@ -36,7 +37,7 @@ import kotlin.time.Clock
  *   survives until the next refresh re-arms it.
  * - [clearKnownStores] wipes the table; called only by delete-all-receipts
  *   and account deletion.
- * - [shouldNotifyAndMark] debounces entry alerts to one per store per 24 hours, so a
+ * - [shouldNotifyAndMark] debounces entry alerts to one per store per 2 hours, so a
  *   quick in-and-out of the parking lot doesn't spam the user.
  * - The enable toggle is Settings-backed and read by both platform hosts at launch.
  *
@@ -177,9 +178,10 @@ class StoreLocationRepository(
         val last = loadLastNotified()
         val since = last[locationId]?.let { (nowEpochMillis - it) / 60_000 }
         nearbyLog("zone entered: ${locationName(locationId) ?: locationId} (last alert ${since?.let { "$it min ago" } ?: "never"})")
-        // One alert per store per day.
-        if (nowEpochMillis - (last[locationId] ?: 0L) < NOTIFY_COOLDOWN_MS) {
-            nearbyLog("zone entered within the 24h cooldown — no alert")
+        // One alert per store per 2 hours — release builds only, so debug builds can test
+        // every entry (DebugLog.enabled is on for debug builds only).
+        if (!DebugLog.enabled && nowEpochMillis - (last[locationId] ?: 0L) < NOTIFY_COOLDOWN_MS) {
+            nearbyLog("zone entered within the ${NOTIFY_COOLDOWN_MS / 60_000}-min cooldown — no alert")
             return false
         }
         // Always on: the app-start "already inside" check and the OS entry event can report the
@@ -319,7 +321,8 @@ class StoreLocationRepository(
     companion object {
         /** iOS caps an app at 20 monitored regions; Android allows 100. */
         const val MAX_GEOFENCES = 20
-        const val NOTIFY_COOLDOWN_MS = 24L * 60 * 60 * 1000
+        /** One alert per store per 2 hours: a quick re-entry (parking lot, next door) stays quiet. */
+        const val NOTIFY_COOLDOWN_MS = 2L * 60 * 60 * 1000
         /**
          * Two reports of the same zone this close together are one arrival (the start-up check
          * and the OS event land seconds apart). Short, so kill + relaunch still alerts again.

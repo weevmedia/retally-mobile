@@ -8,6 +8,16 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.MutableStateFlow
 import com.retally.shared.domain.auth.Account
 import com.retally.shared.domain.auth.AuthRepository
+import io.ktor.client.HttpClient
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.contentType
+import io.ktor.http.isSuccess
+import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.json.buildJsonObject
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.auth.FirebaseAuth
 import dev.gitlive.firebase.auth.auth
@@ -22,7 +32,10 @@ import kotlinx.coroutines.sync.withLock
  * later launches resume the same uid without a network round-trip.
  */
 class FirebaseAuthRepository(
+    /** Calls the `deleteAccount` function; the App Check header is added by the shared client. */
+    private val http: HttpClient,
     private val auth: FirebaseAuth = Firebase.auth,
+    private val deleteAccountUrl: String = DELETE_ACCOUNT_URL,
 ) : AuthRepository {
 
     private val signInMutex = Mutex()
@@ -75,16 +88,44 @@ class FirebaseAuthRepository(
         signInMutex.withLock { auth.signOut() }
     }
 
-    override suspend fun deleteAccount(): Boolean = try {
-        auth.currentUser?.delete()
-        true
-    } catch (e: Exception) {
-        false
+    /**
+     * Deletes the account on the server (`deleteAccount` callable), which removes the Firebase
+     * user and, through `onUserDeleted`, all of its data. The client SDK's own `delete()` is not
+     * used: it refuses unless the user signed in recently. On success the local session is
+     * signed out, as the user no longer exists.
+     */
+    override suspend fun deleteAccount(): Boolean {
+        val token = try {
+            auth.currentUser?.getIdToken(false)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        } ?: return false
+        return try {
+            val response = http.post(deleteAccountUrl) {
+                header(HttpHeaders.Authorization, "Bearer $token")
+                contentType(ContentType.Application.Json)
+                // Callable protocol: the payload goes under "data" (empty here).
+                setBody(buildJsonObject { put("data", buildJsonObject { }) })
+            }
+            if (!response.status.isSuccess()) return false
+            signInMutex.withLock { auth.signOut() }
+            true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            false
+        }
     }
 
     override suspend fun getIdToken(forceRefresh: Boolean): String? = try {
         auth.currentUser?.getIdToken(forceRefresh)
     } catch (e: Exception) {
         null
+    }
+
+    companion object {
+        const val DELETE_ACCOUNT_URL = "https://us-east1-retally-c5212.cloudfunctions.net/deleteAccount"
     }
 }
