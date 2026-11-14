@@ -79,8 +79,10 @@ tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(syncIosVersio
 
 // Release builds need the upload key. Checked when a release task actually runs (not at
 // configuration), so debug builds and IDE sync work on machines without keystore.properties.
-val hasReleaseKeystore = keystoreProperties.isNotEmpty()
 val requireReleaseKeystore by tasks.registering {
+    // A plain Boolean captured here (not a script-level val) so the configuration cache can
+    // serialize the task.
+    val hasReleaseKeystore = rootProject.file("keystore.properties").exists()
     doLast {
         if (!hasReleaseKeystore) {
             throw GradleException(
@@ -150,6 +152,10 @@ android {
             // by Play and fails App Check, so without keystore.properties the release build
             // stops (see requireReleaseKeystore above) instead of quietly signing with debug.
             signingConfig = signingConfigs.getByName("release")
+            // Bundle the native libraries' symbol tables (ML Kit, SQLite, ads…) into the AAB so
+            // Play Console can symbolicate native crashes and ANRs — clears the "no debug
+            // symbols" warning. SYMBOL_TABLE keeps the bundle small; FULL adds line numbers.
+            ndk { debugSymbolLevel = "SYMBOL_TABLE" }
         }
     }
 

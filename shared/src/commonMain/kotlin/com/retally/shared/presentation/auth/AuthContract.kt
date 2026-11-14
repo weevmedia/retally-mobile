@@ -15,7 +15,8 @@ import com.retally.shared.core.strings.getString
 import com.retally.shared.domain.auth.AuthRepository
 import com.retally.shared.domain.auth.OtpService
 import kotlinx.coroutines.launch
-import com.retally.shared.presentation.settings.LegalLinks
+import com.retally.shared.domain.config.AppConfigRepository
+import com.retally.shared.domain.config.AppLinks
 import com.retally.shared.ui.web.inAppPageUrl
 
 /**
@@ -144,8 +145,12 @@ interface AuthContract {
         private val otpService: OtpService,
         private val strings: StringResolver,
         private val preferences: AppPreferences? = null,
+        /** Terms / Privacy links from the admin console; null = built-in defaults. */
+        private val appConfig: AppConfigRepository? = null,
     ) : com.retally.shared.core.Store<State, Action, SideEffect>() {
         override fun initState(): State = State()
+
+        private val links: AppLinks get() = appConfig?.config?.value?.links ?: AppLinks()
 
         override fun dispatch(action: Action) {
             when (action) {
@@ -173,10 +178,10 @@ interface AuthContract {
                 Action.GoogleClicked -> startProvider(SignInProvider.GOOGLE)
                 // Our hosted pages, opened in the app (no browser, no address bar).
                 Action.TermsClicked -> sideEffect(
-                    SideEffect.OpenWebPage(strings.getString(S.SETTINGS_TERMS), inAppPageUrl(LegalLinks().terms)),
+                    SideEffect.OpenWebPage(strings.getString(S.SETTINGS_TERMS), inAppPageUrl(links.terms)),
                 )
                 Action.PrivacyClicked -> sideEffect(
-                    SideEffect.OpenWebPage(strings.getString(S.SETTINGS_PRIVACY), inAppPageUrl(LegalLinks().privacyPolicy)),
+                    SideEffect.OpenWebPage(strings.getString(S.SETTINGS_PRIVACY), inAppPageUrl(links.privacyPolicy)),
                 )
                 is Action.ProviderTokenReceived -> onProviderToken(action)
                 Action.ProviderSignInCancelled -> currentState = currentState.copy(providerInProgress = null)

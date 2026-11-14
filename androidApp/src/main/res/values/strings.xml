@@ -50,6 +50,10 @@
     <string name="home_greeting_afternoon">Good afternoon, %1$s</string>
     <string name="home_greeting_evening">Good evening, %1$s</string>
     <string name="home_guest_name">Guest</string>
+    <string name="home_greeting_morning_plain">Good morning</string>
+    <string name="home_greeting_afternoon_plain">Good afternoon</string>
+    <string name="home_greeting_evening_plain">Good evening</string>
+    <string name="more_add_your_name">Add your name</string>
     <string name="home_guest_title">You are browsing as a guest</string>
     <string name="home_guest_body">Receipts stay on this device only.</string>
     <string name="home_guest_sign_in">Sign in to enable cloud sync</string>
@@ -220,6 +224,8 @@
     <string name="more_edit">EDIT</string>
     <string name="more_edit_name_title">Edit name</string>
     <string name="more_edit_name_hint">This is the name ReTally greets you with.</string>
+    <string name="more_name_section">Name</string>
+    <string name="more_name_clear">Clear</string>
     <string name="more_first_name">First name</string>
     <string name="more_last_name">Last name</string>
     <string name="more_name_save">Save</string>
@@ -289,14 +295,16 @@
     <string name="onboarding_alerts_title">Know when you\u2019re at the store</string>
     <string name="onboarding_alerts_body">ReTally can remind you what you usually buy the moment you walk into a store you shop at.</string>
     <string name="onboarding_alerts_disclosure">To do this, ReTally uses your location in the background to notice when you arrive at a store, even when the app is closed, and sends you a notification. Nothing is tracked between visits.</string>
-    <string name="onboarding_alerts_hint">When asked, choose \u201cAllow all the time\u201d so alerts work while the app is closed.</string>
+    <string name="onboarding_alerts_hint">When asked, allow location, then choose \u201cAllow all the time\u201d so alerts work while the app is closed.</string>
 
     <!-- Nearby store alerts -->
     <string name="settings_section_notifications">Notifications</string>
     <string name="settings_nearby_title">Notify me near stores</string>
     <string name="settings_nearby_sub">Get a reminder when you\'re near a store you\'ve shopped at</string>
-    <string name="settings_msg_nearby_denied">Location permission is needed for nearby-store reminders.</string>
+    <string name="settings_msg_nearby_denied">Store alerts need location set to \u201cAllow all the time\u201d and notifications on. You can change this in Settings \u203a Apps \u203a ReTally.</string>
     <string name="settings_nearby_allow">Turn on</string>
+    <string name="settings_nearby_settings_title">Turn on in Settings</string>
+    <string name="settings_nearby_open_settings">Open Settings</string>
     <string name="nearby_notify_title">You\'re near %1$s</string>
     <string name="nearby_notify_body">Open ReTally to check your list before you shop.</string>
 

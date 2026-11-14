@@ -139,7 +139,7 @@ class NotificationInboxRepository(
     companion object {
         /** How long a notification stays in the bell unless dismissed: 48 hours. */
         const val RETENTION_MS: Long = 48L * 60 * 60 * 1000
-        /** Safety cap; nearby alerts are already limited to one per store per day. */
+        /** Safety cap; nearby alerts are already limited to one per store per 2 hours. */
         const val MAX_ENTRIES = 50
         private const val KEY = "notifications.inbox.v1"
         private const val KEY_LAST_SEEN = "notifications.inbox.lastSeenAt"

@@ -20,6 +20,9 @@ final class SettingsViewModel: ObservableObject {
     private(set) var webPage: (title: String, url: String) = ("", "")
 
     private var sideEffects: Closeable?
+    /// Set when we sent the user to the Settings app for store alerts; re-checked on return.
+    private var awaitingSettingsReturn = false
+    private var becameActive: AnyCancellable?
 
     init() {
         let store = IosDependencies.shared.getSettingsStore()
@@ -28,6 +31,19 @@ final class SettingsViewModel: ObservableObject {
 
         sideEffects = store.collectSideEffect { [weak self] effect in
             self?.handle(effect)
+        }
+        becameActive = NotificationCenter.default
+            .publisher(for: UIApplication.didBecomeActiveNotification)
+            .sink { [weak self] _ in self?.recheckAfterSettings() }
+    }
+
+    /// Back from the Settings app: if store alerts can work now, turn the toggle on.
+    private func recheckAfterSettings() {
+        guard awaitingSettingsReturn else { return }
+        awaitingSettingsReturn = false
+        NearbyStoreMonitor.shared.hasAllPermissions { [weak self] granted in
+            guard granted else { return }
+            self?.store.dispatch(action: SettingsContractAction.NearbyPermissionsResult(granted: true))
         }
     }
 
@@ -61,8 +77,26 @@ final class SettingsViewModel: ObservableObject {
         case let message as SettingsContractSideEffect.ShowMessage:
             screen.showMessage(message: message.message)
         case is SettingsContractSideEffect.RequestNearbyPermissions:
-            NearbyStoreMonitor.shared.requestPermissions { [weak self] granted in
-                self?.store.dispatch(action: SettingsContractAction.NearbyPermissionsResult(granted: granted))
+            // Location first (While Using, then Always), notifications only after that, so
+            // the notification prompt can never cover "Change to Always Allow?".
+            NearbyStoreMonitor.shared.requestLocationPermission { [weak self] outcome in
+                switch outcome {
+                case .always:
+                    NearbyStoreMonitor.shared.requestNotifications { granted in
+                        self?.store.dispatch(action: SettingsContractAction.NearbyPermissionsResult(granted: granted))
+                    }
+                case .whenInUseOnly, .denied:
+                    // iOS will not ask again: the store shows the "Open Settings" dialog.
+                    self?.store.dispatch(action: SettingsContractAction.NearbyPermissionsResult(granted: false))
+                case .pending, .interrupted:
+                    break // No answer yet; the toggle stays off until there is one.
+                }
+            }
+        case is SettingsContractSideEffect.OpenAppSettings:
+            // iOS will not prompt again: send the user to ReTally's page in Settings.
+            if let url = URL(string: UIApplication.openSettingsURLString) {
+                awaitingSettingsReturn = true
+                UIApplication.shared.open(url)
             }
         case is SettingsContractSideEffect.NearbyMonitoringChanged:
             NearbyStoreMonitor.shared.refresh()

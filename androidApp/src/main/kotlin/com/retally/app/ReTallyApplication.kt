@@ -72,6 +72,8 @@ class ReTallyApplication : Application() {
 
         // Re-register store geofences (no-op when the nearby toggle is off).
         NearbyStoreScheduler.refresh(this)
+        // …and again whenever receipts bring new stores (sign-in restore, scans, deletes).
+        NearbyStoreScheduler.watchStores(this)
 
     }
 }

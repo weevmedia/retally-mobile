@@ -27,7 +27,11 @@ struct HomeView: View {
                     NotificationsView(onFinished: viewModel.notificationsFinished, onOpenBudget: viewModel.openBudgetFromNotifications)
                 }
                 .navigationDestination(isPresented: $viewModel.isHowItWorksPresented) {
-                    HowItWorksView(onFinished: viewModel.howItWorksFinished)
+                    if let page = viewModel.howItWorksPage {
+                        WebPageView(title: page.title, url: page.url, onFinished: viewModel.howItWorksFinished)
+                    } else {
+                        HowItWorksView(onFinished: viewModel.howItWorksFinished)
+                    }
                 }
                 .fullScreenCover(isPresented: $viewModel.isScannerPresented) {
                     ReceiptScannerView(onResult: viewModel.scannerFinished)

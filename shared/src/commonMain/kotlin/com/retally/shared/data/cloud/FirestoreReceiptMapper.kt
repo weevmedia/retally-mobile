@@ -78,7 +78,8 @@ class FirestoreReceiptMapper(
             ),
             "source" to "scan",
             "deviceId" to deviceId,
-            "createdAt" to receipt.createdAt.toTimestamp(),
+            // Milliseconds, like the local DB, so the value never drifts between uploads.
+            "createdAt" to Instant.fromEpochMilliseconds(receipt.createdAt.toEpochMilliseconds()).toTimestamp(),
             "updatedAt" to FieldValue.serverTimestamp,
             "deletedAt" to null,
             "schemaVersion" to SCHEMA_VERSION,

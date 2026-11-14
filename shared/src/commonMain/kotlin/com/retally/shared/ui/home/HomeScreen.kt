@@ -61,7 +61,7 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.Receipt
-import androidx.compose.material.icons.outlined.Notifications
+import com.retally.shared.ui.components.BellIcon
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -134,7 +134,7 @@ fun HomeContract.SideEffect.userMessage(): String? = when (this) {
     HomeContract.SideEffect.OpenShoppingList,
     is HomeContract.SideEffect.OpenScanReview,
     is HomeContract.SideEffect.OpenReceipt,
-    HomeContract.SideEffect.OpenHowItWorks,
+    is HomeContract.SideEffect.OpenHowItWorks,
     -> null
 }
 
@@ -373,7 +373,7 @@ private fun NotificationsAction(
     }
     CircleIconButton(onClick = onClick, onLongClick = onLongClick) {
         Icon(
-            Icons.Outlined.Notifications,
+            BellIcon,
             contentDescription = str(S.HOME_NOTIFICATIONS_A11Y),
             tint = c.ink,
             modifier = Modifier

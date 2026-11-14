@@ -49,9 +49,9 @@ interface AuthRepository {
     suspend fun updateDisplayName(displayName: String)
 
     /**
-     * Deletes the Firebase user. Returns false when the backend refuses (e.g. the login
-     * is too old and Firebase demands a re-authentication first). Callers still wipe
-     * local data themselves.
+     * Deletes the account on the server, along with all of its cloud data, and signs out
+     * locally. No recent sign-in is needed. Returns false when the request fails (offline,
+     * App Check, server error); callers still wipe local data themselves on success.
      */
     suspend fun deleteAccount(): Boolean
 

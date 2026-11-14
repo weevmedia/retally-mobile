@@ -7,6 +7,8 @@ package com.retally.app.ui.scan
 import com.retally.app.R
 import androidx.navigation.NavOptions
 import android.content.Intent
+import android.os.Build
+import android.view.HapticFeedbackConstants
 import android.os.Bundle
 import android.view.View
 import androidx.activity.OnBackPressedCallback
@@ -78,13 +80,18 @@ class ScanReviewFragment : BaseComposeFragment<State, Action, SideEffect, ScanRe
             Closed -> if (args.recognizedText != null) openReceiptsTab() else popBack()
             is Saved, SideEffect.StoreLocationChanged -> {
                 // A new or edited store — rebuild the geofence list (no-op if toggle is off).
-                NearbyStoreScheduler.refresh(requireContext())
+                NearbyStoreScheduler.refresh(requireContext(), checkCurrentState = false)
             }
             is ShareReceipt -> shareReceipt(effect.imagePath)
             is SaveToPhotos -> saveToPhotos(effect.imagePath)
             is ShowMessage -> snackbarHostState.showSnackbar(effect.message)
             // Guest tapped the cloud icon: the sign-in screen over this one; Back returns here.
             SideEffect.OpenSignIn -> navigate(ScanReviewFragmentDirections.actionScanReviewToAuth())
+            // Duplicates on a fresh scan (Haptics on in More): a short warning buzz.
+            SideEffect.DuplicatesFound -> view?.performHapticFeedback(
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) HapticFeedbackConstants.REJECT
+                else HapticFeedbackConstants.LONG_PRESS,
+            )
         }
     }
 

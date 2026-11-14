@@ -8,10 +8,13 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.retally.app.R
 import com.retally.app.ui.base.BaseComposeFragment
+import com.retally.shared.core.strings.MessageTone
+import com.retally.shared.core.strings.StringResolver
 import com.retally.shared.presentation.auth.OtpContract.Action
 import com.retally.shared.presentation.auth.OtpContract.SideEffect
 import com.retally.shared.presentation.auth.OtpContract.SideEffect.NavigateBack
@@ -19,6 +22,7 @@ import com.retally.shared.presentation.auth.OtpContract.SideEffect.NavigateToMai
 import com.retally.shared.presentation.auth.OtpContract.SideEffect.ShowMessage
 import com.retally.shared.presentation.auth.OtpContract.State
 import com.retally.shared.presentation.storealerts.StoreAlertsPrompt
+import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
@@ -29,6 +33,7 @@ class OtpFragment : BaseComposeFragment<State, Action, SideEffect, OtpViewModel>
 
     private val args: OtpFragmentArgs by navArgs()
     private val storeAlertsPrompt: StoreAlertsPrompt by inject()
+    private val strings: StringResolver by inject()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -38,7 +43,7 @@ class OtpFragment : BaseComposeFragment<State, Action, SideEffect, OtpViewModel>
 
     @Composable
     override fun ScreenContent(state: State) {
-        OtpScreen(state = state, dispatch = ::dispatchViewAction)
+        OtpScreen(state = state, dispatch = ::dispatchViewAction, snackbarHostState = snackbarHostState)
     }
 
     override suspend fun onViewEffect(effect: SideEffect) {
@@ -60,7 +65,14 @@ class OtpFragment : BaseComposeFragment<State, Action, SideEffect, OtpViewModel>
                 // Back to sign-in to fix the email; auth is still on the stack.
                 popBack()
             }
-            is ShowMessage -> {
+            is ShowMessage -> if (MessageTone.isError(effect.message, strings)) {
+                // Errors ("code expired", "too many attempts") stay on this screen: a snackbar,
+                // lifted above the keyboard, with the red cross. Own coroutine: showSnackbar
+                // suspends until dismissed.
+                viewLifecycleOwner.lifecycleScope.launch { snackbarHostState.showSnackbar(effect.message) }
+            } else {
+                // Confirmations ("Welcome back", "Code sent") may come right before leaving this
+                // screen; a Toast outlives it, a snackbar would vanish with it.
                 Toast.makeText(requireContext(), effect.message, Toast.LENGTH_SHORT).show()
             }
         }

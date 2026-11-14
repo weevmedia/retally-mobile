@@ -72,7 +72,7 @@ interface MainContract {
     sealed class SideEffect : Effect
 
     class Store(
-        adsSession: AdsSession,
+        private val adsSession: AdsSession,
         private val categories: CategoryRepository,
         private val storeIcons: StoreIconRepository? = null,
         private val receipts: ReceiptRepository,
@@ -111,7 +111,7 @@ interface MainContract {
 
         override fun dispatch(action: Action) {
             when (action) {
-                is Action.Init -> if (action.adsEnabled) currentState = currentState.copy(adsEnabled = true)
+                is Action.Init -> if (action.adsEnabled && adsSession.remoteAdsAllowed) currentState = currentState.copy(adsEnabled = true)
                 is Action.SelectTab -> currentState = currentState.copy(selectedTab = action.tab)
                 Action.ScanClicked -> {
                     currentState = currentState.copy(selectedTab = MainTab.HOME)

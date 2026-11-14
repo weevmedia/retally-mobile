@@ -4,6 +4,9 @@
 
 package com.retally.shared.ui.onboarding
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,11 +33,16 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.SpanStyle
@@ -54,7 +62,7 @@ import com.retally.shared.resources.onboarding_page2
 import com.retally.shared.resources.onboarding_page3
 import com.retally.shared.ui.theme.CappedTextScale
 import com.retally.shared.ui.theme.ReTallyTheme
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.DrawableResource
@@ -78,14 +86,40 @@ fun OnboardingScreen(
     val pagerState = rememberPagerState(pageCount = { OnboardingContract.PAGE_COUNT })
     val scope = rememberCoroutineScope()
 
+    // How far the current page's countdown has run (0..1). It IS the timer: the selected dot
+    // fills with it, and the page advances the moment it reaches 1, so the two never drift.
+    val progress = remember { Animatable(0f) }
+    // The page that countdown belongs to. The pager flips currentPage halfway through a slide,
+    // so without this the incoming dot would briefly show the outgoing page's full bar, then
+    // drop to empty — a flicker. Any other page's dot reads as empty.
+    var countdownPage by remember { mutableIntStateOf(0) }
+
     // Auto-advance loop: waits for the pager to be fully settled and untouched before every
-    // tick, so it can never fight a swipe. The countdown restarts after any interaction,
-    // and after the last page it wraps back to the first.
+    // tick, so it can never fight a swipe. A touch, swipe or dot tap stops the fill; it starts
+    // again from empty once the pager settles. After the last page it wraps back to the first.
     LaunchedEffect(Unit) {
         while (true) {
             snapshotFlow { pagerState.isScrollInProgress }.first { !it }
-            delay(OnboardingContract.AUTO_ADVANCE_MS)
-            if (pagerState.isScrollInProgress) continue
+            progress.snapTo(0f)
+            countdownPage = pagerState.currentPage
+            var interrupted = false
+            coroutineScope {
+                val fill = launch {
+                    progress.animateTo(
+                        targetValue = 1f,
+                        animationSpec = tween(OnboardingContract.AUTO_ADVANCE_MS.toInt(), easing = LinearEasing),
+                    )
+                }
+                val touch = launch {
+                    snapshotFlow { pagerState.isScrollInProgress }.first { it }
+                    interrupted = true
+                    fill.cancel()
+                }
+                fill.join()
+                touch.cancel()
+            }
+            if (interrupted) continue
+            // The full dot stays full during the slide; the next page's dot starts empty.
             val next = (pagerState.currentPage + 1) % OnboardingContract.PAGE_COUNT
             pagerState.animateScrollToPage(next)
         }
@@ -112,6 +146,7 @@ fun OnboardingScreen(
         PageDots(
             pageCount = OnboardingContract.PAGE_COUNT,
             currentPage = pagerState.currentPage,
+            progressFor = { page -> if (page == countdownPage) progress.value else 0f },
             onDotClick = { page ->
                 scope.launch { pagerState.animateScrollToPage(page) }
             },
@@ -190,6 +225,8 @@ private fun OnboardingPage(page: Int) {
 private fun PageDots(
     pageCount: Int,
     currentPage: Int,
+    /** A page's countdown (0..1); 0 for every page but the one counting. Read only while drawing. */
+    progressFor: (Int) -> Float,
     onDotClick: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -201,8 +238,9 @@ private fun PageDots(
     ) {
         repeat(pageCount) { index ->
             val selected = index == currentPage
-            // The current page's dot stretches into a flat pill; the others stay small rings.
-            val dotWidth by animateDpAsState(if (selected) 24.dp else 10.dp, label = "dot-width")
+            // The current page's dot stretches into a pill that fills like a progress bar while
+            // the page is shown; the others stay small rings.
+            val dotWidth by animateDpAsState(if (selected) 32.dp else 10.dp, label = "dot-width")
             // 28dp-tall touch target with the dot centered inside.
             Box(
                 modifier = Modifier
@@ -219,7 +257,11 @@ private fun PageDots(
                         .clip(RoundedCornerShape(5.dp))
                         .then(
                             if (selected) {
-                                Modifier.background(colors.primary)
+                                Modifier.drawBehind {
+                                    // Light track, then the filled part growing left to right.
+                                    drawRect(colors.primary.copy(alpha = 0.25f))
+                                    drawRect(colors.primary, size = Size(size.width * progressFor(index).coerceIn(0f, 1f), size.height))
+                                }
                             } else {
                                 Modifier.border(1.5.dp, colors.muted.copy(alpha = 0.5f), RoundedCornerShape(5.dp))
                             },

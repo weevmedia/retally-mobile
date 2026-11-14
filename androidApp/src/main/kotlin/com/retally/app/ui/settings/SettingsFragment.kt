@@ -10,6 +10,9 @@ import com.retally.app.ui.main.MainViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import android.Manifest
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -37,6 +40,9 @@ class SettingsFragment : BaseComposeFragment<State, Action, SideEffect, Settings
 
     private val mainViewModel: MainViewModel by activityViewModel()
     private val platform: Platform by inject()
+
+    /** Set when we sent the user to the system Settings for store alerts; re-checked on return. */
+    private var awaitingSettingsReturn = false
 
     private val foregroundLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -104,12 +110,32 @@ class SettingsFragment : BaseComposeFragment<State, Action, SideEffect, Settings
                 SettingsFragmentDirections.actionSettingsToAlerts(),
             )
             is SideEffect.RequestNearbyPermissions -> requestNearbyPermissions()
+            // Android will not prompt again (denied twice / "Don't ask again"): app info page.
+            is SideEffect.OpenAppSettings -> {
+                awaitingSettingsReturn = true
+                startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", requireContext().packageName, null)),
+                )
+            }
             is SideEffect.NearbyMonitoringChanged -> NearbyStoreScheduler.refresh(requireContext())
             is SideEffect.OpenAuth -> findNavController().navigate(
                 SettingsFragmentDirections.actionSettingsToAuth(),
             )
             is SideEffect.LoggedOut -> snackbarHostState.showSnackbar(effect.message)
             is SideEffect.AccountDeleted -> snackbarHostState.showSnackbar(effect.message)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Back from the system Settings: if store alerts can work now, turn the toggle on.
+        if (awaitingSettingsReturn) {
+            awaitingSettingsReturn = false
+            if (NearbyStoreScheduler.hasLocationPermission(requireContext()) &&
+                NearbyStoreScheduler.hasNotificationPermission(requireContext())
+            ) {
+                dispatchViewAction(Action.NearbyPermissionsResult(true))
+            }
         }
     }
 

@@ -37,7 +37,7 @@ enum AppConfig {
     /// "To get test ads on this device, set: ... testDeviceIdentifiers = [ "<hash>" ]" —
     /// paste that hash here. Simulators are added automatically (see AdsBridge).
     /// Note: the hash resets on uninstall/reinstall — update it when it changes.
-    static let testDeviceIdentifiers: [String] = ["6539091440bf9fe2e491388087b735fe"]
+    static let testDeviceIdentifiers: [String] = ["94749c61bcf24d9739ca53c1c1956be3"]
 
     /// Empty keeps cloud backup in placeholder mode.
     static let cloudBaseUrl = ""

@@ -129,12 +129,21 @@ internal fun EmptyHome(
     }
 }
 
-/** "Good evening, Guest" / "Good evening, Mukesh" — Display 28 Bold like the mock. */
+/**
+ * "Good evening, Guest" / "Good evening, Mukesh" — Display 28 Bold like the mock. A signed-in
+ * account with no name yet (Apple shares the name only on the very first sign-in) gets a plain
+ * "Good evening" rather than being called a guest.
+ */
 @Composable
 internal fun Greeting(account: Account) {
-    val name = account.firstName ?: str(S.HOME_GUEST_NAME)
+    val first = account.firstName?.takeIf { it.isNotBlank() }
+    val text = when {
+        first != null -> str(greetingKey(), first)
+        account.isGuest -> str(greetingKey(), str(S.HOME_GUEST_NAME))
+        else -> str(plainGreetingKey())
+    }
     Text(
-        str(greetingKey(), name),
+        text,
         style = ReTallyTheme.typography.display,
         color = ReTallyTheme.colors.ink,
     )
@@ -193,6 +202,14 @@ internal fun greetingKey(clock: Clock = Clock.System, timeZone: TimeZone = TimeZ
         else -> S.HOME_GREETING_EVENING
     }
 }
+
+/** Same time-of-day split as [greetingKey], without a name. */
+internal fun plainGreetingKey(clock: Clock = Clock.System, timeZone: TimeZone = TimeZone.currentSystemDefault()): String =
+    when (greetingKey(clock, timeZone)) {
+        S.HOME_GREETING_MORNING -> S.HOME_GREETING_MORNING_PLAIN
+        S.HOME_GREETING_AFTERNOON -> S.HOME_GREETING_AFTERNOON_PLAIN
+        else -> S.HOME_GREETING_EVENING_PLAIN
+    }
 
 /**
  * Empty-state illustration: the receipt-and-magnifier artwork shipped as a Compose

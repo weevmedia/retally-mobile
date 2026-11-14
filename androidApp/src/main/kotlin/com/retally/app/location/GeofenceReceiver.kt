@@ -19,7 +19,7 @@ import com.retally.shared.domain.location.nearbyLog
 /**
  * Receives geofence ENTER transitions from Play services — including while the app
  * is dead. Debounces through [StoreLocationRepository.shouldNotifyAndMark] (one
- * alert per store per 24h) and posts a local notification.
+ * alert per store per 2 hours) and posts a local notification.
  */
 class GeofenceReceiver : BroadcastReceiver() {
 

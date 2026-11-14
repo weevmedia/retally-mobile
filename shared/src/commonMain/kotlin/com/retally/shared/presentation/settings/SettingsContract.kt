@@ -15,11 +15,14 @@ import com.retally.shared.ui.web.inAppPageUrl
 import com.retally.shared.core.Effect
 import com.retally.shared.core.Platform
 import com.retally.shared.domain.recalls.RecallsRepository
+import com.retally.shared.domain.config.AppConfigRepository
+import com.retally.shared.domain.config.AppLinks
 import com.retally.shared.domain.shopping.ShoppingListRepository
 import com.retally.shared.domain.auth.Account
 import com.retally.shared.domain.auth.AuthRepository
 import com.retally.shared.domain.cloud.CloudSyncResult
 import com.retally.shared.domain.cloud.CloudSyncService
+import com.retally.shared.domain.cloud.cloudErrorStringId
 import com.retally.shared.domain.favorites.FavoriteStore
 import com.retally.shared.domain.favorites.FavoriteStoresRepository
 import com.retally.shared.domain.location.StoreLocationRepository
@@ -49,6 +52,8 @@ interface SettingsContract {
         val appVersion: String = "",
         val cloudConfigured: Boolean = false,
         val unsyncedCount: Int = 0,
+        /** Receipts on this device; Delete all data and Back up now need at least one. */
+        val receiptCount: Int = 0,
         val syncStatus: SyncStatus = SyncStatus.IDLE,
         val syncMessage: String? = null,
         val lastSyncedAt: Instant? = null,
@@ -56,6 +61,11 @@ interface SettingsContract {
         val nearbyNotificationsEnabled: Boolean = false,
         /** The store-alerts explanation (same copy as onboarding) shown before the permission prompts. */
         val showNearbyDisclosure: Boolean = false,
+        /**
+         * The phone will not show the permission prompts again (answered before, or Always
+         * declined), so the only way on is the system Settings app: this dialog says so.
+         */
+        val showNearbySettingsPrompt: Boolean = false,
         val account: Account = Account.Guest,
         val favoriteStores: List<FavoriteStore> = emptyList(),
         /** Remove mode for the favorite-store circles (tap × to remove). */
@@ -77,6 +87,8 @@ interface SettingsContract {
         val showDeleteAccountConfirm: Boolean = false,
         /** Non-null while the "Edit name" page is open (Edit on the profile card). */
         val nameEdit: NameEdit? = null,
+        /** More › Food recalls is shown (admin console kill switch). */
+        val recallsEnabled: Boolean = true,
     ) : com.retally.shared.core.State
 
     /** Draft for the "Edit name" page. */
@@ -95,6 +107,9 @@ interface SettingsContract {
         data object NearbyDisclosureDismissed : Action()
         /** Host finished the location+notification permission prompts. */
         data class NearbyPermissionsResult(val granted: Boolean) : Action()
+        /** "Open Settings" on the can't-turn-on dialog. */
+        data object NearbyOpenSettingsClicked : Action()
+        data object NearbySettingsPromptDismissed : Action()
         data object SyncNowClicked : Action()
         /** DEBUG-ONLY: crash on purpose to check Crashlytics end to end. */
         data object CrashTestClicked : Action()
@@ -148,6 +163,11 @@ interface SettingsContract {
         /** Host must run the location + notification permission prompts, then dispatch [Action.NearbyPermissionsResult]. */
         data object RequestNearbyPermissions : SideEffect()
         /**
+         * Host: open this app's page in the system Settings. When the user comes back, the host
+         * re-checks and dispatches [Action.NearbyPermissionsResult] (true) if everything is now on.
+         */
+        data object OpenAppSettings : SideEffect()
+        /**
          * The nearby store set changed (toggle, or the known-stores directory was
          * wiped) — the host should re-sync geofence monitoring.
          */
@@ -174,7 +194,8 @@ interface SettingsContract {
         private val shoppingLists: ShoppingListRepository? = null,
         /** Home nudges describe the account's purchases too. */
         private val nudges: NudgeRepository? = null,
-        private val links: LegalLinks = LegalLinks(),
+        /** Server-driven links and feature switches (admin console); null = built-in defaults. */
+        private val appConfig: AppConfigRepository? = null,
         private val strings: StringResolver = EnglishStringResolver,
         /** For the debug "Send test crash" (lets a debug build upload that one crash). */
         private val settings: Settings? = null,
@@ -188,9 +209,18 @@ interface SettingsContract {
             cloudConfigured = cloudSync.isConfigured,
             lastSyncedAt = preferences.current.lastSyncedAt,
             nearbyNotificationsEnabled = nearbyStores.isEnabled,
+            recallsEnabled = appConfig?.config?.value?.features?.recalls ?: true,
         )
 
+        private val links: AppLinks get() = appConfig?.config?.value?.links ?: AppLinks()
+
         init {
+            appConfig?.let { repo ->
+                repo.config
+                    .onEach { cfg -> updateStateSafely { it.copy(recallsEnabled = cfg.features.recalls) } }
+                    .launchIn(this)
+                launch { repo.refresh() }
+            }
             combine(
                 preferences.observe(),
                 receipts.observeReceipts(),
@@ -203,13 +233,15 @@ interface SettingsContract {
                 val known = list.mapNotNull { it.storeName.trim().takeIf(String::isNotEmpty) }
                     .distinctBy { FavoriteStoresRepository.keyOf(it) }
                     .sortedBy { it.lowercase() }
-                Tuple4(prefs, list.count { it.syncedAt == null }, account, favs to known)
-            }.onEach { (prefs, unsynced, account, favsAndKnown) ->
+                Tuple4(prefs, list.count { it.syncedAt == null } to list.size, account, favs to known)
+            }.onEach { (prefs, counts, account, favsAndKnown) ->
+                val (unsynced, total) = counts
                 val (favs, known) = favsAndKnown
                 updateStateSafely {
                     it.copy(
                         preferences = prefs,
                         unsyncedCount = unsynced,
+                        receiptCount = total,
                         lastSyncedAt = prefs.lastSyncedAt,
                         account = account,
                         favoriteStores = favs,
@@ -239,16 +271,22 @@ interface SettingsContract {
                 Action.NearbyDisclosureDismissed ->
                     currentState = currentState.copy(showNearbyDisclosure = false)
                 is Action.NearbyPermissionsResult -> onNearbyPermissionsResult(action.granted)
+                Action.NearbyOpenSettingsClicked -> {
+                    currentState = currentState.copy(showNearbySettingsPrompt = false)
+                    sideEffect(SideEffect.OpenAppSettings)
+                }
+                Action.NearbySettingsPromptDismissed ->
+                    currentState = currentState.copy(showNearbySettingsPrompt = false)
                 Action.SyncNowClicked -> syncNow()
                 Action.CrashTestClicked -> settings?.let { CrashReporting.crashForTest(it) }
-                Action.DeleteAllRequested -> currentState = currentState.copy(showDeleteAllConfirmation = true)
+                Action.DeleteAllRequested -> if (currentState.receiptCount > 0) currentState = currentState.copy(showDeleteAllConfirmation = true)
                 Action.DeleteAllCancelled -> currentState = currentState.copy(showDeleteAllConfirmation = false)
                 Action.DeleteAllConfirmed -> deleteAll()
                 // Our own pages open in the app (no browser, no address bar).
                 Action.PrivacyPolicyClicked -> openWebPage(StringAssetIdentifiers.SETTINGS_PRIVACY, links.privacyPolicy)
                 Action.TermsClicked -> openWebPage(StringAssetIdentifiers.SETTINGS_TERMS, links.terms)
                 Action.SupportClicked -> openWebPage(StringAssetIdentifiers.SETTINGS_HELP, links.support)
-                Action.RecallsClicked -> sideEffect(SideEffect.OpenRecalls)
+                Action.RecallsClicked -> if (currentState.recallsEnabled) sideEffect(SideEffect.OpenRecalls)
                 Action.DismissSyncMessage -> currentState = currentState.copy(
                     syncMessage = null,
                     syncStatus = SyncStatus.IDLE,
@@ -436,7 +474,11 @@ interface SettingsContract {
                     }
                     is CloudSyncResult.Failure -> currentState = currentState.copy(
                         syncStatus = SyncStatus.FAILURE,
-                        syncMessage = result.message,
+                        syncMessage = strings.getString(
+                            StringAssetIdentifiers.HOME_MSG_BACKUP_FAILED,
+                            pending.size,
+                            strings.getString(cloudErrorStringId(result.message)),
+                        ),
                     )
                 }
             }
@@ -473,24 +515,11 @@ interface SettingsContract {
 
         private fun onNearbyPermissionsResult(granted: Boolean) {
             nearbyStores.setEnabled(granted)
-            currentState = currentState.copy(nearbyNotificationsEnabled = granted)
-            if (granted) {
-                sideEffect(SideEffect.NearbyMonitoringChanged)
-            } else {
-                sideEffect(SideEffect.ShowMessage(strings.getString(StringAssetIdentifiers.SETTINGS_MSG_NEARBY_DENIED)))
-            }
+            currentState = currentState.copy(nearbyNotificationsEnabled = granted, showNearbySettingsPrompt = !granted)
+            if (granted) sideEffect(SideEffect.NearbyMonitoringChanged)
         }
 
         /** Tiny tuple — keeps the 4-flow combine readable without a nested data class. */
         private data class Tuple4<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
     }
 }
-
-/** Store-listing URLs. Replace with your hosted pages before submission. */
-data class LegalLinks(
-    // Firebase Hosting (retally-backend/firestore/hosting). Swap to a custom domain here once
-    // one is connected in Firebase → Hosting.
-    val privacyPolicy: String = "https://retally-c5212.web.app/privacy",
-    val terms: String = "https://retally-c5212.web.app/terms",
-    val support: String = "https://retally-c5212.web.app/support",
-)

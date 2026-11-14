@@ -14,6 +14,8 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.compose.runtime.Composable
 import com.retally.app.ui.base.BaseComposeFragment
+import com.retally.shared.core.strings.MessageTone
+import com.retally.shared.core.strings.StringResolver
 import com.retally.shared.presentation.auth.AuthContract.Action
 import com.retally.shared.presentation.auth.AuthContract.SideEffect
 import com.retally.shared.presentation.auth.AuthContract.SideEffect.NavigateBack
@@ -31,6 +33,7 @@ class AuthFragment : BaseComposeFragment<State, Action, SideEffect, AuthViewMode
     override val viewModel: AuthViewModel by viewModel()
     private val args: AuthFragmentArgs by navArgs()
     private val storeAlertsPrompt: StoreAlertsPrompt by inject()
+    private val strings: StringResolver by inject()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -40,7 +43,7 @@ class AuthFragment : BaseComposeFragment<State, Action, SideEffect, AuthViewMode
 
     @Composable
     override fun ScreenContent(state: State) {
-        AuthScreen(state = state, dispatch = ::dispatchViewAction)
+        AuthScreen(state = state, dispatch = ::dispatchViewAction, snackbarHostState = snackbarHostState)
     }
 
     override suspend fun onViewEffect(effect: SideEffect) {
@@ -58,7 +61,14 @@ class AuthFragment : BaseComposeFragment<State, Action, SideEffect, AuthViewMode
                 // Safe Args; auth stays on the stack so Back returns to fix the email.
                 navigate(AuthFragmentDirections.actionAuthToOtp(effect.email, effect.displayName, effect.isNewUser, effect.firstName, effect.codeAlreadySent))
             }
-            is ShowMessage -> {
+            is ShowMessage -> if (MessageTone.isError(effect.message, strings)) {
+                // Errors stay on this screen: a snackbar, lifted above the keyboard, with the red
+                // cross (a Toast could sit behind the keyboard). Own coroutine: showSnackbar
+                // suspends until dismissed.
+                viewLifecycleOwner.lifecycleScope.launch { snackbarHostState.showSnackbar(effect.message) }
+            } else {
+                // Confirmations ("Welcome back") come right before the move to Home; a Toast
+                // outlives this screen, a snackbar would vanish with it.
                 Toast.makeText(requireContext(), effect.message, Toast.LENGTH_SHORT).show()
             }
             is SideEffect.OpenWebPage -> findNavController().navigate(

@@ -4,6 +4,7 @@
 
 package com.retally.app.ui.auth
 
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import com.retally.shared.presentation.auth.OtpContract
 import com.retally.shared.ui.auth.OtpScreen as SharedOtpScreen
@@ -16,6 +17,7 @@ import com.retally.shared.ui.auth.OtpScreen as SharedOtpScreen
 fun OtpScreen(
     state: OtpContract.State,
     dispatch: (OtpContract.Action) -> Unit,
+    snackbarHostState: SnackbarHostState,
 ) {
-    SharedOtpScreen(state = state, dispatch = dispatch)
+    SharedOtpScreen(state = state, dispatch = dispatch, snackbarHostState = snackbarHostState)
 }

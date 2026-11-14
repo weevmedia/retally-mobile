@@ -7,6 +7,7 @@ package com.retally.shared.ui.auth
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import com.retally.shared.ui.components.CircleIconButton
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -77,6 +78,7 @@ fun OtpScreen(
 ) {
     val colors = ReTallyTheme.colors
     val codeFocus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
 
     // Pop the keyboard as soon as the screen appears.
     LaunchedEffect(Unit) { codeFocus.requestFocus() }
@@ -148,7 +150,12 @@ fun OtpScreen(
             OtpBoxes(
                 code = state.code,
                 hasError = state.showError,
-                onTap = { codeFocus.requestFocus() },
+                // Dismissing the keyboard leaves the hidden field focused, so requestFocus() alone
+                // is a no-op on the next tap — reopen the keyboard explicitly.
+                onTap = {
+                    codeFocus.requestFocus()
+                    keyboard?.show()
+                },
             )
 
             if (state.showError) {
@@ -213,7 +220,8 @@ fun OtpScreen(
 
     if (snackbarHostState != null) {
         Scaffold(
-            snackbarHost = { ReTallySnackbarHost(snackbarHostState) },
+            // Above the nav bar and the keyboard (which is up for the whole code entry).
+            snackbarHost = { ReTallySnackbarHost(snackbarHostState, Modifier.navigationBarsPadding().imePadding()) },
             containerColor = colors.surface,
             // The page pads for the status/navigation bars itself; letting the Scaffold add them
             // too pushed everything (the back button included) a status-bar height too low.

@@ -4,6 +4,13 @@
 
 package com.retally.shared.ui.settings
 
+import androidx.compose.material.icons.rounded.Cancel
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.ui.graphics.graphicsLayer
 import com.retally.shared.ui.components.InFeedSquareAd
 import com.retally.shared.ui.components.CircleIconButton
 import com.retally.shared.ui.components.circleLogo
@@ -212,6 +219,24 @@ fun SettingsScreen(
         )
     }
 
+    if (state.showNearbySettingsPrompt) {
+        AlertDialog(
+            onDismissRequest = { dispatch(SettingsContract.Action.NearbySettingsPromptDismissed) },
+            title = { Text(str(S.SETTINGS_NEARBY_SETTINGS_TITLE), fontWeight = FontWeight.ExtraBold) },
+            text = { Text(str(S.SETTINGS_MSG_NEARBY_DENIED)) },
+            confirmButton = {
+                TextButton(onClick = { dispatch(SettingsContract.Action.NearbyOpenSettingsClicked) }) {
+                    Text(str(S.SETTINGS_NEARBY_OPEN_SETTINGS), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { dispatch(SettingsContract.Action.NearbySettingsPromptDismissed) }) {
+                    Text(str(S.UPDATE_LATER))
+                }
+            },
+        )
+    }
+
     if (state.showDeleteAllConfirmation) {
         AlertDialog(
             onDismissRequest = { dispatch(SettingsContract.Action.DeleteAllCancelled) },
@@ -374,15 +399,17 @@ private fun MoreContent(
             }
         }
 
-        SectionHeader(str(S.MORE_SECTION_SAFETY), modifier = Modifier.padding(top = d.sm))
-        SurfaceCard {
-            Column {
-                MenuRow(
-                    icon = Icons.Rounded.HealthAndSafety,
-                    title = str(S.MORE_RECALLS),
-                    subtitle = str(S.MORE_RECALLS_SUB),
-                    onClick = { dispatch(SettingsContract.Action.RecallsClicked) },
-                )
+        if (state.recallsEnabled) {
+            SectionHeader(str(S.MORE_SECTION_SAFETY), modifier = Modifier.padding(top = d.sm))
+            SurfaceCard {
+                Column {
+                    MenuRow(
+                        icon = Icons.Rounded.HealthAndSafety,
+                        title = str(S.MORE_RECALLS),
+                        subtitle = str(S.MORE_RECALLS_SUB),
+                        onClick = { dispatch(SettingsContract.Action.RecallsClicked) },
+                    )
+                }
             }
         }
 
@@ -460,6 +487,8 @@ private fun MoreContent(
                     title = str(S.SETTINGS_DELETE_ALL),
                     destructive = true,
                     showChevron = false,
+                    // Nothing to delete until there is at least one receipt.
+                    enabled = state.receiptCount > 0,
                     onClick = { dispatch(SettingsContract.Action.DeleteAllRequested) },
                 )
             }
@@ -525,9 +554,14 @@ private fun AccountScreen(
 ) {
     val d = ReTallyTheme.dimensions
     val account = state.account
-    val name = account.displayName?.takeIf { it.isNotBlank() } ?: str(S.HOME_GUEST_NAME)
+    // Signed in without a name (Apple shares it only on the first sign-in): invite them to add
+    // one instead of calling them a guest.
+    val name = account.displayName?.takeIf { it.isNotBlank() }
+        ?: if (account.isGuest) str(S.HOME_GUEST_NAME) else str(S.MORE_ADD_YOUR_NAME)
     val sub = account.email ?: str(S.MORE_ACCOUNT_GUEST_SUB)
     val initial = account.firstName?.firstOrNull()?.uppercaseChar()?.toString()
+        ?: account.displayName?.firstOrNull()?.uppercaseChar()?.toString()
+        ?: account.email?.firstOrNull()?.uppercaseChar()?.toString()
         ?: name.firstOrNull()?.uppercaseChar()?.toString()
         ?: "G"
     Scaffold(
@@ -631,9 +665,14 @@ private fun ProfileCard(
     dispatch: (SettingsContract.Action) -> Unit,
 ) {
     val d = ReTallyTheme.dimensions
-    val name = account.displayName?.takeIf { it.isNotBlank() } ?: str(S.HOME_GUEST_NAME)
+    // Signed in without a name (Apple shares it only on the first sign-in): invite them to add
+    // one instead of calling them a guest.
+    val name = account.displayName?.takeIf { it.isNotBlank() }
+        ?: if (account.isGuest) str(S.HOME_GUEST_NAME) else str(S.MORE_ADD_YOUR_NAME)
     val sub = account.email ?: str(S.MORE_ACCOUNT_GUEST_SUB)
     val initial = account.firstName?.firstOrNull()?.uppercaseChar()?.toString()
+        ?: account.displayName?.firstOrNull()?.uppercaseChar()?.toString()
+        ?: account.email?.firstOrNull()?.uppercaseChar()?.toString()
         ?: name.firstOrNull()?.uppercaseChar()?.toString()
         ?: "G"
     SurfaceCard {
@@ -878,23 +917,47 @@ private fun EditNameScreen(
     snackbarHostState: SnackbarHostState,
 ) {
     val d = ReTallyTheme.dimensions
+    val c = ReTallyTheme.colors
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(str(S.MORE_EDIT_NAME_TITLE), style = ReTallyTheme.typography.title, color = ReTallyTheme.colors.ink)
+                    Text(str(S.MORE_EDIT_NAME_TITLE), style = ReTallyTheme.typography.display, color = c.ink)
                 },
                 navigationIcon = {
                     CircleIconButton(onClick = { dispatch(SettingsContract.Action.NameEditDismissed) }) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBackIos,
                             contentDescription = str(S.ACTION_BACK),
-                            tint = ReTallyTheme.colors.ink,
+                            tint = c.ink,
+                            // The iOS chevron's glyph sits left in its box; nudge it to the optical
+                            // centre, same as the other back buttons.
+                            modifier = Modifier.padding(start = 6.dp).size(20.dp),
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
+        },
+        // Save pinned to the bottom like the app's other single-action screens; it rides up
+        // with the keyboard so it is always reachable.
+        bottomBar = {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.background)
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(horizontal = d.lg, vertical = d.md),
+            ) {
+                PrimaryButton(
+                    text = str(S.MORE_NAME_SAVE),
+                    icon = Icons.Rounded.Check,
+                    onClick = { dispatch(SettingsContract.Action.NameSaveClicked) },
+                    enabled = edit.canSave,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         },
         snackbarHost = { ReTallySnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background,
@@ -903,37 +966,120 @@ private fun EditNameScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = d.lg, vertical = d.md),
-            verticalArrangement = Arrangement.spacedBy(d.lg),
         ) {
-            Text(str(S.MORE_EDIT_NAME_HINT), style = ReTallyTheme.typography.secondaryBody, color = ReTallyTheme.colors.muted)
-            OutlinedTextField(
-                value = edit.firstName,
-                onValueChange = { dispatch(SettingsContract.Action.FirstNameChanged(it)) },
-                label = { Text(str(S.MORE_FIRST_NAME)) },
-                singleLine = true,
-                enabled = !edit.isSaving,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
-                modifier = Modifier.fillMaxWidth(),
+            // Initials avatar, updating as the name is typed.
+            NameAvatar(
+                initials = initialsOf(edit.firstName, edit.lastName),
+                modifier = Modifier.align(Alignment.CenterHorizontally),
             )
-            OutlinedTextField(
-                value = edit.lastName,
-                onValueChange = { dispatch(SettingsContract.Action.LastNameChanged(it)) },
-                label = { Text(str(S.MORE_LAST_NAME)) },
-                singleLine = true,
-                enabled = !edit.isSaving,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { dispatch(SettingsContract.Action.NameSaveClicked) }),
-                modifier = Modifier.fillMaxWidth(),
+            Spacer(Modifier.height(28.dp))
+            SectionHeader(str(S.MORE_NAME_SECTION))
+            Spacer(Modifier.height(8.dp))
+            // iOS-style grouped card: label above a large bold value, hairline between rows.
+            SurfaceCard {
+                Column {
+                    InlineNameField(
+                        label = str(S.MORE_FIRST_NAME),
+                        value = edit.firstName,
+                        onValueChange = { dispatch(SettingsContract.Action.FirstNameChanged(it)) },
+                        enabled = !edit.isSaving,
+                        imeAction = ImeAction.Next,
+                    )
+                    HorizontalDivider(
+                        Modifier.padding(start = d.lg, end = d.lg),
+                        color = c.muted.copy(alpha = 0.2f),
+                    )
+                    InlineNameField(
+                        label = str(S.MORE_LAST_NAME),
+                        value = edit.lastName,
+                        onValueChange = { dispatch(SettingsContract.Action.LastNameChanged(it)) },
+                        enabled = !edit.isSaving,
+                        imeAction = ImeAction.Done,
+                        onDone = { dispatch(SettingsContract.Action.NameSaveClicked) },
+                    )
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                str(S.MORE_EDIT_NAME_HINT),
+                fontSize = 15.sp,
+                lineHeight = 21.sp,
+                color = c.muted,
+                modifier = Modifier.padding(horizontal = d.xs),
             )
-            PrimaryButton(
-                text = str(S.MORE_NAME_SAVE),
-                icon = Icons.Rounded.Check,
-                onClick = { dispatch(SettingsContract.Action.NameSaveClicked) },
-                enabled = edit.canSave,
-                modifier = Modifier.fillMaxWidth(),
+        }
+    }
+}
+
+/** First letter of first and last name, e.g. "MJ"; "?" while both are empty. */
+private fun initialsOf(first: String, last: String): String =
+    listOf(first, last).mapNotNull { it.trim().firstOrNull()?.uppercaseChar() }.joinToString("").ifEmpty { "?" }
+
+@Composable
+private fun NameAvatar(initials: String, modifier: Modifier = Modifier) {
+    val c = ReTallyTheme.colors
+    Box(
+        modifier = modifier
+            .size(96.dp)
+            .clip(CircleShape)
+            .background(Brush.linearGradient(listOf(c.primary, c.primaryDark))),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(initials, fontSize = 36.sp, fontWeight = FontWeight.Bold, color = Color.White)
+    }
+}
+
+/**
+ * One row of the name card: a small grey label over the value in large bold type, with a
+ * clear (×) button while the field is focused and not empty — like the iOS contact editor.
+ */
+@Composable
+private fun InlineNameField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    enabled: Boolean,
+    imeAction: ImeAction,
+    onDone: () -> Unit = {},
+) {
+    val c = ReTallyTheme.colors
+    val d = ReTallyTheme.dimensions
+    var focused by remember { mutableStateOf(false) }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = d.lg, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(label, fontSize = 15.sp, color = c.muted)
+            Spacer(Modifier.height(2.dp))
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                enabled = enabled,
+                singleLine = true,
+                textStyle = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.Bold, color = c.ink),
+                cursorBrush = SolidColor(c.primary),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = imeAction),
+                keyboardActions = KeyboardActions(onDone = { onDone() }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { focused = it.isFocused },
+            )
+        }
+        if (focused && value.isNotEmpty()) {
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                Icons.Rounded.Cancel,
+                contentDescription = str(S.MORE_NAME_CLEAR),
+                tint = c.muted.copy(alpha = 0.6f),
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .clickable { onValueChange("") },
             )
         }
     }
@@ -1164,7 +1310,8 @@ private fun BackupStatusRow(
         } else {
             Button(
                 onClick = { dispatch(SettingsContract.Action.SyncNowClicked) },
-                enabled = state.preferences.cloudBackupEnabled,
+                // Nothing to back up until there is at least one receipt.
+                enabled = state.preferences.cloudBackupEnabled && state.receiptCount > 0,
             ) { Text(str(S.SETTINGS_BACK_UP_NOW)) }
         }
     }
@@ -1178,12 +1325,18 @@ private fun MenuRow(
     subtitle: String? = null,
     destructive: Boolean = false,
     showChevron: Boolean = true,
+    /** Off = greyed out and not tappable. */
+    enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
     val d = ReTallyTheme.dimensions
     val titleColor = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = d.lg, vertical = d.md),
+        Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onClick)
+            .graphicsLayer { alpha = if (enabled) 1f else 0.38f }
+            .padding(horizontal = d.lg, vertical = d.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         TileIcon(icon = icon, destructive = destructive)

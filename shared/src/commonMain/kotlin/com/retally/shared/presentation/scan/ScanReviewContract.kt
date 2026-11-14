@@ -4,6 +4,7 @@
 
 package com.retally.shared.presentation.scan
 
+import com.retally.shared.domain.preferences.AppPreferences
 import com.retally.shared.core.log.debugLog
 import com.retally.shared.core.crash.CrashReporting
 import com.retally.shared.domain.category.ItemCategoryClassifier
@@ -240,6 +241,11 @@ interface ScanReviewContract {
          * nearby-store geofences so the new store/address gets its fence now.
          */
         data object StoreLocationChanged : SideEffect()
+        /**
+         * A fresh scan came back with duplicate lines flagged and More › Haptics is on: the
+         * host plays a short warning vibration. Fired once per scan, never for edits.
+         */
+        data object DuplicatesFound : SideEffect()
     }
 
     class Store(
@@ -260,6 +266,8 @@ interface ScanReviewContract {
         private val locale: LocaleInfo = LocaleInfo.US,
         /** Who is signed in, for the cloud icon's tap; null in tests and previews (treated as guest). */
         private val auth: AuthRepository? = null,
+        /** More › Haptics; null in tests and previews (no vibration). */
+        private val preferences: AppPreferences? = null,
     ) : com.retally.shared.core.Store<State, Action, SideEffect>() {
 
         private var started = false
@@ -798,6 +806,10 @@ interface ScanReviewContract {
         }
 
         private fun persist(receipt: Receipt, announce: Boolean, storeChanged: Boolean = false) {
+            // A new scan is on screen: buzz once if it has duplicates (and haptics are on).
+            if (announce && receipt.duplicates.isNotEmpty() && preferences?.current?.hapticsEnabled == true) {
+                sideEffect(SideEffect.DuplicatesFound)
+            }
             launch {
                 runCatching { repository.upsert(receipt) }
                     .onSuccess {

@@ -7,8 +7,6 @@
     -->
     <style name="Theme.ReTally" parent="Theme.Material3.Light.NoActionBar">
         <item name="android:windowBackground">@color/brand_paper</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="colorPrimary">@color/brand_mint</item>
         <item name="colorPrimaryContainer">@color/brand_mint_container</item>

@@ -4,6 +4,7 @@
 
 package com.retally.app.ui.auth
 
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import com.retally.shared.presentation.auth.AuthContract
 import com.retally.shared.ui.auth.AuthScreen as SharedAuthScreen
@@ -16,6 +17,7 @@ import com.retally.shared.ui.auth.AuthScreen as SharedAuthScreen
 fun AuthScreen(
     state: AuthContract.State,
     dispatch: (AuthContract.Action) -> Unit,
+    snackbarHostState: SnackbarHostState,
 ) {
-    SharedAuthScreen(state = state, dispatch = dispatch)
+    SharedAuthScreen(state = state, dispatch = dispatch, snackbarHostState = snackbarHostState)
 }
