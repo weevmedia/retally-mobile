@@ -35,16 +35,19 @@ final class ScanReviewViewModel: ObservableObject {
                 saved = true
                 // A newly saved receipt may add a new store — rebuild geofences now
                 // instead of waiting for the next app launch.
-                NearbyStoreMonitor.shared.refresh()
+                NearbyStoreMonitor.shared.refresh(checkCurrentState: false)
             case is ScanReviewContractSideEffect.StoreLocationChanged:
                 // Store name/address edited — give the new address its fence now.
-                NearbyStoreMonitor.shared.refresh()
+                NearbyStoreMonitor.shared.refresh(checkCurrentState: false)
             case is ScanReviewContractSideEffect.Closed:
                 let fromScan: Bool
                 if case .scan = source { fromScan = true } else { fromScan = false }
                 onFinished(fromScan, saved)
             case let message as ScanReviewContractSideEffect.ShowMessage:
                 self?.screen.showMessage(message: message.message)
+            case is ScanReviewContractSideEffect.DuplicatesFound:
+                // Duplicates on a fresh scan (Haptics on in More): the system warning haptic.
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
             case is ScanReviewContractSideEffect.OpenSignIn:
                 // Guest tapped the cloud icon: the sign-in overlay, same route the More tab uses.
                 NotificationCenter.default.post(name: .retallyShowAuth, object: nil)

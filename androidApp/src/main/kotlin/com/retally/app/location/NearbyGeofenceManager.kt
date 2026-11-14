@@ -26,7 +26,7 @@ class NearbyGeofenceManager(private val context: Context) {
         LocationServices.getGeofencingClient(context.applicationContext)
     }
 
-    fun start(locations: List<StoreLocation>) {
+    fun start(locations: List<StoreLocation>, initialTrigger: Boolean = true) {
         if (locations.isEmpty()) {
             nearbyLog("android: no zones to register (no located stores)")
             stop()
@@ -41,8 +41,9 @@ class NearbyGeofenceManager(private val context: Context) {
                 .build()
         }
         val request = GeofencingRequest.Builder()
-            // Fire immediately if we're already inside a fence when registering.
-            .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER)
+            // Fire immediately if we're already inside a fence when registering — except right
+            // after a scan, where it only repeats where the user already is (0 = no initial trigger).
+            .setInitialTrigger(if (initialTrigger) GeofencingRequest.INITIAL_TRIGGER_ENTER else 0)
             .addGeofences(geofences)
             .build()
         try {

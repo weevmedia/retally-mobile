@@ -36,6 +36,11 @@ interface StoreAlertsContract {
          * and notifications were all granted. Anything less leaves alerts off.
          */
         data class PermissionsResult(val granted: Boolean) : Action()
+        /**
+         * The system prompt went away without an answer (e.g. the device slept while it was up).
+         * Nothing was decided: stop the spinner and stay here so the user can try again or skip.
+         */
+        data object PermissionsInterrupted : Action()
     }
 
     sealed class SideEffect : Effect {
@@ -70,6 +75,7 @@ interface StoreAlertsContract {
                     currentState = currentState.copy(isRequesting = false)
                     finish()
                 }
+                Action.PermissionsInterrupted -> currentState = currentState.copy(isRequesting = false)
             }
         }
 

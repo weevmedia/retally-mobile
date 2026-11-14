@@ -44,7 +44,11 @@ object NearbyStoreScheduler {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    fun refresh(context: Context) {
+    /**
+     * @param checkCurrentState alert if already inside a zone. Right for launch, boot and the
+     *   toggle; wrong after a scan — you are obviously at that store, so it alerted every scan.
+     */
+    fun refresh(context: Context, checkCurrentState: Boolean = true) {
         val appContext = context.applicationContext
         val repo: StoreLocationRepository = try {
             GlobalContext.get().get()
@@ -66,8 +70,8 @@ object NearbyStoreScheduler {
         scope.launch {
             repo.refreshLocations()
             val zones = repo.locations.value
-            NearbyGeofenceManager(appContext).start(zones)
-            NearbyAlerts.checkAlreadyInside(appContext, zones)
+            NearbyGeofenceManager(appContext).start(zones, initialTrigger = checkCurrentState)
+            if (checkCurrentState) NearbyAlerts.checkAlreadyInside(appContext, zones)
         }
     }
 
@@ -88,7 +92,8 @@ object NearbyStoreScheduler {
                 .debounce(STORES_CHANGED_DEBOUNCE_MS) // a restore lands many receipts at once
                 .collect {
                     nearbyLog("android: stores on receipts changed — refreshing zones")
-                    refresh(appContext)
+                    // Usually a fresh scan (or a restore): register, but don't alert for being there.
+                    refresh(appContext, checkCurrentState = false)
                 }
         }
     }

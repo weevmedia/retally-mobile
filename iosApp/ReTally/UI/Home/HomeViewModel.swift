@@ -41,6 +41,13 @@ final class HomeViewModel: ObservableObject {
             mainStore: IosDependencies.shared.getMainStore()
         )
 
+        // Notifications are asked here, once Home is on screen and the sign-in / Store Alerts
+        // steps (with their location prompts) are finished — so no prompt covers another.
+        // Only shows if never answered; a short delay lets Home draw first.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            NearbyStoreMonitor.shared.requestNotificationsIfNeeded()
+        }
+
         sideEffects = store.collectSideEffect { [weak self] effect in
             self?.handle(effect)
         }

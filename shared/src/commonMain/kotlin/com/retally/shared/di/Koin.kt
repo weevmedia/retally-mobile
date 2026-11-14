@@ -283,7 +283,7 @@ val storesModule = module {
             budgetReminders = getOrNull(), budgetReminderLog = get(), appUpdates = get(), platform = get(), appConfig = get(),
         )
     }
-    factory { ScanReviewContract.Store(repository = get(), backup = get(), favorites = get(), strings = get(), categories = get(), tornReceiptClient = get(), storeIcons = get(), itemClassifier = get(), locale = get(), auth = get()) }
+    factory { ScanReviewContract.Store(repository = get(), backup = get(), favorites = get(), strings = get(), categories = get(), tornReceiptClient = get(), storeIcons = get(), itemClassifier = get(), locale = get(), auth = get(), preferences = get()) }
     factory { DuplicatesContract.Store(repository = get(), strings = get()) }
     factory { ReceiptsContract.Store(repository = get(), strings = get(), storeIcons = get()) }
     factory { BudgetContract.Store(budgets = get(), receipts = get(), categories = get(), strings = get()) }

@@ -23,10 +23,19 @@ final class StoreAlertsViewModel: ObservableObject {
         sideEffects = store.collectSideEffect { [weak store] effect in
             switch effect {
             case is StoreAlertsContractSideEffect.RequestAlertPermissions:
-                // Location (Always) first, then notifications; the store turns alerts on only
-                // when the whole set was granted.
-                NearbyStoreMonitor.shared.requestPermissions { granted in
-                    store?.dispatch(action: StoreAlertsContractAction.PermissionsResult(granted: granted))
+                // Location only (While Using, then Always). The page stays until both location
+                // prompts have a real answer; notifications are asked when Home loads.
+                NearbyStoreMonitor.shared.requestLocationPermission { outcome in
+                    switch outcome {
+                    case .always:
+                        store?.dispatch(action: StoreAlertsContractAction.PermissionsResult(granted: true))
+                    case .whenInUseOnly, .denied:
+                        store?.dispatch(action: StoreAlertsContractAction.PermissionsResult(granted: false))
+                    case .pending, .interrupted:
+                        // No answer yet (prompt still up, or it vanished): stop the spinner and
+                        // stay; a late "Always" still lands here and moves on.
+                        store?.dispatch(action: StoreAlertsContractAction.PermissionsInterrupted.shared)
+                    }
                 }
             case is StoreAlertsContractSideEffect.AlertsEnabled:
                 NearbyStoreMonitor.shared.refresh()

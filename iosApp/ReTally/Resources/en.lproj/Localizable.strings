@@ -62,6 +62,10 @@
 "home_greeting_evening" = "Good evening, %1$s";
 
 "home_guest_name" = "Guest";
+"home_greeting_morning_plain" = "Good morning";
+"home_greeting_afternoon_plain" = "Good afternoon";
+"home_greeting_evening_plain" = "Good evening";
+"more_add_your_name" = "Add your name";
 
 "home_guest_title" = "You are browsing as a guest";
 
@@ -359,6 +363,8 @@
 "more_edit" = "EDIT";
 "more_edit_name_title" = "Edit name";
 "more_edit_name_hint" = "This is the name ReTally greets you with.";
+"more_name_section" = "Name";
+"more_name_clear" = "Clear";
 "more_first_name" = "First name";
 "more_last_name" = "Last name";
 "more_name_save" = "Save";
@@ -456,7 +462,7 @@
 "onboarding_alerts_title" = "Know when you’re at the store";
 "onboarding_alerts_body" = "ReTally can remind you what you usually buy the moment you walk into a store you shop at.";
 "onboarding_alerts_disclosure" = "To do this, ReTally uses your location in the background to notice when you arrive at a store, even when the app is closed, and sends you a notification. Nothing is tracked between visits.";
-"onboarding_alerts_hint" = "When asked, choose “Always Allow” so alerts work while the app is closed.";
+"onboarding_alerts_hint" = "When asked, choose “Allow While Using App”, then “Change to Always Allow” so alerts work while the app is closed.";
 
 /********** Nearby store alerts **********/
 
@@ -466,8 +472,10 @@
 
 "settings_nearby_sub" = "Get a reminder when you're near a store you've shopped at";
 
-"settings_msg_nearby_denied" = "Location permission is needed for nearby-store reminders.";
+"settings_msg_nearby_denied" = "Store alerts need location set to “Always” and notifications on. You can change this in Settings › ReTally.";
 "settings_nearby_allow" = "Turn on";
+"settings_nearby_settings_title" = "Turn on in Settings";
+"settings_nearby_open_settings" = "Open Settings";
 
 "nearby_notify_title" = "You're near %1$s";
 
