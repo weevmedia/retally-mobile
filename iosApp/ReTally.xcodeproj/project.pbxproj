@@ -114,6 +114,7 @@
 		A1000001000000000000F041 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		A1000001000000000000F050 /* ReceiptsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiptsView.swift; sourceTree = "<group>"; };
 		A1000001000000000000F051 /* ReceiptsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiptsViewModel.swift; sourceTree = "<group>"; };
+		A1000001000000000000F0AA /* Version.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Version.xcconfig; sourceTree = "<group>"; };
 		A1000001000000000000F0E1 /* StoreAlertsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreAlertsView.swift; sourceTree = "<group>"; };
 		A1000001000000000000F0E2 /* StoreAlertsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreAlertsViewModel.swift; sourceTree = "<group>"; };
 		A1000001000000000000F0F2 /* AppCheckSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCheckSetup.swift; sourceTree = "<group>"; };
@@ -188,6 +189,7 @@
 				03D623EF3079F481002CEF58 /* Frameworks */,
 				A10000010000000000006003 /* Products */,
 				A1000001000000000000F005 /* ReTally.app */,
+				A1000001000000000000F0AA /* Version.xcconfig */,
 			);
 			sourceTree = "<group>";
 		};
@@ -679,7 +681,7 @@
 		};
 		A1000001000000000000C004 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = A1000001000000000000F005 /* ReTally.app */;
+			baseConfigurationReference = A1000001000000000000F0AA /* Version.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -687,7 +689,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = "";
 				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = YP6W57KKVP;
 				ENABLE_PREVIEWS = YES;
@@ -701,7 +703,6 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-framework",
@@ -720,15 +721,15 @@
 		};
 		A1000001000000000000C005 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = A1000001000000000000F005 /* ReTally.app */;
+			baseConfigurationReference = A1000001000000000000F0AA /* Version.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = ReTally/ReTally.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "ReTally/ReTally-Release.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = "";
 				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = YP6W57KKVP;
 				ENABLE_PREVIEWS = YES;
@@ -742,7 +743,6 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-framework",
@@ -752,7 +752,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.weevmedia.retally;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = retally_dev;
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = retally_appstore;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

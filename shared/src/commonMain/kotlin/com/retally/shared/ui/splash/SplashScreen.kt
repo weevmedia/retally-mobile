@@ -4,6 +4,8 @@
 
 package com.retally.shared.ui.splash
 
+import org.koin.mp.KoinPlatform
+import com.retally.shared.core.Platform
 import com.retally.shared.core.strings.StringAssetIdentifiers as S
 import com.retally.shared.core.strings.str
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -203,6 +205,30 @@ fun SplashScreen(
             trackColor = palette.progressTrack,
             strokeCap = StrokeCap.Round,
         )
+
+        // App version, very small, just under the progress bar.
+        val version = remember {
+            runCatching { KoinPlatform.getKoinOrNull()?.getOrNull<Platform>()?.appVersion }.getOrNull().orEmpty()
+        }
+        if (version.isNotBlank()) {
+            // The strip under the bar (same 36dp the bar sits above); the text starts 12dp
+            // below the bar's bottom edge.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .height(36.dp),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                Text(
+                    text = "v$version",
+                    fontSize = 10.sp,
+                    letterSpacing = 0.3.sp,
+                    color = Color.White,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            }
+        }
     }
 }
 
