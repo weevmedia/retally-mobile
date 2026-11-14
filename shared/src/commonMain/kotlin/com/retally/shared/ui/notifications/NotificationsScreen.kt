@@ -21,7 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.NotificationsNone
+import com.retally.shared.ui.components.BellIcon
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.LocationOn
@@ -113,7 +113,7 @@ fun NotificationsScreen(
             ) {
                 // A large bare bell, no tinted disc behind it.
                 EmptyState(
-                    icon = Icons.Outlined.NotificationsNone,
+                    icon = BellIcon,
                     title = str(S.NOTIFICATIONS_EMPTY_TITLE),
                     body = str(S.NOTIFICATIONS_EMPTY_BODY),
                     iconSize = EMPTY_BELL_SIZE,
