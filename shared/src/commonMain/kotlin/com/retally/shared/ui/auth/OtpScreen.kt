@@ -4,6 +4,9 @@
 
 package com.retally.shared.ui.auth
 
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.autofill.ContentType
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.offset
@@ -80,8 +83,14 @@ fun OtpScreen(
     val codeFocus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
 
-    // Pop the keyboard as soon as the screen appears.
-    LaunchedEffect(Unit) { codeFocus.requestFocus() }
+    // Pop the keyboard as soon as the screen appears. On iOS, focusing during the push
+    // animation highlights the field but the keyboard never shows (the view is not yet the
+    // first responder), so wait for the transition, then focus AND explicitly show it.
+    LaunchedEffect(Unit) {
+        delay(KEYBOARD_OPEN_DELAY_MS)
+        codeFocus.requestFocus()
+        keyboard?.show()
+    }
 
     @Composable
     fun Content() {
@@ -137,7 +146,9 @@ fun OtpScreen(
             BasicTextField(
                 value = state.code,
                 onValueChange = { dispatch(OtpContract.Action.CodeChanged(it)) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Done),
+                // Number, not NumberPassword: a password field turns off iOS's suggestion bar, which
+                // is where "From Mail / From Messages" offers the code.
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                 // Retry path after a network failure: keyboard "Done" re-submits the same code.
                 keyboardActions = KeyboardActions(onDone = { dispatch(OtpContract.Action.VerifyClicked) }),
                 singleLine = true,
@@ -145,6 +156,9 @@ fun OtpScreen(
                 modifier = Modifier
                     .size(1.dp)
                     .alpha(0f)
+                    // One-time-code field: iOS (textContentType .oneTimeCode) and Android autofill
+                    // then offer the code from Mail / Messages above the keyboard.
+                    .semantics { contentType = ContentType.SmsOtpCode }
                     .focusRequester(codeFocus),
             )
             OtpBoxes(
@@ -297,3 +311,6 @@ private fun OtpBoxes(
         }
     }
 }
+
+/** Lets the screen's push transition finish before raising the keyboard. */
+private const val KEYBOARD_OPEN_DELAY_MS = 350L
