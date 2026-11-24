@@ -439,17 +439,18 @@ private fun MoreContent(
                     checked = state.preferences.hapticsEnabled,
                     onChange = { dispatch(SettingsContract.Action.SetHapticsEnabled(it)) },
                 )
-                if (showDebugActions) {
-                    // Debug builds only: crash on purpose; reopen the app and the report shows
-                    // in Firebase → Crashlytics within a few minutes.
-                    HorizontalDivider(Modifier.padding(horizontal = d.lg))
-                    MenuRow(
-                        icon = Icons.Rounded.Refresh,
-                        title = "Send test crash (debug)",
-                        showChevron = false,
-                        onClick = { dispatch(SettingsContract.Action.CrashTestClicked) },
-                    )
-                }
+                // "Send test crash (debug)" — disabled: it showed in store screenshots. To verify
+                // Crashlytics again, uncomment in a debug build; reopen the app after the crash
+                // and the report shows in Firebase → Crashlytics within a few minutes.
+                // if (showDebugActions) {
+                //     HorizontalDivider(Modifier.padding(horizontal = d.lg))
+                //     MenuRow(
+                //         icon = Icons.Rounded.Refresh,
+                //         title = "Send test crash (debug)",
+                //         showChevron = false,
+                //         onClick = { dispatch(SettingsContract.Action.CrashTestClicked) },
+                //     )
+                // }
                 HorizontalDivider(Modifier.padding(horizontal = d.lg))
                 MenuRow(
                     icon = Icons.AutoMirrored.Rounded.HelpOutline,
